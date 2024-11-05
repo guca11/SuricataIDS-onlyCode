@@ -1,0 +1,6 @@
+alert pkthdr any any -> any any (msg:"SURICATA UDP packet too small"; decode-event:udp.pkt_too_small; classtype:protocol-command-decode; sid:2200038; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA UDP header length too small"; decode-event:udp.hlen_too_small; classtype:protocol-command-decode; sid:2200039; rev:2;)
+# 2200040 "udp.hlen_invalid" has been retired.
+alert pkthdr any any -> any any (msg:"SURICATA UDP invalid length field in the header"; decode-event:udp.len_invalid; classtype:protocol-command-decode; sid:2200120; rev:2;)
+alert udp any any -> any any (msg:"SURICATA UDPv4 invalid checksum"; udpv4-csum:invalid; classtype:protocol-command-decode; sid:2200075; rev:2;)
+alert udp any any -> any any (msg:"SURICATA UDPv6 invalid checksum"; udpv6-csum:invalid; classtype:protocol-command-decode; sid:2200078; rev:2;)

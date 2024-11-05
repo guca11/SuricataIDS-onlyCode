@@ -1,0 +1,94 @@
+[package]
+name = "suricata"
+version = "@PACKAGE_VERSION@"
+license = "GPL-2.0-only"
+description = "Suricata Rust components"
+edition = "2021"
+rust-version = "1.67.1"
+
+[workspace]
+members = [".", "./derive"]
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+name = "suricata"
+
+[profile.release]
+debug = true
+
+[features]
+strict = []
+debug = []
+debug-validate = []
+ja3 = []
+ja4 = []
+bittorrent_dht = []
+dhcp = []
+dns = []
+ftp = []
+http2 = []
+krb = []
+ldap = []
+smtp = []
+mqtt = []
+ntp = []
+rdp = []
+smb = []
+snmp = []
+ssh = []
+telnet = []
+websocket = []
+
+[dependencies]
+nom7 = { version="7.0", package="nom" }
+bitflags = "~1.2.1"
+byteorder = "~1.4.2"
+uuid = "~0.8.2"
+crc = "~1.8.1"
+lzma-rs = { version = "~0.2.0", features = ["stream"] }
+memchr = "~2.4.1"
+num = "~0.2.1"
+num-derive = "~0.2.5"
+num-traits = "~0.2.14"
+widestring = "~0.4.3"
+flate2 = "~1.0.19"
+brotli = "~3.4.0"
+hkdf = "~0.12.3"
+aes = "~0.7.5"
+aes-gcm = "~0.9.4"
+
+der-parser = { version = "~9.0.0", default-features = false }
+kerberos-parser = { version = "~0.8.0", default-features = false }
+
+sawp-modbus = "~0.12.1"
+sawp = "~0.12.1"
+ntp-parser = "~0.6.0"
+ipsec-parser = "~0.7.0"
+snmp-parser = "~0.10.0"
+tls-parser = "~0.11.0"
+x509-parser = "~0.16.0"
+libc = "~0.2.82"
+sha2 = "~0.10.2"
+digest = "~0.10.3"
+sha1 = "~0.10.5"
+md-5 = "~0.10.1"
+regex = "~1.5.5"
+lazy_static = "~1.4.0"
+base64 = "~0.22.1"
+bendy = { version = "~0.3.3", default-features = false }
+asn1-rs = { version = "~0.6.1" }
+ldap-parser = { version = "~0.4.0" }
+
+time = "~0.3.36"
+
+# pinned until oss-fuzz supports newer rust nightly cf https://github.com/google/oss-fuzz/pull/12365
+serde = { version = "=1.0.197" }
+serde_derive = { version = "1.0.197" }
+
+suricata-derive = { path = "./derive", version = "@PACKAGE_VERSION@" }
+
+suricata-lua-sys = { version = "0.1.0-alpha.1" }
+
+[dev-dependencies]
+test-case = "~3.3.1"
+hex = "~0.4.3"

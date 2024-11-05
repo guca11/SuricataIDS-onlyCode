@@ -1,0 +1,3 @@
+alert pkthdr any any -> any any (msg:"SURICATA PPPOE packet too small"; decode-event:pppoe.pkt_too_small; classtype:protocol-command-decode; sid:2200049; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA PPPOE wrong code"; decode-event:pppoe.wrong_code; classtype:protocol-command-decode; sid:2200050; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA PPPOE malformed tags"; decode-event:pppoe.malformed_tags; classtype:protocol-command-decode; sid:2200051; rev:2;)
