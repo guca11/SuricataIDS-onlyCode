@@ -1,0 +1,779 @@
+/* Copyright (C) 2007-2017 Open Information Security Foundation
+ *
+ * You can copy, redistribute or modify this Program under the terms of
+ * the GNU General Public License version 2 as published by the Free
+ * Software Foundation.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * version 2 along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA
+ * 02110-1301, USA.
+ */
+
+/**
+ * \file
+ *
+ * \author Victor Julien <victor@inliniac.net>
+ */
+
+
+#include "suricata-common.h"
+#include "suricata.h"
+#include "detect.h"
+#include "flow.h"
+#include "flow-private.h"
+#include "flow-bit.h"
+
+#include "detect-parse.h"
+#include "detect-engine.h"
+#include "detect-engine-profile.h"
+
+#include "detect-engine-alert.h"
+#include "detect-engine-siggroup.h"
+#include "detect-engine-address.h"
+#include "detect-engine-proto.h"
+#include "detect-engine-port.h"
+#include "detect-engine-mpm.h"
+#include "detect-engine-iponly.h"
+#include "detect-engine-threshold.h"
+#include "detect-engine-prefilter.h"
+
+#include "rust.h"
+
+#include "detect-engine-payload.h"
+//#include "detect-engine-dcepayload.h"
+#if ENABLE_DNS
+#include "detect-dns-opcode.h"
+#include "detect-dns-rcode.h"
+#include "detect-dns-rrtype.h"
+#include "detect-dns-query.h"
+#include "detect-dns-answer-name.h"
+#include "detect-dns-query-name.h"
+#endif
+#if ENABLE_TLS
+#include "detect-tls-sni.h"
+#include "detect-tls-certs.h"
+#include "detect-tls-cert-fingerprint.h"
+#include "detect-tls-cert-issuer.h"
+#include "detect-tls-cert-subject.h"
+#include "detect-tls-cert-serial.h"
+#include "detect-tls-alpn.h"
+#include "detect-tls-subjectaltname.h"
+#include "detect-tls-random.h"
+#include "detect-tls-ja3-hash.h"
+#include "detect-tls-ja3-string.h"
+#include "detect-tls-ja3s-hash.h"
+#include "detect-tls-ja3s-string.h"
+#endif
+#include "detect-engine-state.h"
+#include "detect-engine-analyzer.h"
+
+#include "detect-http-cookie.h"
+#include "detect-http-method.h"
+#include "detect-http-ua.h"
+#include "detect-http-host.h"
+
+#include "detect-mark.h"
+//#include "detect-nfs-procedure.h"
+//#include "detect-nfs-version.h"
+
+#include "detect-engine-event.h"
+#include "decode.h"
+
+#include "detect-config.h"
+#if ENABLE_SMB
+#include "detect-smb-ntlmssp.h"
+#include "detect-smb-share.h"
+#include "detect-smb-version.h"
+#endif
+#include "detect-base64-decode.h"
+#include "detect-base64-data.h"
+#include "detect-ipaddr.h"
+#include "detect-ipopts.h"
+#include "detect-tcp-flags.h"
+#include "detect-fragbits.h"
+#include "detect-fragoffset.h"
+#include "detect-gid.h"
+#include "detect-tcp-ack.h"
+#include "detect-tcp-seq.h"
+#include "detect-content.h"
+#include "detect-uricontent.h"
+#include "detect-pcre.h"
+#include "detect-depth.h"
+#include "detect-nocase.h"
+#include "detect-rawbytes.h"
+#include "detect-bytetest.h"
+#include "detect-bytemath.h"
+#include "detect-bytejump.h"
+#include "detect-sameip.h"
+#include "detect-l3proto.h"
+#include "detect-ipproto.h"
+#include "detect-within.h"
+#include "detect-distance.h"
+#include "detect-offset.h"
+#include "detect-sid.h"
+#include "detect-prefilter.h"
+#include "detect-priority.h"
+#include "detect-classtype.h"
+#include "detect-reference.h"
+#include "detect-tag.h"
+#include "detect-threshold.h"
+#include "detect-metadata.h"
+#include "detect-msg.h"
+#include "detect-rev.h"
+#include "detect-flow.h"
+#include "detect-flow-age.h"
+#include "detect-flow-pkts.h"
+#include "detect-requires.h"
+#include "detect-tcp-window.h"
+#if ENABLE_FTP
+#include "detect-ftpbounce.h"
+#include "detect-ftpdata.h"
+#endif
+#include "detect-isdataat.h"
+#include "detect-id.h"
+#include "detect-rpc.h"
+#include "detect-asn1.h"
+#include "detect-filename.h"
+#include "detect-filestore.h"
+#include "detect-filemagic.h"
+#include "detect-filemd5.h"
+#include "detect-filesha1.h"
+#include "detect-filesha256.h"
+#include "detect-filesize.h"
+#include "detect-dataset.h"
+#include "detect-datarep.h"
+#include "detect-dsize.h"
+#include "detect-flowvar.h"
+#include "detect-flowint.h"
+#include "detect-pktvar.h"
+#include "detect-noalert.h"
+#include "detect-flowbits.h"
+#include "detect-hostbits.h"
+#include "detect-xbits.h"
+#include "detect-csum.h"
+#include "detect-stream_size.h"
+#include "detect-engine-sigorder.h"
+#include "detect-ttl.h"
+#include "detect-fast-pattern.h"
+#include "detect-itype.h"
+#include "detect-icode.h"
+#include "detect-icmp-id.h"
+#include "detect-icmp-seq.h"
+#include "detect-icmpv4hdr.h"
+/*#include "detect-dce-iface.h"
+#include "detect-dce-opnum.h"
+#include "detect-dce-stub-data.h"*/
+#include "detect-urilen.h"
+#include "detect-bsize.h"
+#include "detect-detection-filter.h"
+#include "detect-http-client-body.h"
+#include "detect-http-server-body.h"
+#include "detect-http-header.h"
+#include "detect-http-header-names.h"
+#include "detect-http-headers.h"
+#include "detect-http-raw-header.h"
+#include "detect-http-uri.h"
+#include "detect-http-protocol.h"
+#include "detect-http-start.h"
+#include "detect-http-stat-msg.h"
+#include "detect-http-request-line.h"
+#include "detect-http-response-line.h"
+#include "detect-http2.h"
+#include "detect-byte-extract.h"
+#include "detect-file-data.h"
+#include "detect-pkt-data.h"
+#include "detect-replace.h"
+#include "detect-tos.h"
+#include "detect-app-layer-event.h"
+#include "detect-lua.h"
+#include "detect-iprep.h"
+#include "detect-geoip.h"
+#include "detect-app-layer-protocol.h"
+#include "detect-template.h"
+#include "detect-template2.h"
+#include "detect-tcphdr.h"
+#include "detect-tcpmss.h"
+#include "detect-udphdr.h"
+#include "detect-icmpv6hdr.h"
+#include "detect-icmpv6-mtu.h"
+#include "detect-ipv4hdr.h"
+#include "detect-ipv6hdr.h"
+#if ENABLE_KRB5
+#include "detect-krb5-cname.h"
+#include "detect-krb5-errcode.h"
+#include "detect-krb5-msgtype.h"
+#include "detect-krb5-sname.h"
+#include "detect-krb5-ticket-encryption.h"
+#endif
+//#include "detect-sip-method.h"
+//#include "detect-sip-uri.h"
+#include "detect-target.h"
+#include "detect-template-rust-buffer.h"
+/*#include "detect-quic-sni.h"
+#include "detect-quic-ua.h"
+#include "detect-quic-version.h"
+#include "detect-quic-cyu-hash.h"
+#include "detect-quic-cyu-string.h"*/
+#if ENABLE_TLS
+#include "detect-ja4-hash.h"
+#endif
+#include "detect-bypass.h"
+#include "detect-engine-content-inspection.h"
+
+#include "detect-transform-compress-whitespace.h"
+#include "detect-transform-strip-whitespace.h"
+#include "detect-transform-strip-pseudo-headers.h"
+#include "detect-transform-md5.h"
+#include "detect-transform-sha1.h"
+#include "detect-transform-sha256.h"
+#include "detect-transform-dotprefix.h"
+#include "detect-transform-pcrexform.h"
+#include "detect-transform-urldecode.h"
+#include "detect-transform-xor.h"
+#include "detect-transform-casechange.h"
+#include "detect-transform-header-lowercase.h"
+#include "detect-transform-base64.h"
+
+#include "util-rule-vars.h"
+
+#include "app-layer.h"
+#include "app-layer-protos.h"
+#include "app-layer-htp.h"
+#if ENABLE_SMTP
+#include "app-layer-smtp.h"
+#endif
+#include "detect-frame.h"
+#if ENABLE_TLS
+#include "detect-tls.h"
+#include "detect-tls-cert-validity.h"
+#include "detect-tls-version.h"
+#endif
+#if ENABLE_SSH
+#include "detect-ssh-proto.h"
+#include "detect-ssh-proto-version.h"
+#include "detect-ssh-software.h"
+#include "detect-ssh-software-version.h"
+#include "detect-ssh-hassh.h"
+#include "detect-ssh-hassh-server.h"
+#include "detect-ssh-hassh-string.h"
+#include "detect-ssh-hassh-server-string.h"
+#endif
+#include "detect-http-stat-code.h"
+#if ENABLE_TLS
+#include "detect-ssl-version.h"
+#include "detect-ssl-state.h"
+#endif
+//#include "detect-modbus.h"
+//#include "detect-dnp3.h"
+/*#include "detect-ike-exch-type.h"
+#include "detect-ike-spi.h"
+#include "detect-ike-vendor.h"
+#include "detect-ike-chosen-sa.h"
+#include "detect-ike-key-exchange-payload-length.h"
+#include "detect-ike-nonce-payload-length.h"
+#include "detect-ike-nonce-payload.h"
+#include "detect-ike-key-exchange-payload.h"*/
+
+#include "action-globals.h"
+#include "tm-threads.h"
+
+#include "pkt-var.h"
+
+#include "conf.h"
+#include "conf-yaml-loader.h"
+
+#include "stream-tcp.h"
+#include "stream-tcp-inline.h"
+
+#include "util-lua.h"
+#include "util-var-name.h"
+#include "util-classification-config.h"
+#include "util-threshold-config.h"
+#include "util-print.h"
+#include "util-unittest.h"
+#include "util-unittest-helper.h"
+#include "util-debug.h"
+#include "util-hashlist.h"
+#include "util-privs.h"
+#include "util-profiling.h"
+#include "util-validate.h"
+#include "util-optimize.h"
+#include "util-path.h"
+#include "util-mpm-ac.h"
+#include "runmodes.h"
+
+int DETECT_TBLSIZE = 0;
+int DETECT_TBLSIZE_IDX = DETECT_TBLSIZE_STATIC;
+
+static void PrintFeatureList(const SigTableElmt *e, char sep)
+{
+    const uint16_t flags = e->flags;
+
+    int prev = 0;
+    if (flags & SIGMATCH_NOOPT) {
+        printf("No option");
+        prev = 1;
+    }
+    if (flags & SIGMATCH_IPONLY_COMPAT) {
+        if (prev == 1)
+            printf("%c", sep);
+        printf("compatible with IP only rule");
+        prev = 1;
+    }
+    if (flags & SIGMATCH_DEONLY_COMPAT) {
+        if (prev == 1)
+            printf("%c", sep);
+        printf("compatible with decoder event only rule");
+        prev = 1;
+    }
+    if (flags & SIGMATCH_INFO_CONTENT_MODIFIER) {
+        if (prev == 1)
+            printf("%c", sep);
+        printf("content modifier");
+        prev = 1;
+    }
+    if (flags & SIGMATCH_INFO_STICKY_BUFFER) {
+        if (prev == 1)
+            printf("%c", sep);
+        printf("sticky buffer");
+        prev = 1;
+    }
+    if (e->Transform) {
+        if (prev == 1)
+            printf("%c", sep);
+        printf("transform");
+        prev = 1;
+    }
+    if (e->SupportsPrefilter) {
+        if (prev == 1)
+            printf("%c", sep);
+        printf("prefilter");
+        prev = 1;
+    }
+    if (prev == 0) {
+        printf("none");
+    }
+}
+
+static void SigMultilinePrint(int i, const char *prefix)
+{
+    if (sigmatch_table[i].desc) {
+        printf("%sDescription: %s\n", prefix, sigmatch_table[i].desc);
+    }
+    printf("%sFeatures: ", prefix);
+    PrintFeatureList(&sigmatch_table[i], ',');
+    if (sigmatch_table[i].url) {
+        printf("\n%sDocumentation: %s%s", prefix, GetDocURL(), sigmatch_table[i].url);
+    }
+    if (sigmatch_table[i].alternative) {
+        printf("\n%sReplaced by: %s", prefix, sigmatch_table[sigmatch_table[i].alternative].name);
+    }
+    printf("\n");
+}
+
+int SigTableList(const char *keyword)
+{
+    size_t size = DETECT_TBLSIZE;
+    size_t i;
+
+    if (keyword == NULL) {
+        printf("=====Supported keywords=====\n");
+        for (i = 0; i < size; i++) {
+            const char *name = sigmatch_table[i].name;
+            if (name != NULL && strlen(name) > 0) {
+                if (name[0] == '_' || strcmp(name, "template") == 0)
+                    continue;
+
+                if (sigmatch_table[i].flags & SIGMATCH_NOT_BUILT) {
+                    printf("- %s (not built-in)\n", name);
+                } else {
+                    printf("- %s\n", name);
+                }
+            }
+        }
+    } else if (strcmp("csv", keyword) == 0) {
+        printf("name;description;app layer;features;documentation\n");
+        for (i = 0; i < size; i++) {
+            const char *name = sigmatch_table[i].name;
+            if (name != NULL && strlen(name) > 0) {
+                if (sigmatch_table[i].flags & SIGMATCH_NOT_BUILT) {
+                    continue;
+                }
+                if (name[0] == '_' || strcmp(name, "template") == 0)
+                    continue;
+
+                printf("%s;", name);
+                if (sigmatch_table[i].desc) {
+                    printf("%s", sigmatch_table[i].desc);
+                }
+                /* Build feature */
+                printf(";Unset;"); // this used to be alproto
+                PrintFeatureList(&sigmatch_table[i], ':');
+                printf(";");
+                if (sigmatch_table[i].url) {
+                    printf("%s%s", GetDocURL(), sigmatch_table[i].url);
+                }
+                printf(";");
+                printf("\n");
+            }
+        }
+    } else if (strcmp("all", keyword) == 0) {
+        for (i = 0; i < size; i++) {
+            const char *name = sigmatch_table[i].name;
+            if (name != NULL && strlen(name) > 0) {
+                if (name[0] == '_' || strcmp(name, "template") == 0)
+                    continue;
+                printf("%s:\n", sigmatch_table[i].name);
+                SigMultilinePrint(i, "\t");
+            }
+        }
+    } else {
+        for (i = 0; i < size; i++) {
+            if ((sigmatch_table[i].name != NULL) &&
+                strcmp(sigmatch_table[i].name, keyword) == 0) {
+                printf("= %s =\n", sigmatch_table[i].name);
+                if (sigmatch_table[i].flags & SIGMATCH_NOT_BUILT) {
+                    printf("Not built-in\n");
+                    return TM_ECODE_FAILED;
+                }
+                SigMultilinePrint(i, "");
+                return TM_ECODE_DONE;
+            }
+        }
+        printf("Non existing keyword\n");
+        return TM_ECODE_FAILED;
+    }
+    return TM_ECODE_DONE;
+}
+
+static void DetectFileHandlerRegister(void)
+{
+    for (int i = 0; i < DETECT_TBLSIZE_STATIC; i++) {
+        if (filehandler_table[i].name)
+            DetectFileRegisterFileProtocols(&filehandler_table[i]);
+    }
+}
+
+void SigTableCleanup(void)
+{
+    if (sigmatch_table != NULL) {
+        SCFree(sigmatch_table);
+        sigmatch_table = NULL;
+        DETECT_TBLSIZE = 0;
+    }
+}
+
+void SigTableSetup(void)
+{
+    if (sigmatch_table == NULL) {
+        DETECT_TBLSIZE = DETECT_TBLSIZE_STATIC + DETECT_TBLSIZE_STEP;
+        sigmatch_table = SCCalloc(DETECT_TBLSIZE, sizeof(SigTableElmt));
+        if (sigmatch_table == NULL) {
+            DETECT_TBLSIZE = 0;
+            FatalError("Could not allocate sigmatch_table");
+            return;
+        }
+    }
+
+    DetectSidRegister();
+    DetectPriorityRegister();
+    DetectPrefilterRegister();
+    DetectRevRegister();
+    DetectClasstypeRegister();
+    DetectReferenceRegister();
+    DetectTagRegister();
+    DetectThresholdRegister();
+    DetectMetadataRegister();
+    DetectMsgRegister();
+    #if ENABLE_TCP
+    DetectAckRegister();
+    DetectSeqRegister();
+    #endif
+    DetectContentRegister();
+    DetectUricontentRegister();
+
+    /* NOTE: the order of these currently affects inspect
+     * engine registration order and ultimately the order
+     * of inspect engines in the rule. Which in turn affects
+     * state keeping */
+    #if ENABLE_HTTP
+    DetectHttpUriRegister();
+    DetectHttpRequestLineRegister();
+    DetectHttpClientBodyRegister();
+    DetectHttpResponseLineRegister();
+    DetectHttpServerBodyRegister();
+    DetectHttpHeaderRegister();
+    DetectHttpRequestHeaderRegister();
+    DetectHttpResponseHeaderRegister();
+    DetectHttpHeaderNamesRegister();
+    DetectHttpHeadersRegister();
+    DetectHttpProtocolRegister();
+    DetectHttpStartRegister();
+    DetectHttpRawHeaderRegister();
+    DetectHttpMethodRegister();
+    DetectHttpCookieRegister();
+    #endif
+    DetectFilenameRegister();
+    DetectFilestoreRegister();
+    DetectFilemagicRegister();
+    DetectFileMd5Register();
+    DetectFileSha1Register();
+    DetectFileSha256Register();
+    DetectFilesizeRegister();
+
+    #if ENABLE_HTTP
+    DetectHttpUARegister();
+    DetectHttpHHRegister();
+
+    DetectHttpStatMsgRegister();
+    DetectHttpStatCodeRegister();
+    DetectHttp2Register();
+    #endif
+    #if ENABLE_DNS
+    DetectDnsQueryRegister();
+    DetectDnsOpcodeRegister();
+    DetectDnsRcodeRegister();
+    DetectDnsRrtypeRegister();
+    DetectDnsAnswerNameRegister();
+    DetectDnsQueryNameRegister();
+    #endif    
+//    DetectModbusRegister();
+//    DetectDNP3Register();
+
+/*    DetectIkeExchTypeRegister();
+    DetectIkeSpiRegister();
+    DetectIkeVendorRegister();
+    DetectIkeChosenSaRegister();
+    DetectIkeKeyExchangePayloadLengthRegister();
+    DetectIkeNoncePayloadLengthRegister();
+    DetectIkeNonceRegister();
+    DetectIkeKeyExchangeRegister();*/
+#if ENABLE_TLS
+    DetectTlsSniRegister();
+    DetectTlsIssuerRegister();
+    DetectTlsSubjectRegister();
+    DetectTlsSerialRegister();
+    DetectTlsFingerprintRegister();
+    DetectTlsCertsRegister();
+    DetectTlsCertChainLenRegister();
+    DetectTlsSubjectAltNameRegister();
+    DetectTlsAlpnRegister();
+    DetectTlsRandomRegister();
+
+    DetectTlsJa3HashRegister();
+    DetectTlsJa3StringRegister();
+    DetectTlsJa3SHashRegister();
+    DetectTlsJa3SStringRegister();
+#endif
+    DetectAppLayerEventRegister();
+    /* end of order dependent regs */
+
+    DetectFrameRegister();
+
+    DetectPcreRegister();
+    DetectDepthRegister();
+    DetectNocaseRegister();
+    DetectRawbytesRegister();
+    DetectBytetestRegister();
+    DetectBytejumpRegister();
+    DetectBytemathRegister();
+    DetectSameipRegister();
+    DetectGeoipRegister();
+    DetectL3ProtoRegister();
+    DetectIPProtoRegister();
+    DetectWithinRegister();
+    DetectDistanceRegister();
+    DetectOffsetRegister();
+    DetectReplaceRegister();
+    DetectFlowRegister();
+    DetectFlowAgeRegister();
+    DetectFlowPktsToClientRegister();
+    DetectFlowPktsToServerRegister();
+    DetectFlowBytesToClientRegister();
+    DetectFlowBytesToServerRegister();
+    DetectRequiresRegister();
+    #if ENABLE_TCP
+    DetectWindowRegister();
+    #endif
+    DetectRpcRegister();
+#if ENABLE_FTP    
+    DetectFtpbounceRegister();
+    DetectFtpdataRegister();
+#endif
+    DetectIsdataatRegister();
+    DetectIdRegister();
+    DetectDsizeRegister();
+    DetectDatasetRegister();
+    DetectDatarepRegister();
+    DetectFlowvarRegister();
+    DetectFlowintRegister();
+    DetectPktvarRegister();
+    DetectNoalertRegister();
+    DetectFlowbitsRegister();
+    DetectHostbitsRegister();
+    DetectXbitsRegister();
+    DetectEngineEventRegister();
+    DetectIpOptsRegister();
+    #if ENABLE_TCP
+    DetectFlagsRegister();
+    #endif
+    DetectFragBitsRegister();
+    DetectFragOffsetRegister();
+    DetectGidRegister();
+    DetectMarkRegister();
+    DetectCsumRegister();
+    DetectStreamSizeRegister();
+    DetectTtlRegister();
+    DetectTosRegister();
+    DetectFastPatternRegister();
+    DetectITypeRegister();
+    DetectICodeRegister();
+    DetectIcmpIdRegister();
+    DetectIcmpSeqRegister();
+    DetectIcmpv4HdrRegister();
+/*    DetectDceIfaceRegister();
+    DetectDceOpnumRegister();
+    DetectDceStubDataRegister();*/
+    
+    #if ENABLE_SMB 
+    DetectSmbNamedPipeRegister();
+    DetectSmbShareRegister();
+    DetectSmbNtlmsspUserRegister();
+    DetectSmbNtlmsspDomainRegister();
+    DetectSmbVersionRegister();
+    #endif
+    #if ENABLE_TLS
+    DetectTlsRegister();
+    DetectTlsValidityRegister();
+    DetectTlsVersionRegister();
+    #endif
+//    DetectNfsProcedureRegister();
+//    DetectNfsVersionRegister();
+    DetectUrilenRegister();
+    DetectBsizeRegister();
+    DetectDetectionFilterRegister();
+    DetectAsn1Register();
+    #if ENABLE_SSH
+    DetectSshProtocolRegister();
+    DetectSshVersionRegister();
+    DetectSshSoftwareRegister();
+    DetectSshSoftwareVersionRegister();
+    DetectSshHasshRegister();
+    DetectSshHasshServerRegister();
+    DetectSshHasshStringRegister();
+    DetectSshHasshServerStringRegister();
+    #endif
+    #if ENABLE_TLS
+    DetectSslStateRegister();
+    DetectSslVersionRegister();
+    #endif
+    DetectByteExtractRegister();
+    DetectFiledataRegister();
+    DetectPktDataRegister();
+    DetectLuaRegister();
+    DetectIPRepRegister();
+    DetectAppLayerProtocolRegister();
+    DetectBase64DecodeRegister();
+    DetectBase64DataRegister();
+    //DetectTemplateRegister();
+    //DetectTemplate2Register();
+    #if ENABLE_TCP
+    DetectTcphdrRegister();
+    DetectTcpmssRegister();
+    #endif    
+    #if ENABLE_UDP
+    DetectUdphdrRegister();
+    #endif
+    #if ENABLE_IPV6
+    DetectICMPv6hdrRegister();
+    DetectICMPv6mtuRegister();
+    DetectIpv6hdrRegister();
+    #endif
+    DetectIPAddrBufferRegister();
+    DetectIpv4hdrRegister();
+    
+#if ENABLE_KRB5    
+    DetectKrb5CNameRegister();
+    DetectKrb5ErrCodeRegister();
+    DetectKrb5MsgTypeRegister();
+    DetectKrb5SNameRegister();
+    DetectKrb5TicketEncryptionRegister();
+#endif
+//    DetectSipMethodRegister();
+//    DetectSipUriRegister();
+    DetectTargetRegister();
+    //DetectTemplateRustBufferRegister();
+/*    DetectQuicSniRegister();
+    DetectQuicUaRegister();
+    DetectQuicVersionRegister();
+    DetectQuicCyuHashRegister();
+    DetectQuicCyuStringRegister();*/
+    #if ENABLE_TLS
+    DetectJa4HashRegister();
+    #endif
+    DetectBypassRegister();
+    DetectConfigRegister();
+
+    DetectTransformCompressWhitespaceRegister();
+    DetectTransformStripWhitespaceRegister();
+    DetectTransformStripPseudoHeadersRegister();
+    DetectTransformMd5Register();
+    DetectTransformSha1Register();
+    DetectTransformSha256Register();
+    DetectTransformDotPrefixRegister();
+    DetectTransformPcrexformRegister();
+    DetectTransformUrlDecodeRegister();
+    DetectTransformXorRegister();
+    DetectTransformToLowerRegister();
+    DetectTransformToUpperRegister();
+    DetectTransformHeaderLowercaseRegister();
+    DetectTransformFromBase64DecodeRegister();
+
+    DetectFileHandlerRegister();
+#if ENABLE_SNMP
+    ScDetectSNMPRegister();
+#endif
+#if ENABLE_DHCP
+    ScDetectDHCPRegister();
+#endif
+#if ENABLE_WEBSOCKET    
+    ScDetectWebsocketRegister();
+#endif
+//    ScDetectEnipRegister();
+#if ENABLE_MQTT
+    ScDetectMqttRegister();
+#endif
+//    ScDetectRfbRegister();
+//    ScDetectSipRegister();
+
+    /* close keyword registration */
+    DetectBufferTypeCloseRegistration();
+}
+
+#ifdef UNITTESTS
+void SigTableRegisterTests(void)
+{
+    /* register the tests */
+    for (int i = 0; i < DETECT_TBLSIZE; i++) {
+        g_ut_modules++;
+        if (sigmatch_table[i].RegisterTests != NULL) {
+            sigmatch_table[i].RegisterTests();
+            g_ut_covered++;
+        } else {
+            SCLogDebug("detection plugin %s has no unittest "
+                   "registration function.", sigmatch_table[i].name);
+
+            if (coverage_unittests)
+                SCLogWarning("detection plugin %s has no unittest "
+                             "registration function.",
+                        sigmatch_table[i].name);
+        }
+    }
+}
+#endif
