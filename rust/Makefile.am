@@ -133,8 +133,8 @@ if HAVE_CYGPATH
 	cd $(abs_top_srcdir)/rust && \
 		@rustup_home@ CARGO_HOME="$(CARGO_HOME)" \
 		CARGO_TARGET_DIR="$(e_rustdir)/target" \
-		$(CARGO) build $(RELEASE) \
-			--features "$(RUST_FEATURES)" $(RUST_TARGET)
+		cargo build $(RELEASE) \
+			--features "$(RUST_FEATURES)" $(RUST_TARGET) -vv
 else
 	cd $(abs_top_srcdir)/rust && \
 		@rustup_home@ CARGO_HOME="$(HOME)/suricata/openwrt/dl/cargo" \
