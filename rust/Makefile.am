@@ -141,7 +141,7 @@ else
 		CARGO_TARGET_DIR="$(abs_top_builddir)/rust/target" \
 		$(CARGO) clean && $(CARGO) fetch && \
 		$(CARGO) build $(RELEASE) $(NIGHTLY_ARGS) \
-			--features "$(RUST_FEATURES)" $(RUST_TARGET) 
+			--features "$(RUST_FEATURES)" $(RUST_TARGET) -vv
 endif
 	if test -e $(RUST_SURICATA_LIBDIR)/suricata.lib; then \
 		cp -a $(RUST_SURICATA_LIBDIR)/suricata.lib \
