@@ -73,7 +73,9 @@
 #include "output-json-stats.h"
 #include "log-tcp-data.h"
 #include "log-stats.h"
-//#include "output-json-nfs.h"
+#if ENABLE_NFS
+#include "output-json-nfs.h"
+#endif
 #if ENABLE_FTP   
 #include "output-json-ftp.h"
 // for misplaced EveFTPDataAddMetadata
@@ -82,7 +84,9 @@
 #if ENABLE_SMB
 #include "output-json-smb.h"
 #endif
-//#include "output-json-ike.h"
+#if ENABLE_IKE
+#include "output-json-ike.h"
+#endif
 #if ENABLE_DHCP
 #include "output-json-dhcp.h"
 #endif
@@ -91,7 +95,9 @@
 #endif
 //#include "output-json-pgsql.h"
 #include "output-lua.h"
-//#include "output-json-dnp3.h"
+#if ENABLE_DNP3
+#include "output-json-dnp3.h"
+#endif
 #include "output-json-metadata.h"
 //#include "output-json-dcerpc.h"
 #include "output-json-frame.h"
@@ -899,27 +905,40 @@ void OutputRegisterRootLoggers(void)
     RegisterSimpleJsonApplayerLogger(ALPROTO_DNS, AlertJsonDns, NULL);
     #endif
     // either need a cast here or in rust for ModbusTransaction, done here
-    //RegisterSimpleJsonApplayerLogger(
-    //         ALPROTO_MODBUS, (EveJsonSimpleTxLogFunc)rs_modbus_to_json, NULL);
-    //RegisterSimpleJsonApplayerLogger(ALPROTO_ENIP, SCEnipLoggerLog, NULL);
-    //RegisterSimpleJsonApplayerLogger(ALPROTO_DNP3, AlertJsonDnp3, NULL);
+    #if ENABLE_MODBUS
+    RegisterSimpleJsonApplayerLogger(
+             ALPROTO_MODBUS, (EveJsonSimpleTxLogFunc)rs_modbus_to_json, NULL);
+    #endif
+    #if ENABLE_ENIP
+    RegisterSimpleJsonApplayerLogger(ALPROTO_ENIP, SCEnipLoggerLog, NULL);
+    #endif
+    #if ENABLE_DNP3
+    RegisterSimpleJsonApplayerLogger(ALPROTO_DNP3, AlertJsonDnp3, NULL);
+    #endif
     // ALPROTO_NFS special: uses state
-
-    //RegisterSimpleJsonApplayerLogger(
-    //          ALPROTO_TFTP, (EveJsonSimpleTxLogFunc)rs_tftp_log_json_request, NULL);
+    #if ENABLE_TFTP
+    RegisterSimpleJsonApplayerLogger(
+              ALPROTO_TFTP, (EveJsonSimpleTxLogFunc)rs_tftp_log_json_request, NULL);
+    #endif
     // ALPROTO_IKE special: uses state
     #if ENABLE_KRB5
     RegisterSimpleJsonApplayerLogger(
             ALPROTO_KRB5, (EveJsonSimpleTxLogFunc)rs_krb5_log_json_response, NULL);
     #endif
-    //RegisterSimpleJsonApplayerLogger(ALPROTO_QUIC, rs_quic_to_json, NULL);
+    #if ENABLE_QUIC
+    RegisterSimpleJsonApplayerLogger(ALPROTO_QUIC, rs_quic_to_json, NULL);
+    #endif
     // ALPROTO_DHCP TODO missing
     #if ENABLE_SNMP    
     RegisterSimpleJsonApplayerLogger(
             ALPROTO_SNMP, (EveJsonSimpleTxLogFunc)rs_snmp_log_json_response, NULL);
     #endif
-    //RegisterSimpleJsonApplayerLogger(ALPROTO_SIP, (EveJsonSimpleTxLogFunc)rs_sip_log_json, NULL);
-    //RegisterSimpleJsonApplayerLogger(ALPROTO_RFB, rs_rfb_logger_log, NULL);
+    #if ENABLE_SIP
+    RegisterSimpleJsonApplayerLogger(ALPROTO_SIP, (EveJsonSimpleTxLogFunc)rs_sip_log_json, NULL);
+    #endif
+    #if ENABLE_RFB
+    RegisterSimpleJsonApplayerLogger(ALPROTO_RFB, rs_rfb_logger_log, NULL);
+    #endif
     #if ENABLE_MQTT
     RegisterSimpleJsonApplayerLogger(ALPROTO_MQTT, JsonMQTTAddMetadata, NULL);
     #endif
@@ -1046,11 +1065,13 @@ void OutputRegisterLoggers(void)
     JsonDnsLogRegister();
 #endif
     /* modbus */
-//    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonModbusLog", "eve-log.modbus",
-//            OutputJsonLogInitSub, ALPROTO_MODBUS, JsonGenericDirFlowLogger, JsonLogThreadInit,
-//            JsonLogThreadDeinit);
+    #if ENABLE_MODBUS
+    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonModbusLog", "eve-log.modbus",
+            OutputJsonLogInitSub, ALPROTO_MODBUS, JsonGenericDirFlowLogger, JsonLogThreadInit,
+            JsonLogThreadDeinit);
 
-//    SCLogDebug("modbus json logger registered.");
+    SCLogDebug("modbus json logger registered.");
+    #endif
     /* tcp streaming data */
     #if ENABLE_TCP
     LogTcpDataLogRegister();
@@ -1067,18 +1088,24 @@ void OutputRegisterLoggers(void)
     JsonStatsLogRegister();
 
     /* DNP3. */
-//    JsonDNP3LogRegister();
+    #if ENABLE_DNP3
+    JsonDNP3LogRegister();
+    #endif
     JsonMetadataLogRegister();
 
     /* NFS JSON logger. */
-//    JsonNFSLogRegister();
+    #if ENABLE_NFS
+    JsonNFSLogRegister();
+    #endif
     /* TFTP JSON logger. */
-//    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonTFTPLog", "eve-log.tftp",
-//            OutputJsonLogInitSub, ALPROTO_TFTP, JsonGenericDirPacketLogger, JsonLogThreadInit,
-//            JsonLogThreadDeinit);
+    #if ENABLE_TFTP
+    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonTFTPLog", "eve-log.tftp",
+            OutputJsonLogInitSub, ALPROTO_TFTP, JsonGenericDirPacketLogger, JsonLogThreadInit,
+            JsonLogThreadDeinit);
 
-//    SCLogDebug("TFTP JSON logger registered.");
-    /* FTP and FTP-DATA JSON loggers. */
+    SCLogDebug("TFTP JSON logger registered.");
+    #endif
+/* FTP and FTP-DATA JSON loggers. */
 #if ENABLE_FTP    
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonFTPLog", "eve-log.ftp",
             OutputJsonLogInitSub, ALPROTO_FTP, JsonGenericDirFlowLogger, JsonLogThreadInit,
@@ -1093,7 +1120,9 @@ void OutputRegisterLoggers(void)
     JsonSMBLogRegister();
 #endif
     /* IKE JSON logger. */
-//    JsonIKELogRegister();
+    #if ENABLE_IKE
+    JsonIKELogRegister();
+    #endif
     /* KRB5 JSON logger. */
 #if ENABLE_KRB5    
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonKRB5Log", "eve-log.krb5",
@@ -1102,11 +1131,13 @@ void OutputRegisterLoggers(void)
     SCLogDebug("KRB5 JSON logger registered.");
 #endif
     /* QUIC JSON logger. */
-    /*OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonQuicLog", "eve-log.quic",
+    #if ENABLE_QUIC
+    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonQuicLog", "eve-log.quic",
             OutputJsonLogInitSub, ALPROTO_QUIC, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
 
-    SCLogDebug("quic json logger registered.");*/
+    SCLogDebug("quic json logger registered.");
+    #endif
     /* DHCP JSON logger. */
 #if ENABLE_DHCP    
     JsonDHCPLogRegister();
@@ -1120,21 +1151,27 @@ void OutputRegisterLoggers(void)
     SCLogDebug("SNMP JSON logger registered.");
 #endif
     /* SIP JSON logger. */
-//    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonSIPLog", "eve-log.sip",
-//            OutputJsonLogInitSub, ALPROTO_SIP, JsonGenericDirPacketLogger, JsonLogThreadInit,
-//            JsonLogThreadDeinit);
+    #if ENABLE_SIP
+    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonSIPLog", "eve-log.sip",
+            OutputJsonLogInitSub, ALPROTO_SIP, JsonGenericDirPacketLogger, JsonLogThreadInit,
+            JsonLogThreadDeinit);
 
-//    SCLogDebug("SIP JSON logger registered.");
+    SCLogDebug("SIP JSON logger registered.");
+    #endif
     /* RFB JSON logger. */
-//    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonRFBLog", "eve-log.rfb",
-//            OutputJsonLogInitSub, ALPROTO_RFB, JsonGenericDirPacketLogger, JsonLogThreadInit,
-//            JsonLogThreadDeinit);
+    #if ENABLE_RFB
+    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonRFBLog", "eve-log.rfb",
+            OutputJsonLogInitSub, ALPROTO_RFB, JsonGenericDirPacketLogger, JsonLogThreadInit,
+            JsonLogThreadDeinit);
+    #endif
 #if ENABLE_MQTT
     /* MQTT JSON logger. */
     JsonMQTTLogRegister();
 #endif
     /* Pgsql JSON logger. */
-//    JsonPgsqlLogRegister();
+    #if ENABLE_PGSQL
+    JsonPgsqlLogRegister();
+    #endif
     /* WebSocket JSON logger. */
 #if ENABLE_WEBSOCKET    
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonWebSocketLog", "eve-log.websocket",
@@ -1142,9 +1179,11 @@ void OutputRegisterLoggers(void)
             JsonLogThreadDeinit);
 #endif
     /* Enip JSON logger. */
-   /* OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonEnipLog", "eve-log.enip",
+    #if ENABLE_ENIP
+   OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonEnipLog", "eve-log.enip",
             OutputJsonLogInitSub, ALPROTO_ENIP, JsonGenericDirFlowLogger, JsonLogThreadInit,
-            JsonLogThreadDeinit);*/
+            JsonLogThreadDeinit);
+    #endif
     /* Ldap JSON logger. */
 #if ENABLE_LDAP
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonLdapLog", "eve-log.ldap",

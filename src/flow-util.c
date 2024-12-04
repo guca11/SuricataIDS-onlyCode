@@ -184,11 +184,13 @@ void FlowInit(Flow *f, const Packet *p)
         f->icmp_s.code = p->icmp_s.code;
         FlowSetICMPv6CounterPart(f);
     }
-    #endif/*
+    #endif
+    #if ENABLE_SCTP
     else if (PacketIsSCTP(p)) {
         f->sp = p->sp;
         f->dp = p->dp;
-    }*/
+    }
+    #endif
     #if ENABLE_ESP
     else if (PacketIsESP(p)) {
         f->esp.spi = ESP_GET_SPI(PacketGetESP(p));

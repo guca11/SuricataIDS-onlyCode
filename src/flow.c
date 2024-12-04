@@ -288,7 +288,11 @@ int FlowGetPacketDirection(const Flow *f, const Packet *p)
 {
     const int reverse = (f->flags & FLOW_DIR_REVERSED) != 0;
 
-    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP /*|| p->proto == IPPROTO_SCTP*/) {
+    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP 
+    #if ENABLE_SCTP
+    || p->proto == IPPROTO_SCTP
+    #endif
+    ) {
         if (!(CMP_PORT(p->sp,p->dp))) {
             /* update flags and counters */
             if (CMP_PORT(f->sp,p->sp)) {

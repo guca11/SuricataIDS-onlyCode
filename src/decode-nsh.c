@@ -117,8 +117,10 @@ int DecodeNSH(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, const uint8_t *p
             return DecodeIPV6(tv, dtv, p, pkt + length, (uint16_t)(len - length));
         case NSH_NEXT_PROTO_ETHERNET:
             return DecodeEthernet(tv, dtv, p, pkt + length, len - length);
-        //case NSH_NEXT_PROTO_MPLS:
-        //    return DecodeMPLS(tv, dtv, p, pkt + length, len - length);
+        #if ENABLE_MPLS
+        case NSH_NEXT_PROTO_MPLS:
+            return DecodeMPLS(tv, dtv, p, pkt + length, len - length);
+        #endif
         case NSH_NEXT_PROTO_NSH:
         default:
             SCLogDebug("NSH next protocol %u not supported", next_protocol);

@@ -57,31 +57,51 @@ enum AppProtoEnum {
 #if ENABLE_DNS
     ALPROTO_DNS,
 #endif
-//    ALPROTO_MODBUS,
-//    ALPROTO_ENIP,
-//    ALPROTO_DNP3,
-//    ALPROTO_NFS,
+#if ENABLE_MODBUS
+    ALPROTO_MODBUS,
+#endif
+#if ENABLE_ENIP
+    ALPROTO_ENIP,
+#endif
+#if ENABLE_DNP3
+    ALPROTO_DNP3,
+#endif
+#if ENABLE_NFS
+    ALPROTO_NFS,
+#endif
 #if ENABLE_NTP
     ALPROTO_NTP,
 #endif   
-//    ALPROTO_TFTP,
-//    ALPROTO_IKE,
+#if ENABLE_TFTP
+    ALPROTO_TFTP,
+#endif
+#if ENABLE_IKE
+    ALPROTO_IKE,
+#endif
 #if ENABLE_KRB5
     ALPROTO_KRB5,
 #endif
-//    ALPROTO_QUIC,
+#if ENABLE_QUIC
+    ALPROTO_QUIC,
+#endif
 #if ENABLE_DHCP
     ALPROTO_DHCP,
 #endif
 #if ENABLE_SNMP    
     ALPROTO_SNMP,
 #endif
-//    ALPROTO_SIP,
-//    ALPROTO_RFB,
+#if ENABLE_SIP
+    ALPROTO_SIP,
+#endif
+#if ENABLE_RFB
+    ALPROTO_RFB,
+#endif
 #if ENABLE_MQTT
     ALPROTO_MQTT,
 #endif
-//    ALPROTO_PGSQL,
+#if ENABLE_PGSQL
+    ALPROTO_PGSQL,
+#endif
 #if ENABLE_TELNET
     ALPROTO_TELNET,
 #endif

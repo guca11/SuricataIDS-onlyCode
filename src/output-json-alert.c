@@ -58,12 +58,16 @@
 #include "output-json-smtp.h"
 #endif
 #include "output-json-email-common.h"
-//#include "output-json-nfs.h"
+#if ENABLE_NFS
+#include "output-json-nfs.h"
+#endif
 #if ENABLE_SMB
 #include "output-json-smb.h"
 #endif
 #include "output-json-flow.h"
-//#include "output-json-ike.h"
+#if ENABLE_IKE
+#include "output-json-ike.h"
+#endif
 #include "output-json-frame.h"
 
 #include "util-print.h"
@@ -129,7 +133,9 @@ static void AlertJsonSourceTarget(const Packet *p, const PacketAlert *pa,
                 break;
             case IPPROTO_UDP:
             case IPPROTO_TCP:
-            //case IPPROTO_SCTP:
+            #if ENABLE_SCTP
+            case IPPROTO_SCTP:
+            #endif
                 jb_set_uint(js, "port", addr->sp);
                 break;
         }
@@ -141,7 +147,9 @@ static void AlertJsonSourceTarget(const Packet *p, const PacketAlert *pa,
                 break;
             case IPPROTO_UDP:
             case IPPROTO_TCP:
-            //case IPPROTO_SCTP:
+            #if ENABLE_SCTP
+            case IPPROTO_SCTP:
+            #endif
                 jb_set_uint(js, "port", addr->dp);
                 break;
         }
@@ -386,16 +394,17 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
             }
             break;
         #endif
-        //case ALPROTO_NFS:
+        #if ENABLE_NFS
+        case ALPROTO_NFS:
             /* rpc */
-            /*jb_get_mark(jb, &mark);
+            jb_get_mark(jb, &mark);
             jb_open_object(jb, "rpc");
             if (EveNFSAddMetadataRPC(p->flow, tx_id, jb)) {
                 jb_close(jb);
             } else {
                 jb_restore_mark(jb, &mark);
             }
-            *//* nfs *//*
+            /* nfs */
             jb_get_mark(jb, &mark);
             jb_open_object(jb, "nfs");
             if (EveNFSAddMetadata(p->flow, tx_id, jb)) {
@@ -403,7 +412,8 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
             } else {
                 jb_restore_mark(jb, &mark);
             }
-            break;*/
+            break;
+        #endif
 #if ENABLE_SMB             
         case ALPROTO_SMB:
             jb_get_mark(jb, &mark);
@@ -415,12 +425,14 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
             }
             break;
 #endif            
-        /*case ALPROTO_IKE:
+        #if ENABLE_IKE
+        case ALPROTO_IKE:
             jb_get_mark(jb, &mark);
             if (!EveIKEAddMetadata(p->flow, tx_id, jb)) {
                 jb_restore_mark(jb, &mark);
             }
-            break;*/
+            break;
+        #endif
         /*case ALPROTO_DCERPC: {
             void *state = FlowGetAppState(p->flow);
             if (state) {
@@ -976,7 +988,9 @@ static void JsonAlertLogSetupMetadata(AlertJsonOutputCtx *json_output_ctx,
          #if ENABLE_SMTP
          "smtp", 
          #endif
-         /*"dnp3",*/ 
+         #if ENABLE_DNP3
+         "dnp3",
+         #endif
          "app-layer",
          "flow", 
          NULL };

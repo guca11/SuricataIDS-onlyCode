@@ -86,7 +86,9 @@ void DetectFileRegisterFileProtocols(DetectFileHandlerTableElmt *reg)
         int to_server_progress;
     } DetectFileHandlerProtocol_t;
     static DetectFileHandlerProtocol_t al_protocols[] = {
-//        { .al_proto = ALPROTO_NFS, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
+#if ENABLE_NFS    
+        { .al_proto = ALPROTO_NFS, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
+#endif
 #if ENABLE_SMTP
         { .al_proto = ALPROTO_SMTP, .direction = SIG_FLAG_TOSERVER },
 #endif
@@ -2083,7 +2085,11 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
     DetectLuaPostSetup(s);
 #if ENABLE_TLS
     if ((s->init_data->init_flags & SIG_FLAG_INIT_JA) && s->alproto != ALPROTO_UNKNOWN &&
-            s->alproto != ALPROTO_TLS /*&& s->alproto != ALPROTO_QUIC*/) {
+            s->alproto != ALPROTO_TLS 
+            #if ENABLE_QUIC
+            && s->alproto != ALPROTO_QUIC
+            #endif
+            ) {
         SCLogError("Cannot have ja3/ja4 with protocol %s.", AppProtoToString(s->alproto));
         SCReturnInt(0);
     }

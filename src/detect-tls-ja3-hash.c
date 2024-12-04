@@ -100,12 +100,13 @@ void DetectTlsJa3HashRegister(void)
 
     DetectAppLayerMpmRegister(
             "ja3.hash", SIG_FLAG_TOSERVER, 2, PrefilterGenericMpmRegister, GetData, ALPROTO_TLS, 0);
-
-    /*DetectAppLayerMpmRegister("ja3.hash", SIG_FLAG_TOSERVER, 2, PrefilterGenericMpmRegister,
+    #if ENABLE_QUIC
+    DetectAppLayerMpmRegister("ja3.hash", SIG_FLAG_TOSERVER, 2, PrefilterGenericMpmRegister,
             Ja3DetectGetHash, ALPROTO_QUIC, 1);
 
     DetectAppLayerInspectEngineRegister("ja3.hash", ALPROTO_QUIC, SIG_FLAG_TOSERVER, 1,
-            DetectEngineInspectBufferGeneric, Ja3DetectGetHash);*/
+            DetectEngineInspectBufferGeneric, Ja3DetectGetHash);
+    #endif
 
     DetectBufferTypeSetDescriptionByName("ja3.hash", "TLS JA3 hash");
 
@@ -136,7 +137,11 @@ static int DetectTlsJa3HashSetup(DetectEngineCtx *de_ctx, Signature *s, const ch
     if (DetectBufferSetActiveList(de_ctx, s, g_tls_ja3_hash_buffer_id) < 0)
         return -1;
 
-    if (s->alproto != ALPROTO_UNKNOWN && s->alproto != ALPROTO_TLS /*&& s->alproto != ALPROTO_QUIC*/) {
+    if (s->alproto != ALPROTO_UNKNOWN && s->alproto != ALPROTO_TLS 
+    #if ENABLE_QUIC
+    && s->alproto != ALPROTO_QUIC
+    #endif
+    ) {
         SCLogError("rule contains conflicting protocols.");
         return -1;
     }

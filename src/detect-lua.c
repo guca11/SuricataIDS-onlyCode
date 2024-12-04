@@ -128,7 +128,9 @@ void DetectLuaRegister(void)
 #if ENABLE_SMTP
 #define FLAG_DATATYPE_SMTP                      BIT_U32(20)
 #endif
-//#define FLAG_DATATYPE_DNP3                      BIT_U32(21)
+#if ENABLE_DNP3
+#define FLAG_DATATYPE_DNP3                      BIT_U32(21)
+#endif
 #define FLAG_DATATYPE_BUFFER                    BIT_U32(22)
 #define FLAG_ERROR_LOGGED                       BIT_U32(23)
 #define FLAG_BLOCKED_FUNCTION_LOGGED            BIT_U32(24)
@@ -884,13 +886,16 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
 
         }
         #endif
-        /*else if (strncmp(k, "dnp3", 4) == 0 && strcmp(v, "true") == 0) {
+        #if ENABLE_DNP3
+        else if (strncmp(k, "dnp3", 4) == 0 && strcmp(v, "true") == 0) {
 
             ld->alproto = ALPROTO_DNP3;
 
             ld->flags |= FLAG_DATATYPE_DNP3;
 
-        }*/ else {
+        }
+        #endif
+        else {
             SCLogError("unsupported data type %s", k);
             goto error;
         }
@@ -1034,9 +1039,13 @@ static int DetectLuaSetup (DetectEngineCtx *de_ctx, Signature *s, const char *st
         list = g_smtp_generic_list_id;
     } 
     #endif
-    else /*if (lua->alproto == ALPROTO_DNP3) {
+    else 
+    #if ENABLE_DNP3
+    if (lua->alproto == ALPROTO_DNP3) {
         list = DetectBufferTypeGetByName("dnp3");
-    } else*/ {
+    } else
+    #endif
+    {
         SCLogError("lua can't be used with protocol %s", AppLayerGetProtoName(lua->alproto));
         goto error;
     }

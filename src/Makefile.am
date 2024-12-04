@@ -590,41 +590,50 @@ endif
 
 #	REMOVED PROTOCOLS HEADERS
 
-#	IKE
-#	app-layer-ike.h \
-#	detect-ike-exch-type.h \
-#	detect-ike-spi.h \
-#	detect-ike-vendor.h \
-#	detect-ike-chosen-sa.h \
-#	detect-ike-key-exchange-payload-length.h \
-#	detect-ike-nonce-payload-length.h \
-#	detect-ike-nonce-payload.h \
-#	detect-ike-key-exchange-payload.h \
-#	output-json-ike.h 
+if ENABLE_IKE
+noinst_HEADERS += app-layer-ike.h 
+noinst_HEADERS += detect-ike-exch-type.h 
+noinst_HEADERS += detect-ike-spi.h 
+noinst_HEADERS += detect-ike-vendor.h 
+noinst_HEADERS += detect-ike-chosen-sa.h 
+noinst_HEADERS += detect-ike-key-exchange-payload-length.h 
+noinst_HEADERS += detect-ike-nonce-payload-length.h 
+noinst_HEADERS += detect-ike-nonce-payload.h 
+noinst_HEADERS += detect-ike-key-exchange-payload.h 
+noinst_HEADERS += output-json-ike.h 
+endif
 
-#	SCTP
-#	decode-sctp.h
+if ENABLE_SCTP
+noinst_HEADERS += decode-sctp.h
+endif
 
-#	GRE
-#	decode-gre.h
+if ENABLE_GRE
+noinst_HEADERS += decode-gre.h
+endif
 
-#	PPP
-#	decode-ppp.h 
+if ENABLE_PPP
+noinst_HEADERS += decode-ppp.h
+endif
 
-#	SLL
-#	decode-sll.h 
+if ENABLE_SLL
+noinst_HEADERS += decode-sll.h
+endif
 
-#	VXLAN
-#	decode-vxlan.h
+if ENABLE_VXLAN
+noinst_HEADERS += decode-vxlan.h
+endif
 
-#	ERSPAN
-#	decode-erspan.h
+if ENABLE_ERSPAN
+noinst_HEADERS += decode-erspan.h 
+endif
 
-#	MPLS
-#	decode-mpls.h 
+if ENABLE_MPLS
+noinst_HEADERS += decode-mpls.h 
+endif
 
-#	GENEVE
-#	decode-geneve.h
+if ENABLE_GENEVE
+noinst_HEADERS += decode-geneve.h 
+endif
 
 #	DCERPC
 #	output-json-dcerpc.h
@@ -633,58 +642,68 @@ endif
 #	detect-dce-stub-data.h \
 #	detect-engine-dcepayload.h
 
-#	Modbus	
-#	app-layer-modbus.h \
-#	detect-modbus.h 
+if ENABLE_MODBUS
+noinst_HEADERS += app-layer-modbus.h 
+noinst_HEADERS += detect-modbus.h 
+endif
 
-#	DNP3
-#	app-layer-dnp3.h \
-#	app-layer-dnp3-objects.h \
-#	detect-dnp3.h \
-#	output-json-dnp3.h \
-#	output-json-dnp3-objects.h \
-#	util-lua-dnp3.h \
-#	util-lua-dnp3-objects.h 
+if ENABLE_DNP3
+noinst_HEADERS += app-layer-dnp3.h 
+noinst_HEADERS += app-layer-dnp3-objects.h 
+noinst_HEADERS += detect-dnp3.h 
+noinst_HEADERS += output-json-dnp3.h 
+noinst_HEADERS += output-json-dnp3-objects.h 
+noinst_HEADERS += util-lua-dnp3.h 
+noinst_HEADERS += util-lua-dnp3-objects.h 
+endif
 
-#	NFS
-#	app-layer-nfs-tcp.h \
-#	app-layer-nfs-udp.h \
-#	detect-nfs-procedure.h \
-#	detect-nfs-version.h \
-#	output-json-nfs.h 
+if ENABLE_NFS
+noinst_HEADERS += app-layer-nfs-tcp.h 
+noinst_HEADERS += app-layer-nfs-udp.h 
+noinst_HEADERS += detect-nfs-procedure.h 
+noinst_HEADERS += detect-nfs-version.h 
+noinst_HEADERS += output-json-nfs.h 
+endif
 
-#	TFTP
-#	app-layer-tftp.h
+if ENABLE_TFTP
+noinst_HEADERS += app-layer-tftp.h
+endif
 
-#	SIP
-#	detect-sip-method.h \
-#	detect-sip-uri.h
+if ENABLE_SIP
+noinst_HEADERS += detect-sip-method.h
+noinst_HEADERS += detect-sip-uri.h
+endif
 
-#	QUIC
-#	detect-quic-sni.h \
-#	detect-quic-ua.h \
-#	detect-quic-version.h \
-#	detect-quic-cyu-hash.h \
-#	detect-quic-cyu-string.h
+if ENABLE_QUIC
+noinst_HEADERS += detect-quic-sni.h 
+noinst_HEADERS += detect-quic-ua.h 
+noinst_HEADERS += detect-quic-version.h 
+noinst_HEADERS += detect-quic-cyu-hash.h 
+noinst_HEADERS += detect-quic-cyu-string.h
+endif
 
-#	PgSQL
-#	output-json-pgsql.h
+if ENABLE_PGSQL
+noinst_HEADERS += output-json-pgsql.h
+endif
 
-#	VLAN
-#	decode-vlan.c
+if ENABLE_VLAN
+noinst_HEADERS += decode-vlan.h
+endif
 
 #	CHDLC
 #	decode-chdlc.h 
 
-#	NSH
-#	decode-nsh.h
+if ENABLE_NSH
+noinst_HEADERS += decode-nsh.h
+endif
 
-#	VNTAG
-#	decode-vntag.h
+if ENABLE_VNTAG
+noinst_HEADERS += decode-vntag.h
+endif
 
-#	TEREDO
-#	decode-teredo.h
-
+if ENABLE_TEREDO
+noinst_HEADERS += decode-teredo.h
+endif
 #	TEMPLATE
 #	decode-template.h 
 #	detect-template2.h 
@@ -1267,29 +1286,37 @@ endif
 #	detect-ike-key-exchange-payload.c \
 #	output-json-ike.c 
 
-#	SCTP
-#	decode-sctp.c 
+if ENABLE_SCTP
+libsuricata_c_a_SOURCES += decode-sctp.c 
+endif
 
-#	GRE
-#	decode-gre.c
+if ENABLE_GRE
+libsuricata_c_a_SOURCES += decode-gre.c 
+endif
 
-#	PPP
-#	decode-ppp.c
+if ENABLE_PPP
+libsuricata_c_a_SOURCES += decode-ppp.c
+endif
 
-#	SLL
-#	decode-sll.c
+if ENABLE_SLL
+libsuricata_c_a_SOURCES += decode-sll.c
+endif
 
-#	VXLAN
-#	decode-vxlan.c
+if ENABLE_VXLAN
+libsuricata_c_a_SOURCES += decode-vxlan.c
+endif
 
-#	ERSPAN
-#	decode-erspan.c
+if ENABLE_ERSPAN
+libsuricata_c_a_SOURCES += decode-erspan.c 
+endif
 
-#	MPLS
-#	decode-mpls.c
+if ENABLE_MPLS
+libsuricata_c_a_SOURCES += decode-mpls.c 
+endif
 
-#	GENEVE
-#	decode-geneve.c
+if ENABLE_GENEVE
+libsuricata_c_a_SOURCES += decode-geneve.c 
+endif
 
 #	DCERPC
 #	output-json-dcerpc.c
@@ -1299,58 +1326,68 @@ endif
 #	detect-engine-dcepayload.c
 
 
-#	Modbus	
-#	app-layer-modbus.c \
-#	detect-modbus.c
+if ENABLE_MODBUS
+libsuricata_c_a_SOURCES += app-layer-modbus.c
+libsuricata_c_a_SOURCES += detect-modbus.c
+endif
 
-#	DNP3
-#	app-layer-dnp3.c \
-#	app-layer-dnp3-objects.c \
-#	detect-dnp3.c \
-#	output-json-dnp3.c \
-#	output-json-dnp3-objects.c \
-#	util-lua-dnp3.c \
-#	util-lua-dnp3-objects.c 
+if ENABLE_DNP3
+libsuricata_c_a_SOURCES += app-layer-dnp3.c 
+libsuricata_c_a_SOURCES += app-layer-dnp3-objects.c 
+libsuricata_c_a_SOURCES += detect-dnp3.c 
+libsuricata_c_a_SOURCES += output-json-dnp3.c 
+libsuricata_c_a_SOURCES += output-json-dnp3-objects.c 
+libsuricata_c_a_SOURCES += util-lua-dnp3.c 
+libsuricata_c_a_SOURCES += util-lua-dnp3-objects.c 
+endif
 
-#	NFS
-#	app-layer-nfs-tcp.c \
-#	app-layer-nfs-udp.c \
-#	detect-nfs-procedure.c \
-#	detect-nfs-version.c \
-#	output-json-nfs.c 
+if ENABLE_NFS
+libsuricata_c_a_SOURCES += app-layer-nfs-tcp.c 
+libsuricata_c_a_SOURCES += app-layer-nfs-udp.c 
+libsuricata_c_a_SOURCES += detect-nfs-procedure.c 
+libsuricata_c_a_SOURCES += detect-nfs-version.c 
+libsuricata_c_a_SOURCES += output-json-nfs.c 
+endif
 
-#	TFTP
-#	app-layer-tftp.c
+if ENABLE_TFTP
+libsuricata_c_a_SOURCES += app-layer-tftp.c
+endif
 
-#	SIP
-#	detect-sip-method.h \
-#	detect-sip-uri.h
+if ENABLE_SIP
+libsuricata_c_a_SOURCES += detect-sip-method.h 
+libsuricata_c_a_SOURCES += detect-sip-uri.h
+endif
 
-#	QUIC
-#	detect-quic-sni.c \
-#	detect-quic-ua.c \
-#	detect-quic-version.c \
-#	detect-quic-cyu-hash.c \
-#	detect-quic-cyu-string.c
+if ENABLE_QUIC
+libsuricata_c_a_SOURCES += detect-quic-sni.c 
+libsuricata_c_a_SOURCES += detect-quic-ua.c 
+libsuricata_c_a_SOURCES += detect-quic-version.c 
+libsuricata_c_a_SOURCES += detect-quic-cyu-hash.c 
+libsuricata_c_a_SOURCES += detect-quic-cyu-string.c
+endif
 
-#	PgSQL
-#	output-json-pgsql.c
+if ENABLE_PGSQL
+libsuricata_c_a_SOURCES += output-json-pgsql.c
+endif
 
-#	VLAN
-#	decode-vlan.c
+if ENABLE_VLAN
+libsuricata_c_a_SOURCES += decode-vlan.c 
+endif
 
 #	CHDLC
 #	decode-chdlc.c 
 
-#	NSH
-#	decode-nsh.c
+if ENABLE_NSH
+libsuricata_c_a_SOURCES += decode-nsh.c
+endif
 
-#	VNTAG
-#	decode-vntag.c
+if ENABLE_VNTAG
+libsuricata_c_a_SOURCES += decode-vntag.c
+endif
 
-#	TEREDO
-#	decode-teredo.c
-
+if ENABLE_TEREDO
+libsuricata_c_a_SOURCES += decode-teredo.c
+endif
 
 #	TEMPLATE
 #	decode-template.c 

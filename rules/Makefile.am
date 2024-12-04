@@ -4,8 +4,11 @@ dist_rule_DATA = \
 app-layer-events.rules \
 decoder-events.rules \
 files.rules \
-ipsec-events.rules \
 stream-events.rules
+
+if ENABLE_IKE
+dist_rule_DATA += ipsec-events.rules 
+endif
 
 if ENABLE_MQTT
 dist_rule_DATA += mqtt-events.rules
@@ -39,8 +42,12 @@ if ENABLE_WEBSOCKET
 dist_rule_DATA += websocket-events.rules
 endif
 
-if ENABLE_PPPOE
+if ENABLE_PPPOE 
 dist_rule_DATA += decoder-events-pppoe.rules 
+endif 
+
+if ENABLE_PPP
+dist_rule_DATA += decoder-events-ppp.rules 
 endif 
 
 if ENABLE_DHCP
@@ -76,6 +83,46 @@ if ENABLE_TCP
 dist_rule_DATA += decoder-events-tcp.rules 
 endif
 
+if ENABLE_VNTAG
+dist_rule_DATA += decoder-events-vntag.rules 
+endif
+
+if ENABLE_VLAN
+dist_rule_DATA += decoder-events-vlan.rules 
+endif
+
+if ENABLE_SLL
+dist_rule_DATA += decoder-events-sll.rules 
+endif
+
+if ENABLE_RFB
+dist_rule_DATA += rfb-events.rules .rules 
+endif
+
+if ENABLE_QUIC
+dist_rule_DATA += quic-events.rules
+endif
+
+if ENABLE_NFS
+dist_rule_DATA += nfs-events.rules
+endif
+
+if ENABLE_MODBUS
+dist_rule_DATA += modbus-events.rules
+endif
+
+if ENABLE_MPLS
+dist_rule_DATA += decoder-events-mpls.rules
+endif
+
+if ENABLE_GRE
+dist_rule_DATA += decoder-events-gre.rules
+endif
+
+if ENABLE_ERSPAN
+dist_rule_DATA += decoder-events-erspan.rules
+endif
+
 # REMOVED PROTOCOLS RULES
 
 # DNP3
@@ -84,14 +131,6 @@ endif
 # ENIP
 # enip-events.rules
 
-# MODBUS
-# modbus-events.rules
 
-# NFS
-# nfs-events.rules 
+ 
 
-# QUIC
-# quic-events.rules 
-
-# RFB
-# rfb-events.rules 

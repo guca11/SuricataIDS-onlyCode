@@ -1521,7 +1521,9 @@ static int AFPGetDevLinktype(int fd, const char *ifname)
     switch (ifr.ifr_hwaddr.sa_family) {
         case ARPHRD_LOOPBACK:
             return LINKTYPE_ETHERNET;
-        //case ARPHRD_PPP:
+        #if ENABLE_PPP
+        case ARPHRD_PPP:
+        #endif
 #if ENABLE_RAW
         case ARPHRD_NONE:
             return LINKTYPE_RAW;
@@ -2720,7 +2722,9 @@ TmEcode DecodeAFP(ThreadVars *tv, Packet *p, void *data)
     DecodeLinkLayer(tv, dtv, p->datalink, p, GET_PKT_DATA(p), GET_PKT_LEN(p));
     /* post-decoding put vlan hdr back into the raw data) */
     if (afp_vlan_hdr) {
-        //StatsIncr(tv, dtv->counter_vlan);
+        #if ENABLE_VLAN
+        StatsIncr(tv, dtv->counter_vlan);
+        #endif
         UpdateRawDataForVLANHdr(p);
     }
 

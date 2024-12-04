@@ -564,7 +564,9 @@ void JsonAddrInfoInit(const Packet *p, enum OutputJsonLogDirection dir, JsonAddr
     switch (p->proto) {
         case IPPROTO_UDP:
         case IPPROTO_TCP:
-        //case IPPROTO_SCTP:
+        #if ENABLE_SCTP
+        case IPPROTO_SCTP:
+        #endif
             addr->sp = sp;
             addr->dp = dp;
             addr->log_port = true;

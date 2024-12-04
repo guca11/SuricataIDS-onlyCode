@@ -580,12 +580,16 @@ int DecodeIPV4(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
         case IPPROTO_ICMP:
             DecodeICMPV4(tv, dtv, p, data, data_len);
             break;
-        /*case IPPROTO_GRE:
+        #if ENABLE_GRE
+        case IPPROTO_GRE:
             DecodeGRE(tv, dtv, p, data, data_len);
-            break;*/
-        /*case IPPROTO_SCTP:
+            break;
+        #endif
+        #if ENABLE_SCTP
+        case IPPROTO_SCTP:
             DecodeSCTP(tv, dtv, p, data, data_len);
-            break;*/
+            break;
+        #endif
         #if ENABLE_ESP 
         case IPPROTO_ESP:
             DecodeESP(tv, dtv, p, data, data_len);
@@ -604,12 +608,14 @@ int DecodeIPV4(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
                 break;
             }
         #endif    
-        /*case IPPROTO_IP:
+        #if ENABLE_PPP
+        case IPPROTO_IP:
             // check PPP VJ uncompressed packets and decode tcp dummy
             if (p->flags & PKT_PPP_VJ_UCOMP) {
                 DecodeTCP(tv, dtv, p, data, data_len);
             }
-            break;*/
+            break;
+        #endif
         case IPPROTO_ICMPV6:
             ENGINE_SET_INVALID_EVENT(p, IPV4_WITH_ICMPV6);
             break;

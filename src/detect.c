@@ -627,7 +627,11 @@ static inline bool DetectRunInspectRuleHeader(const Packet *p, const Flow *f, co
     }
 
     /* check the source & dst port in the sig */
-    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP /*|| p->proto == IPPROTO_SCTP*/) {
+    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP 
+    #if ENABLE_SCTP
+    || p->proto == IPPROTO_SCTP
+    #endif
+    ) {
         if (!(sflags & SIG_FLAG_DP_ANY)) {
             if (p->flags & PKT_IS_FRAGMENT)
                 return false;
@@ -918,9 +922,11 @@ static DetectRunScratchpad DetectRunSetup(
         /* Retrieve the app layer state and protocol and the tcp reassembled
          * stream chunks. */
         if ((p->proto == IPPROTO_TCP && (p->flags & PKT_STREAM_EST)) ||
-                (p->proto == IPPROTO_UDP) /*||
-                (p->proto == IPPROTO_SCTP && (p->flowflags & FLOW_PKT_ESTABLISHED))*/)
-        {
+                (p->proto == IPPROTO_UDP) 
+                #if ENABLE_SCTP
+                || (p->proto == IPPROTO_SCTP && (p->flowflags & FLOW_PKT_ESTABLISHED))
+                #endif
+        ){
             /* update flow flags with knowledge on disruptions */
             flow_flags = FlowGetDisruptionFlags(pflow, flow_flags);
             alproto = FlowGetAppProtocol(pflow);

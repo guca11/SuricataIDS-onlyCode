@@ -79,9 +79,10 @@
 #include "detect-http-host.h"
 
 #include "detect-mark.h"
-//#include "detect-nfs-procedure.h"
-//#include "detect-nfs-version.h"
-
+#if ENABLE_NFS
+#include "detect-nfs-procedure.h"
+#include "detect-nfs-version.h"
+#endif
 #include "detect-engine-event.h"
 #include "decode.h"
 
@@ -211,15 +212,19 @@
 #include "detect-krb5-sname.h"
 #include "detect-krb5-ticket-encryption.h"
 #endif
-//#include "detect-sip-method.h"
-//#include "detect-sip-uri.h"
+#if ENABLE_SIP
+#include "detect-sip-method.h"
+#include "detect-sip-uri.h"
+#endif
 #include "detect-target.h"
 #include "detect-template-rust-buffer.h"
-/*#include "detect-quic-sni.h"
+#if ENABLE_QUIC
+#include "detect-quic-sni.h"
 #include "detect-quic-ua.h"
 #include "detect-quic-version.h"
 #include "detect-quic-cyu-hash.h"
-#include "detect-quic-cyu-string.h"*/
+#include "detect-quic-cyu-string.h"
+#endif
 #if ENABLE_TLS
 #include "detect-ja4-hash.h"
 #endif
@@ -269,17 +274,22 @@
 #include "detect-ssl-version.h"
 #include "detect-ssl-state.h"
 #endif
-//#include "detect-modbus.h"
-//#include "detect-dnp3.h"
-/*#include "detect-ike-exch-type.h"
+#if ENABLE_MODBUS
+#include "detect-modbus.h"
+#endif
+#if ENABLE_DNP3
+#include "detect-dnp3.h"
+#endif
+#if ENABLE_IKE
+#include "detect-ike-exch-type.h"
 #include "detect-ike-spi.h"
 #include "detect-ike-vendor.h"
 #include "detect-ike-chosen-sa.h"
 #include "detect-ike-key-exchange-payload-length.h"
 #include "detect-ike-nonce-payload-length.h"
 #include "detect-ike-nonce-payload.h"
-#include "detect-ike-key-exchange-payload.h"*/
-
+#include "detect-ike-key-exchange-payload.h"
+#endif
 #include "action-globals.h"
 #include "tm-threads.h"
 
@@ -542,18 +552,23 @@ void SigTableSetup(void)
     DetectDnsRrtypeRegister();
     DetectDnsAnswerNameRegister();
     DetectDnsQueryNameRegister();
-    #endif    
-//    DetectModbusRegister();
-//    DetectDNP3Register();
-
-/*    DetectIkeExchTypeRegister();
+    #endif
+    #if ENABLE_MODBUS
+    DetectModbusRegister();
+    #endif
+    #if ENABLE_DNP3
+    DetectDNP3Register();
+    #endif
+    #if ENABLE_IKE
+    DetectIkeExchTypeRegister();
     DetectIkeSpiRegister();
     DetectIkeVendorRegister();
     DetectIkeChosenSaRegister();
     DetectIkeKeyExchangePayloadLengthRegister();
     DetectIkeNoncePayloadLengthRegister();
     DetectIkeNonceRegister();
-    DetectIkeKeyExchangeRegister();*/
+    DetectIkeKeyExchangeRegister();
+    #endif
 #if ENABLE_TLS
     DetectTlsSniRegister();
     DetectTlsIssuerRegister();
@@ -653,8 +668,10 @@ void SigTableSetup(void)
     DetectTlsValidityRegister();
     DetectTlsVersionRegister();
     #endif
-//    DetectNfsProcedureRegister();
-//    DetectNfsVersionRegister();
+    #if ENABLE_NFS
+    DetectNfsProcedureRegister();
+    DetectNfsVersionRegister();
+    #endif
     DetectUrilenRegister();
     DetectBsizeRegister();
     DetectDetectionFilterRegister();
@@ -705,15 +722,19 @@ void SigTableSetup(void)
     DetectKrb5SNameRegister();
     DetectKrb5TicketEncryptionRegister();
 #endif
-//    DetectSipMethodRegister();
-//    DetectSipUriRegister();
+#if ENABLE_SIP
+    DetectSipMethodRegister();
+    DetectSipUriRegister();
+#endif
     DetectTargetRegister();
     //DetectTemplateRustBufferRegister();
-/*    DetectQuicSniRegister();
+    #if ENABLE_QUIC
+    DetectQuicSniRegister();
     DetectQuicUaRegister();
     DetectQuicVersionRegister();
     DetectQuicCyuHashRegister();
-    DetectQuicCyuStringRegister();*/
+    DetectQuicCyuStringRegister();
+    #endif
     #if ENABLE_TLS
     DetectJa4HashRegister();
     #endif
@@ -745,13 +766,18 @@ void SigTableSetup(void)
 #if ENABLE_WEBSOCKET    
     ScDetectWebsocketRegister();
 #endif
-//    ScDetectEnipRegister();
+#if ENABLE_ENIP
+    ScDetectEnipRegister();
+#endif
 #if ENABLE_MQTT
     ScDetectMqttRegister();
 #endif
-//    ScDetectRfbRegister();
-//    ScDetectSipRegister();
-
+#if ENABLE_RFB
+    ScDetectRfbRegister();
+#endif
+#if ENABLE_SIP
+    ScDetectSipRegister();
+#endif
     /* close keyword registration */
     DetectBufferTypeCloseRegistration();
 }

@@ -56,11 +56,18 @@
 #include "tmqh-packetpool.h"
 #include "app-layer.h"
 #include "output.h"
-
-//#include "decode-vxlan.h"
-//#include "decode-geneve.h"
-//#include "decode-erspan.h"
-//#include "decode-teredo.h"
+#if ENABLE_VXLAN
+#include "decode-vxlan.h"
+#endif
+#if ENABLE_GENEVE
+#include "decode-geneve.h"
+#endif
+#if ENABLE_ERSPAN
+#include "decode-erspan.h"
+#endif
+#if ENABLE_TEREDO
+#include "decode-teredo.h"
+#endif
 #if ENABLE_ARP
 #include "decode-arp.h"
 #endif
@@ -160,27 +167,37 @@ static int DecodeTunnel(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, const 
         uint32_t len, enum DecodeTunnelProto proto)
 {
     switch (proto) {
-        //case DECODE_TUNNEL_PPP:
-        //    return DecodePPP(tv, dtv, p, pkt, len);
+        #if ENABLE_PPP
+        case DECODE_TUNNEL_PPP:
+            return DecodePPP(tv, dtv, p, pkt, len);
+        #endif
         case DECODE_TUNNEL_IPV4:
             DEBUG_VALIDATE_BUG_ON(len > UINT16_MAX);
             return DecodeIPV4(tv, dtv, p, pkt, (uint16_t)len);
         #if ENABLE_IPV6
         case DECODE_TUNNEL_IPV6:
-        /*case DECODE_TUNNEL_IPV6_TEREDO:*/
+        #if ENABLE_TEREDO
+        case DECODE_TUNNEL_IPV6_TEREDO:
+        #endif
             DEBUG_VALIDATE_BUG_ON(len > UINT16_MAX);
             return DecodeIPV6(tv, dtv, p, pkt, (uint16_t)len);
         #endif
-        /*case DECODE_TUNNEL_VLAN:
-            return DecodeVLAN(tv, dtv, p, pkt, len);*/
+        #if ENABLE_VLAN
+        case DECODE_TUNNEL_VLAN:
+            return DecodeVLAN(tv, dtv, p, pkt, len);
+        #endif
         case DECODE_TUNNEL_ETHERNET:
             return DecodeEthernet(tv, dtv, p, pkt, len);
-        /*case DECODE_TUNNEL_ERSPANII:
+        #if ENABLE_ERSPAN
+        case DECODE_TUNNEL_ERSPANII:
             return DecodeERSPAN(tv, dtv, p, pkt, len);
         case DECODE_TUNNEL_ERSPANI:
-            return DecodeERSPANTypeI(tv, dtv, p, pkt, len);*/
-        /*case DECODE_TUNNEL_NSH:
-            return DecodeNSH(tv, dtv, p, pkt, len);*/
+            return DecodeERSPANTypeI(tv, dtv, p, pkt, len);
+        #endif
+        #if ENABLE_NSH
+        case DECODE_TUNNEL_NSH:
+            return DecodeNSH(tv, dtv, p, pkt, len);
+        #endif
 #if ENABLE_ARP            
         case DECODE_TUNNEL_ARP:
             return DecodeARP(tv, dtv, p, pkt, len);
@@ -412,9 +429,11 @@ Packet *PacketTunnelPktSetup(ThreadVars *tv, DecodeThreadVars *dtv, Packet *pare
     ret = DecodeTunnel(tv, dtv, p, GET_PKT_DATA(p),
                        GET_PKT_LEN(p), proto);
 
-    if (unlikely(ret != TM_ECODE_OK) /*||
-            (proto == DECODE_TUNNEL_IPV6_TEREDO && (p->flags & PKT_IS_INVALID))*/)
-    {
+    if (unlikely(ret != TM_ECODE_OK) 
+    #if ENABLE_TEREDO
+    || (proto == DECODE_TUNNEL_IPV6_TEREDO && (p->flags & PKT_IS_INVALID))
+    #endif
+    ){
         /* Not a (valid) tunnel packet */
         SCLogDebug("tunnel packet is invalid");
         p->root = NULL;
@@ -624,7 +643,9 @@ void DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
     dtv->counter_raw = StatsRegisterCounter("decoder.raw", tv);
     #endif
     dtv->counter_null = StatsRegisterCounter("decoder.null", tv);
-    //dtv->counter_sll = StatsRegisterCounter("decoder.sll", tv);
+    #if ENABLE_SLL
+    dtv->counter_sll = StatsRegisterCounter("decoder.sll", tv);
+    #endif
     //#if ENABLE_TCP
     dtv->counter_tcp = StatsRegisterCounter("decoder.tcp", tv);
     dtv->counter_tcp_syn = StatsRegisterCounter("tcp.syn", tv);
@@ -634,7 +655,9 @@ void DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
     //#if ENABLE_UDP
     dtv->counter_udp = StatsRegisterCounter("decoder.udp", tv);
     //#endif
-    //dtv->counter_sctp = StatsRegisterCounter("decoder.sctp", tv);
+    #if ENABLE_SCTP
+    dtv->counter_sctp = StatsRegisterCounter("decoder.sctp", tv);
+    #endif
     #if ENABLE_ESP
     dtv->counter_esp = StatsRegisterCounter("decoder.esp", tv);
     #endif
@@ -642,30 +665,50 @@ void DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
     #if ENABLE_IPV6
     dtv->counter_icmpv6 = StatsRegisterCounter("decoder.icmpv6", tv);
     #endif
-    //dtv->counter_ppp = StatsRegisterCounter("decoder.ppp", tv);
+    #if ENABLE_PPP
+    dtv->counter_ppp = StatsRegisterCounter("decoder.ppp", tv);
+    #endif
     #if ENABLE_PPPOE
     dtv->counter_pppoe = StatsRegisterCounter("decoder.pppoe", tv); 
     #endif
-//    dtv->counter_geneve = StatsRegisterCounter("decoder.geneve", tv);
-//    dtv->counter_gre = StatsRegisterCounter("decoder.gre", tv);
-/*    dtv->counter_vlan = StatsRegisterCounter("decoder.vlan", tv);
+    #if ENABLE_GENEVE
+    dtv->counter_geneve = StatsRegisterCounter("decoder.geneve", tv);
+    #endif
+    #if ENABLE_GRE
+    dtv->counter_gre = StatsRegisterCounter("decoder.gre", tv);
+    #endif
+    #if ENABLE_VLAN
+    dtv->counter_vlan = StatsRegisterCounter("decoder.vlan", tv);
     dtv->counter_vlan_qinq = StatsRegisterCounter("decoder.vlan_qinq", tv);
-    dtv->counter_vlan_qinqinq = StatsRegisterCounter("decoder.vlan_qinqinq", tv);*/
-//    dtv->counter_vxlan = StatsRegisterCounter("decoder.vxlan", tv);
-//    dtv->counter_vntag = StatsRegisterCounter("decoder.vntag", tv);
-//    dtv->counter_ieee8021ah = StatsRegisterCounter("decoder.ieee8021ah", tv);
-//    dtv->counter_teredo = StatsRegisterCounter("decoder.teredo", tv);
-    #if ENABLE_IPV6
+    dtv->counter_vlan_qinqinq = StatsRegisterCounter("decoder.vlan_qinqinq", tv);
+    dtv->counter_ieee8021ah = StatsRegisterCounter("decoder.ieee8021ah", tv);
+    #endif
+#if ENABLE_VXLAN
+    dtv->counter_vxlan = StatsRegisterCounter("decoder.vxlan", tv);
+#endif
+#if ENABLE_VNTAG
+    dtv->counter_vntag = StatsRegisterCounter("decoder.vntag", tv);
+#endif 
+#if ENABLE_TEREDO
+    dtv->counter_teredo = StatsRegisterCounter("decoder.teredo", tv);
+#endif
+#if ENABLE_IPV6
     dtv->counter_ipv4inipv6 = StatsRegisterCounter("decoder.ipv4_in_ipv6", tv);
     dtv->counter_ipv6inipv6 = StatsRegisterCounter("decoder.ipv6_in_ipv6", tv);
     #endif
-//    dtv->counter_mpls = StatsRegisterCounter("decoder.mpls", tv);
+    #if ENABLE_MPLS
+    dtv->counter_mpls = StatsRegisterCounter("decoder.mpls", tv);
+    #endif
     dtv->counter_avg_pkt_size = StatsRegisterAvgCounter("decoder.avg_pkt_size", tv);
     dtv->counter_max_pkt_size = StatsRegisterMaxCounter("decoder.max_pkt_size", tv);
     dtv->counter_max_mac_addrs_src = StatsRegisterMaxCounter("decoder.max_mac_addrs_src", tv);
     dtv->counter_max_mac_addrs_dst = StatsRegisterMaxCounter("decoder.max_mac_addrs_dst", tv);
-    //dtv->counter_erspan = StatsRegisterMaxCounter("decoder.erspan", tv);
-    //dtv->counter_nsh = StatsRegisterMaxCounter("decoder.nsh", tv);
+    #if ENABLE_ERSPAN
+    dtv->counter_erspan = StatsRegisterMaxCounter("decoder.erspan", tv);
+    #endif
+    #if ENABLE_NSH
+    dtv->counter_nsh = StatsRegisterMaxCounter("decoder.nsh", tv);
+    #endif
     dtv->counter_flow_memcap = StatsRegisterCounter("flow.memcap", tv);
     ExceptionPolicySetStatsCounters(tv, &dtv->counter_flow_memcap_eps, &flow_memcap_eps_stats,
             FlowGetMemcapExceptionPolicy(), "flow.memcap_exception_policy.",
@@ -850,9 +893,11 @@ const char *PktSrcToString(enum PktSrcEnum pkt_src)
         case PKT_SRC_WIRE:
             pkt_src_str = "wire/pcap";
             break;
-        /*case PKT_SRC_DECODER_GRE:
+        #if ENABLE_GRE
+        case PKT_SRC_DECODER_GRE:
             pkt_src_str = "gre tunnel";
-            break;*/
+            break;
+        #endif
         case PKT_SRC_DECODER_IPV4:
             pkt_src_str = "ipv4 tunnel";
             break;
@@ -861,9 +906,11 @@ const char *PktSrcToString(enum PktSrcEnum pkt_src)
             pkt_src_str = "ipv6 tunnel";
             break;
         #endif    
-        /*case PKT_SRC_DECODER_TEREDO:
+        #if ENABLE_TEREDO
+        case PKT_SRC_DECODER_TEREDO:
             pkt_src_str = "teredo tunnel";
-            break;*/
+            break;
+        #endif
         case PKT_SRC_DEFRAG:
             pkt_src_str = "defrag";
             break;
@@ -873,12 +920,16 @@ const char *PktSrcToString(enum PktSrcEnum pkt_src)
         case PKT_SRC_FFR:
             pkt_src_str = "stream (flow timeout)";
             break;
-        /*case PKT_SRC_DECODER_GENEVE:
+        #if ENABLE_GENEVE
+        case PKT_SRC_DECODER_GENEVE:
             pkt_src_str = "geneve encapsulation";
-            break;*/
-        /*case PKT_SRC_DECODER_VXLAN:
+            break;
+        #endif
+        #if ENABLE_VXLAN
+        case PKT_SRC_DECODER_VXLAN:
             pkt_src_str = "vxlan encapsulation";
-            break;*/
+            break;
+        #endif
         case PKT_SRC_DETECT_RELOAD_FLUSH:
             pkt_src_str = "detect reload flush";
             break;
@@ -1022,10 +1073,18 @@ void CaptureStatsSetup(ThreadVars *tv)
 
 void DecodeGlobalConfig(void)
 {
-//    DecodeTeredoConfig();
-//    DecodeGeneveConfig();
-//    DecodeVXLANConfig();
-//    DecodeERSPANConfig();
+    #if ENABLE_TEREDO
+    DecodeTeredoConfig();
+    #endif
+    #if ENABLE_GENEVE
+    DecodeGeneveConfig();
+    #endif
+    #if ENABLE_VXLAN
+    DecodeVXLANConfig();
+    #endif
+    #if ENABLE_ERSPAN
+    DecodeERSPANConfig();
+    #endif
     intmax_t value = 0;
     if (ConfGetInt("decoder.max-layers", &value) == 1) {
         if (value < 0 || value > UINT8_MAX) {

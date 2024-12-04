@@ -130,7 +130,9 @@ static JsonBuilder *CreateEveHeaderFromNetFlow(const Flow *f, int dir)
             break;
         case IPPROTO_UDP:
         case IPPROTO_TCP:
-        //case IPPROTO_SCTP:
+        #if ENABLE_SCTP
+        case IPPROTO_SCTP:
+        #endif
             jb_set_uint(js, "src_port", sp);
             break;
     }
@@ -140,7 +142,9 @@ static JsonBuilder *CreateEveHeaderFromNetFlow(const Flow *f, int dir)
             break;
         case IPPROTO_UDP:
         case IPPROTO_TCP:
+        #if ENABLE_SCTP
         case IPPROTO_SCTP:
+        #endif
             jb_set_uint(js, "dest_port", dp);
             break;
     }

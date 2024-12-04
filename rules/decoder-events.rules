@@ -18,38 +18,7 @@ alert pkthdr any any -> any any (msg:"SURICATA ICMPv4 unknown type"; decode-even
 alert pkthdr any any -> any any (msg:"SURICATA ICMPv4 unknown code"; decode-event:icmpv4.unknown_code; classtype:protocol-command-decode; sid:2200025; rev:2;)
 alert pkthdr any any -> any any (msg:"SURICATA ICMPv4 truncated packet"; decode-event:icmpv4.ipv4_trunc_pkt; classtype:protocol-command-decode; sid:2200026; rev:2;)
 alert pkthdr any any -> any any (msg:"SURICATA ICMPv4 unknown version"; decode-event:icmpv4.ipv4_unknown_ver; classtype:protocol-command-decode; sid:2200027; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA SLL packet too small"; decode-event:sll.pkt_too_small; classtype:protocol-command-decode; sid:2200041; rev:2;)
 alert pkthdr any any -> any any (msg:"SURICATA Ethernet packet too small"; decode-event:ethernet.pkt_too_small; classtype:protocol-command-decode; sid:2200042; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA PPP packet too small"; decode-event:ppp.pkt_too_small; classtype:protocol-command-decode; sid:2200043; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA PPP VJU packet too small"; decode-event:ppp.vju_pkt_too_small; classtype:protocol-command-decode; sid:2200044; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA PPP IPv4 packet too small"; decode-event:ppp.ip4_pkt_too_small; classtype:protocol-command-decode; sid:2200045; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA PPP IPv6 too small"; decode-event:ppp.ip6_pkt_too_small; classtype:protocol-command-decode; sid:2200046; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA PPP wrong type"; decode-event:ppp.wrong_type; classtype:protocol-command-decode; sid:2200047; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA PPP unsupported protocol"; decode-event:ppp.unsup_proto; classtype:protocol-command-decode; sid:2200048; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA PPPOE packet too small"; decode-event:pppoe.pkt_too_small; classtype:protocol-command-decode; sid:2200049; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA PPPOE wrong code"; decode-event:pppoe.wrong_code; classtype:protocol-command-decode; sid:2200050; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA PPPOE malformed tags"; decode-event:pppoe.malformed_tags; classtype:protocol-command-decode; sid:2200051; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE packet too small"; decode-event:gre.pkt_too_small; classtype:protocol-command-decode; sid:2200052; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE wrong version"; decode-event:gre.wrong_version; classtype:protocol-command-decode; sid:2200053; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v0 recursion control"; decode-event:gre.version0_recur; classtype:protocol-command-decode; sid:2200054; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v0 flags"; decode-event:gre.version0_flags; classtype:protocol-command-decode; sid:2200055; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v0 header too big"; decode-event:gre.version0_hdr_too_big; classtype:protocol-command-decode; sid:2200056; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v1 checksum present"; decode-event:gre.version1_chksum; classtype:protocol-command-decode; sid:2200057; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v1 routing present"; decode-event:gre.version1_route; classtype:protocol-command-decode; sid:2200058; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v1 strict source route"; decode-event:gre.version1_ssr; classtype:protocol-command-decode; sid:2200059; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v1 recursion control"; decode-event:gre.version1_recur; classtype:protocol-command-decode; sid:2200060; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v1 flags"; decode-event:gre.version1_flags; classtype:protocol-command-decode; sid:2200061; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v1 no key present"; decode-event:gre.version1_no_key; classtype:protocol-command-decode; sid:2200062; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v1 wrong protocol"; decode-event:gre.version1_wrong_protocol; classtype:protocol-command-decode; sid:2200063; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v1 malformed Source Route Entry header"; decode-event:gre.version1_malformed_sre_hdr; classtype:protocol-command-decode; sid:2200064; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA GRE v1 header too big"; decode-event:gre.version1_hdr_too_big; classtype:protocol-command-decode; sid:2200065; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA VLAN header too small "; decode-event:vlan.header_too_small; classtype:protocol-command-decode; sid:2200066; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA VLAN unknown type"; decode-event:vlan.unknown_type; classtype:protocol-command-decode; sid:2200067; rev:2;)
-# more than 2 vlan layers in the packet
-# alert pkthdr any any -> any any (msg:"SURICATA VLAN too many layers"; decode-event:vlan.too_many_layers; classtype:protocol-command-decode; sid:2200091; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA VNTAG header too small"; decode-event:vntag.header_too_small; classtype:protocol-command-decode; sid:2200117; rev:1;)
-# alert pkthdr any any -> any any (msg:"SURICATA VNTAG unknown type"; decode-event:vntag.unknown_type; classtype:protocol-command-decode; sid:2200118; rev:1;)
-# alert pkthdr any any -> any any (msg:"SURICATA IEEE802.1AH header too small"; decode-event:ieee8021ah.header_too_small; classtype:protocol-command-decode; sid:2200112; rev:1;)
 alert pkthdr any any -> any any (msg:"SURICATA FRAG IPv4 Packet size too large"; decode-event:ipv4.frag_pkt_too_large; classtype:protocol-command-decode; sid:2200069; rev:3;)
 alert pkthdr any any -> any any (msg:"SURICATA FRAG IPv4 Fragmentation overlap"; decode-event:ipv4.frag_overlap; classtype:protocol-command-decode; sid:2200070; rev:2;)
 
@@ -57,24 +26,10 @@ alert pkthdr any any -> any any (msg:"SURICATA FRAG IPv4 Fragmentation overlap";
 alert ip any any -> any any (msg:"SURICATA IPv4 invalid checksum"; ipv4-csum:invalid; classtype:protocol-command-decode; sid:2200073; rev:2;)
 alert icmp any any -> any any (msg:"SURICATA ICMPv4 invalid checksum"; icmpv4-csum:invalid; classtype:protocol-command-decode; sid:2200076; rev:2;)
 
-# MPLS rules
-# alert pkthdr any any -> any any (msg:"SURICATA MPLS header too small"; decode-event:mpls.header_too_small; classtype:protocol-command-decode; sid:2200111; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA MPLS packet too small"; decode-event:mpls.pkt_too_small; classtype:protocol-command-decode; sid:2200114; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA MPLS bad router alert label"; decode-event:mpls.bad_label_router_alert; classtype:protocol-command-decode; sid:2200098; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA MPLS bad implicit null label"; decode-event:mpls.bad_label_implicit_null; classtype:protocol-command-decode; sid:2200099; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA MPLS reserved label"; decode-event:mpls.bad_label_reserved; classtype:protocol-command-decode; sid:2200100; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA MPLS unknown payload type"; decode-event:mpls.unknown_payload_type; classtype:protocol-command-decode; sid:2200101; rev:2;)
-
 # linktype null
 alert pkthdr any any -> any any (msg:"SURICATA NULL pkt too small"; decode-event:ltnull.pkt_too_small; classtype:protocol-command-decode; sid:2200103; rev:2;)
 # packet has type not supported by Suricata's decoders
 alert pkthdr any any -> any any (msg:"SURICATA NULL unsupported type"; decode-event:ltnull.unsupported_type; classtype:protocol-command-decode; sid:2200104; rev:2;)
-
-# ERSPAN
-# alert pkthdr any any -> any any (msg:"SURICATA ERSPAN pkt too small"; decode-event:erspan.header_too_small; classtype:protocol-command-decode; sid:2200105; rev:2;)
-# packet has type not supported by Suricata's decoders
-# alert pkthdr any any -> any any (msg:"SURICATA ERSPAN unsupported version"; decode-event:erspan.unsupported_version; classtype:protocol-command-decode; sid:2200106; rev:2;)
-# alert pkthdr any any -> any any (msg:"SURICATA ERSPAN too many vlan layers"; decode-event:erspan.too_many_vlan_layers; classtype:protocol-command-decode; sid:2200107; rev:2;)
 
 # Cisco Fabric Path/DCE
 # alert pkthdr any any -> any any (msg:"SURICATA DCE packet too small"; decode-event:dce.pkt_too_small; classtype:protocol-command-decode; sid:2200110; rev:2;)

@@ -62,31 +62,51 @@ const AppProtoStringTuple AppProtoStrings[ALPROTO_MAX] = {
 #if ENABLE_DNS    
     { ALPROTO_DNS, "dns" },
 #endif
-//    { ALPROTO_MODBUS, "modbus" },
-//    { ALPROTO_ENIP, "enip" },
-//    { ALPROTO_DNP3, "dnp3" },
-//    { ALPROTO_NFS, "nfs" },
+#if ENABLE_MODBUS
+    { ALPROTO_MODBUS, "modbus" },
+#endif
+#if ENABLE_ENIP
+    { ALPROTO_ENIP, "enip" },
+#endif
+#if ENABLE_DNP3
+    { ALPROTO_DNP3, "dnp3" },
+#endif
+#if ENABLE_NFS
+    { ALPROTO_NFS, "nfs" },
+#endif
 #if ENABLE_NTP
     { ALPROTO_NTP, "ntp" },
 #endif
-//    { ALPROTO_TFTP, "tftp" },
-//    { ALPROTO_IKE, "ike" },
+#if ENABLE_TFTP
+    { ALPROTO_TFTP, "tftp" },
+#endif
+#if ENABLE_IKE
+    { ALPROTO_IKE, "ike" },
+#endif
 #if ENABLE_KRB5
     { ALPROTO_KRB5, "krb5" },
 #endif
-//    { ALPROTO_QUIC, "quic" },
+#if ENABLE_QUIC
+    { ALPROTO_QUIC, "quic" },
+#endif
 #if ENABLE_DHCP
     { ALPROTO_DHCP, "dhcp" },
 #endif
 #if ENABLE_SNMP    
     { ALPROTO_SNMP, "snmp" },
 #endif
-//    { ALPROTO_SIP, "sip" },
-//    { ALPROTO_RFB, "rfb" },
+#if ENABLE_SIP
+    { ALPROTO_SIP, "sip" },
+#endif
+#if ENABLE_RFB
+    { ALPROTO_RFB, "rfb" },
+#endif
 #if ENABLE_MQTT
     { ALPROTO_MQTT, "mqtt" },
 #endif
-//    { ALPROTO_PGSQL, "pgsql" },
+#if ENABLE_PGSQL
+    { ALPROTO_PGSQL, "pgsql" },
+#endif
 #if ENABLE_TELNET
     { ALPROTO_TELNET, "telnet" },
 #endif

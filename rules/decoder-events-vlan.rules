@@ -1,0 +1,5 @@
+alert pkthdr any any -> any any (msg:"SURICATA VLAN header too small "; decode-event:vlan.header_too_small; classtype:protocol-command-decode; sid:2200066; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA VLAN unknown type"; decode-event:vlan.unknown_type; classtype:protocol-command-decode; sid:2200067; rev:2;)
+# more than 2 vlan layers in the packet
+alert pkthdr any any -> any any (msg:"SURICATA VLAN too many layers"; decode-event:vlan.too_many_layers; classtype:protocol-command-decode; sid:2200091; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA IEEE802.1AH header too small"; decode-event:ieee8021ah.header_too_small; classtype:protocol-command-decode; sid:2200112; rev:1;)

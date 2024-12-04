@@ -1,0 +1,6 @@
+alert pkthdr any any -> any any (msg:"SURICATA MPLS header too small"; decode-event:mpls.header_too_small; classtype:protocol-command-decode; sid:2200111; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA MPLS packet too small"; decode-event:mpls.pkt_too_small; classtype:protocol-command-decode; sid:2200114; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA MPLS bad router alert label"; decode-event:mpls.bad_label_router_alert; classtype:protocol-command-decode; sid:2200098; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA MPLS bad implicit null label"; decode-event:mpls.bad_label_implicit_null; classtype:protocol-command-decode; sid:2200099; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA MPLS reserved label"; decode-event:mpls.bad_label_reserved; classtype:protocol-command-decode; sid:2200100; rev:2;)
+alert pkthdr any any -> any any (msg:"SURICATA MPLS unknown payload type"; decode-event:mpls.unknown_payload_type; classtype:protocol-command-decode; sid:2200101; rev:2;)

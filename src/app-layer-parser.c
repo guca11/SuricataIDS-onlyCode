@@ -54,12 +54,22 @@
 #if ENABLE_SSH
 #include "app-layer-ssh.h"
 #endif
-//#include "app-layer-modbus.h"
-//#include "app-layer-dnp3.h"
-//#include "app-layer-nfs-tcp.h"
-//#include "app-layer-nfs-udp.h"
-//#include "app-layer-tftp.h"
-//#include "app-layer-ike.h"
+#if ENABLE_MODBUS
+#include "app-layer-modbus.h"
+#endif
+#if ENABLE_DNP3
+#include "app-layer-dnp3.h"
+#endif
+#if ENABLE_NFS
+#include "app-layer-nfs-tcp.h"
+#include "app-layer-nfs-udp.h"
+#endif
+#if ENABLE_TFTP
+#include "app-layer-tftp.h"
+#endif
+#if ENABLE_IKE
+#include "app-layer-ike.h"
+#endif
 //#if ENABLE_HTTP
 #include "app-layer-http2.h"
 //#endif
@@ -1740,16 +1750,28 @@ void AppLayerParserRegisterProtocolParsers(void)
     #if ENABLE_BITTORRENT    
     rs_bittorrent_dht_udp_register_parser();
     #endif
-    //RegisterModbusParsers();
-    //SCEnipRegisterParsers();
-    //RegisterDNP3Parsers();
-    //RegisterNFSTCPParsers();
-    //RegisterNFSUDPParsers();
+    #if ENABLE_MODBUS
+    RegisterModbusParsers();
+    #endif
+    #if ENABLE_ENIP
+    SCEnipRegisterParsers();
+    #endif
+    #if ENABLE_DNP3
+    RegisterDNP3Parsers();
+    #endif
+    #if ENABLE_NFS
+    RegisterNFSTCPParsers();
+    RegisterNFSUDPParsers();
+    #endif
     #if ENABLE_NTP
     rs_register_ntp_parser();
     #endif
-    //RegisterTFTPParsers();
-    //RegisterIKEParsers();
+    #if ENABLE_TFTP
+    RegisterTFTPParsers();
+    #endif
+    #if ENABLE_IKE
+    RegisterIKEParsers();
+    #endif
     #if ENABLE_KRB5
     rs_register_krb5_parser();
     #endif
@@ -1759,8 +1781,12 @@ void AppLayerParserRegisterProtocolParsers(void)
     #if ENABLE_SNMP
     rs_register_snmp_parser();
     #endif
-    //rs_sip_register_parser();
-    //rs_quic_register_parser();
+    #if ENABLE_SIP
+    rs_sip_register_parser();
+    #endif
+    #if ENABLE_QUIC
+    rs_quic_register_parser();
+    #endif
     #if ENABLE_WEBSOCKET
     rs_websocket_register_parser();
     #endif
@@ -1769,11 +1795,15 @@ void AppLayerParserRegisterProtocolParsers(void)
     SCRegisterLdapUdpParser();
     #endif
     rs_template_register_parser();
-    //SCRfbRegisterParser();
+    #if ENABLE_RFB
+    SCRfbRegisterParser();
+    #endif
     #if ENABLE_MQTT
     SCMqttRegisterParser();
     #endif
-    //SCRegisterPgsqlParser();
+    #if ENABLE_PGSQL
+    SCRegisterPgsqlParser();
+    #endif
     #if ENABLE_RDP
     rs_rdp_register_parser();
     #endif

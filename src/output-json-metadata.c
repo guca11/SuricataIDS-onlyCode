@@ -43,7 +43,9 @@
 #include "detect-engine-mpm.h"
 #include "detect-reference.h"
 #include "app-layer-parser.h"
-//#include "app-layer-dnp3.h"
+#if ENABLE_DNP3
+#include "app-layer-dnp3.h"
+#endif
 #include "app-layer-htp.h"
 #include "app-layer-htp-xff.h"
 #include "util-classification-config.h"

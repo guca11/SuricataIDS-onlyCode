@@ -76,7 +76,9 @@
 #if ENABLE_SMTP
 #include "util-lua-smtp.h"
 #endif
-//#include "util-lua-dnp3.h"
+#if ENABLE_DNP3
+#include "util-lua-dnp3.h"
+#endif
 #include "detect-lua-extensions.h"
 
 static const char luaext_key_ld[] = "suricata:luadata";
@@ -604,6 +606,8 @@ int LuaRegisterExtensions(lua_State *lua_state)
     #if ENABLE_SMTP
     LuaRegisterSmtpFunctions(lua_state);
     #endif
-//    LuaRegisterDNP3Functions(lua_state);
+    #if ENABLE_DNP3
+    LuaRegisterDNP3Functions(lua_state);
+    #endif
     return 0;
 }

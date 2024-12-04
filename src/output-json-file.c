@@ -61,7 +61,9 @@
 #include "output-json-smtp.h"
 #endif
 #include "output-json-email-common.h"
-//#include "output-json-nfs.h"
+#if ENABLE_NFS
+#include "output-json-nfs.h"
+#endif
 #if ENABLE_SMB
 #include "output-json-smb.h"
 #endif
@@ -154,16 +156,17 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
             }
             break;
         #endif
-        //case ALPROTO_NFS:
+        #if ENABLE_NFS
+        case ALPROTO_NFS:
             /* rpc */
-            /*jb_get_mark(js, &mark);
+            jb_get_mark(js, &mark);
             jb_open_object(js, "rpc");
             if (EveNFSAddMetadataRPC(p->flow, tx_id, js)) {
                 jb_close(js);
             } else {
                 jb_restore_mark(js, &mark);
-            }*/
-            /* nfs *//*
+            }
+            /* nfs */
             jb_get_mark(js, &mark);
             jb_open_object(js, "nfs");
             if (EveNFSAddMetadata(p->flow, tx_id, js)) {
@@ -171,7 +174,8 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
             } else {
                 jb_restore_mark(js, &mark);
             }
-            break;*/
+            break;
+        #endif
 #if ENABLE_SMB
         case ALPROTO_SMB:
             jb_get_mark(js, &mark);

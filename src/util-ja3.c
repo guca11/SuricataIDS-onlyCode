@@ -257,8 +257,8 @@ int Ja3IsDisabled(const char *type)
 
     return 0;
 }
-
-/*InspectionBuffer *Ja3DetectGetHash(DetectEngineThreadCtx *det_ctx,
+#if ENABLE_QUIC
+InspectionBuffer *Ja3DetectGetHash(DetectEngineThreadCtx *det_ctx,
         const DetectEngineTransforms *transforms, Flow *_f, const uint8_t _flow_flags, void *txv,
         const int list_id)
 {
@@ -302,7 +302,7 @@ InspectionBuffer *Ja3DetectGetString(DetectEngineThreadCtx *det_ctx,
     }
     return buffer;
 }
-*/
+#endif
 #else /* HAVE_JA3 */
 
 /* Stubs for when JA3 is disabled */

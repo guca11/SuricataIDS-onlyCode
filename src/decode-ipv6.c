@@ -177,10 +177,12 @@ static void DecodeIPV6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, 
                 DecodeICMPV6(tv, dtv, p, pkt, plen);
                 SCReturn;
 	    #endif
-            /*case IPPROTO_SCTP:
+            #if ENABLE_SCTP
+            case IPPROTO_SCTP:
                 IPV6_SET_L4PROTO(p,nh);
                 DecodeSCTP(tv, dtv, p, pkt, plen);
-                SCReturn;*/
+                SCReturn;
+            #endif
 
             case IPPROTO_ROUTING:
                 IPV6_SET_L4PROTO(p,nh);
@@ -608,10 +610,12 @@ int DecodeIPV6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, const uint8_t *
             DecodeICMPV6(tv, dtv, p, data, data_len);
             return TM_ECODE_OK;
         #endif
-        /*case IPPROTO_SCTP:
+        #if ENABLE_SCTP
+        case IPPROTO_SCTP:
             IPV6_SET_L4PROTO (p, IPPROTO_SCTP);
             DecodeSCTP(tv, dtv, p, data, data_len);
-            return TM_ECODE_OK;*/
+            return TM_ECODE_OK;
+        #endif
         case IPPROTO_IPIP:
             IPV6_SET_L4PROTO(p, IPPROTO_IPIP);
             DecodeIPv4inIPv6(tv, dtv, p, data, data_len);
@@ -619,10 +623,12 @@ int DecodeIPV6(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, const uint8_t *
         case IPPROTO_IPV6:
             DecodeIP6inIP6(tv, dtv, p, data, data_len);
             return TM_ECODE_OK;
-        /*case IPPROTO_GRE:
+        #if ENABLE_GRE
+        case IPPROTO_GRE:
             IPV6_SET_L4PROTO(p, IPPROTO_GRE);
             DecodeGRE(tv, dtv, p, data, data_len);
-            break;*/
+            break;
+        #endif
         case IPPROTO_FRAGMENT:
         case IPPROTO_HOPOPTS:
         case IPPROTO_ROUTING:
