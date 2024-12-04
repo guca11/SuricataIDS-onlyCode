@@ -1012,7 +1012,8 @@ dependencies = [
 [[package]]
 name = "suricata-lua-sys"
 version = "0.1.0-alpha.1"
-source = "git+https://github.com/guca11/suricata-lua-sys-aarch64#b5dc88e4a32cc9f8e279d0da6e3fcd9acdb90177"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "27aba92b2bc53955440218aed3fa6e6f4cf6cba443deb8fed7e216e6b1d96af2"
 dependencies = [
  "fs_extra",
 ]
