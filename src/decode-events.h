@@ -219,11 +219,14 @@ enum {
     #endif
 
     /* Cisco Fabric Path/DCE events. */
-    //DCE_PKT_TOO_SMALL,
-
+    #if ENABLE_DCERPC
+    DCE_PKT_TOO_SMALL,
+    #endif
     /* Cisco HDLC events. */
-    //CHDLC_PKT_TOO_SMALL,
-
+    #if ENABLE_CHDLC
+    CHDLC_PKT_TOO_SMALL,
+    #endif
+    
     /* NSH events */
     #if ENABLE_NSH
     NSH_HEADER_TOO_SMALL,

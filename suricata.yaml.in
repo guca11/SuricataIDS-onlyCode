@@ -310,13 +310,16 @@ outputs:
             enabled: @ENABLE_FTP_STRING@
         - rdp:
             enabled: @ENABLE_RDP_STRING@
-        #- nfs
+        - nfs:
+            enabled: @ENABLE_NFS_STRING@
         - smb:
             enabled: @ENABLE_SMB_STRING@
         - tftp:
             enabled: @ENABLE_TFPT_STRING@
-        #- ike
-        #- dcerpc
+        - ike:
+            enabled: @ENABLE_IKE_STRING@
+        - dcerpc:
+            enabled: @ENABLE_DCERPC_STRING@
         - krb5:
             enabled: @ENABLE_KRB5_STRING@
         - bittorrent-dht:
@@ -906,7 +909,7 @@ app-layer:
     snmp:
       enabled: @ENABLE_SNMP_STRING@
     ike:
-      enabled: no
+      enabled: @ENABLE_IKE_STRING@
     tls:
       enabled: @ENABLE_TLS_STRING@
       detection-ports:
@@ -938,7 +941,7 @@ app-layer:
       # Maximum number of live PostgreSQL transactions per flow
       # max-tx: 1024
     dcerpc:
-      enabled: no
+      enabled: @ENABLE_DCERPC_STRING@
       # Maximum number of live DCERPC transactions per flow
       # max-tx: 1024
     ftp:

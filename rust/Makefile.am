@@ -96,7 +96,45 @@ if ENABLE_WEBSOCKET
 RUST_FEATURES += websocket
 endif
 
-# Excluded: dcerpc, enip, ike, modbus, nfs, pgsql, quic, rfb, sip, tftp
+if ENABLE_DCERPC
+RUST_FEATURES += dcerpc
+endif
+
+if ENABLE_ENIP
+RUST_FEATURES += enip
+endif
+
+if ENABLE_IKE
+RUST_FEATURES += ike
+endif
+
+if ENABLE_MODBUS
+RUST_FEATURES += modbus
+endif
+
+if ENABLE_NFS
+RUST_FEATURES += nfs
+endif
+
+if ENABLE_PGSQL
+RUST_FEATURES += pgsql
+endif
+
+if ENABLE_QUIC
+RUST_FEATURES += quic
+endif
+
+if ENABLE_RFB
+RUST_FEATURES += rfb
+endif
+
+if ENABLE_SIP
+RUST_FEATURES += sip
+endif
+
+if ENABLE_TFTP
+RUST_FEATURES += tftp
+endif
 
 if !DEBUG
 RELEASE = --release

@@ -1422,7 +1422,11 @@ AppProto AppLayerProtoDetectGetProto(AppLayerProtoDetectThreadCtx *tctx, Flow *f
 
             /* HACK: if detected protocol is dcerpc/udp, we run PP as well
              * to avoid misdetecting DNS as DCERPC. */
-            if (!(ipproto == IPPROTO_UDP /*&& alproto == ALPROTO_DCERPC*/))
+            if (!(ipproto == IPPROTO_UDP 
+            #if ENABLE_DCERPC
+            && alproto == ALPROTO_DCERPC
+            #endif
+            ))
                 goto end;
 
             pm_alproto = alproto;

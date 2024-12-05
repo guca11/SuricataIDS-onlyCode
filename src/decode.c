@@ -638,7 +638,9 @@ void DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
     dtv->counter_arp = StatsRegisterCounter("decoder.arp", tv);
     #endif
     dtv->counter_ethertype_unknown = StatsRegisterCounter("decoder.unknown_ethertype", tv);
-    //dtv->counter_chdlc = StatsRegisterCounter("decoder.chdlc", tv);
+    #if ENABLE_CHDLC
+    dtv->counter_chdlc = StatsRegisterCounter("decoder.chdlc", tv);
+    #endif
     #if ENABLE_RAW
     dtv->counter_raw = StatsRegisterCounter("decoder.raw", tv);
     #endif

@@ -1729,8 +1729,10 @@ void AppLayerParserRegisterProtocolParsers(void)
     #if ENABLE_TLS
     RegisterSSLParsers();
     #endif
-    //rs_dcerpc_register_parser();
-    //rs_dcerpc_udp_register_parser();
+    #if ENABLE_DCERPC
+    rs_dcerpc_register_parser();
+    rs_dcerpc_udp_register_parser();
+    #endif
     #if ENABLE_SMB
     RegisterSMBParsers();
     #endif

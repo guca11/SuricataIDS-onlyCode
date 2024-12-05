@@ -433,7 +433,8 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
             }
             break;
         #endif
-        /*case ALPROTO_DCERPC: {
+        #if ENABLE_DCERPC
+        case ALPROTO_DCERPC: {
             void *state = FlowGetAppState(p->flow);
             if (state) {
                 void *tx = AppLayerParserGetTx(p->flow->proto, proto, state, tx_id);
@@ -453,7 +454,8 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
                 }
             }
             break;
-        }*/
+        }
+        #endif
         default:
             break;
     }

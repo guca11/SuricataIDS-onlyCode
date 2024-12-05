@@ -505,9 +505,10 @@ static int DetectBytejumpSetup(DetectEngineCtx *de_ctx, Signature *s, const char
         } else {
             sm_list = DETECT_SM_LIST_PMATCH;
         }
-
-       /* if (DetectSignatureSetAppProto(s, ALPROTO_DCERPC) != 0)
-            goto error;*/
+       #if ENABLE_DCERPC
+       if (DetectSignatureSetAppProto(s, ALPROTO_DCERPC) != 0)
+            goto error;
+        #endif
 
     } else if (data->flags & DETECT_BYTEJUMP_RELATIVE) {
         prev_pm = DetectGetLastSMFromLists(s,
@@ -1207,10 +1208,12 @@ static void DetectBytejumpRegisterTests(void)
     UtRegisterTest("DetectBytejumpTestParse06", DetectBytejumpTestParse06);
     UtRegisterTest("DetectBytejumpTestParse07", DetectBytejumpTestParse07);
     UtRegisterTest("DetectBytejumpTestParse08", DetectBytejumpTestParse08);
-    //UtRegisterTest("DetectBytejumpTestParse09", DetectBytejumpTestParse09);
-    //UtRegisterTest("DetectBytejumpTestParse10", DetectBytejumpTestParse10);
-    //UtRegisterTest("DetectBytejumpTestParse11", DetectBytejumpTestParse11);
-    //UtRegisterTest("DetectBytejumpTestParse12", DetectBytejumpTestParse12);
+    #if ENABLE_DCERPC
+    UtRegisterTest("DetectBytejumpTestParse09", DetectBytejumpTestParse09);
+    UtRegisterTest("DetectBytejumpTestParse10", DetectBytejumpTestParse10);
+    UtRegisterTest("DetectBytejumpTestParse11", DetectBytejumpTestParse11);
+    UtRegisterTest("DetectBytejumpTestParse12", DetectBytejumpTestParse12);
+    #endif
     UtRegisterTest("DetectBytejumpTestParse13", DetectBytejumpTestParse13);
     UtRegisterTest("DetectBytejumpTestParse14", DetectBytejumpTestParse14);
 

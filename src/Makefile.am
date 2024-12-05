@@ -586,10 +586,6 @@ noinst_HEADERS += detect-icmpv6-mtu.h
 noinst_HEADERS += detect-engine-address-ipv6.h 
 endif
 
-
-
-#	REMOVED PROTOCOLS HEADERS
-
 if ENABLE_IKE
 noinst_HEADERS += app-layer-ike.h 
 noinst_HEADERS += detect-ike-exch-type.h 
@@ -635,12 +631,13 @@ if ENABLE_GENEVE
 noinst_HEADERS += decode-geneve.h 
 endif
 
-#	DCERPC
-#	output-json-dcerpc.h
-#	detect-dce-iface.h \
-#	detect-dce-opnum.h \
-#	detect-dce-stub-data.h \
-#	detect-engine-dcepayload.h
+if ENABLE_DCERPC
+noinst_HEADERS += output-json-dcerpc.h
+noinst_HEADERS += detect-dce-iface.h 
+noinst_HEADERS += detect-dce-opnum.h 
+noinst_HEADERS += detect-dce-stub-data.h 
+noinst_HEADERS += detect-engine-dcepayload.h
+endif 
 
 if ENABLE_MODBUS
 noinst_HEADERS += app-layer-modbus.h 
@@ -690,8 +687,9 @@ if ENABLE_VLAN
 noinst_HEADERS += decode-vlan.h
 endif
 
-#	CHDLC
-#	decode-chdlc.h 
+if ENABLE_CHDLC
+noinst_HEADERS += decode-chdlc.h
+endif
 
 if ENABLE_NSH
 noinst_HEADERS += decode-nsh.h
@@ -704,6 +702,7 @@ endif
 if ENABLE_TEREDO
 noinst_HEADERS += decode-teredo.h
 endif
+
 #	TEMPLATE
 #	decode-template.h 
 #	detect-template2.h 
@@ -1272,19 +1271,18 @@ libsuricata_c_a_SOURCES += detect-icmpv6-mtu.c
 libsuricata_c_a_SOURCES += detect-engine-address-ipv6.c
 endif
 
-#	REMOVED PROTOCOLS SOURCES
-
-#	IKE
-#	app-layer-ike.c \
-#	detect-ike-exch-type.c \
-#	detect-ike-spi.c \
-#	detect-ike-vendor.c \
-#	detect-ike-chosen-sa.c \
-#	detect-ike-key-exchange-payload-length.c \
-#	detect-ike-nonce-payload-length.c \
-#	detect-ike-nonce-payload.c \
-#	detect-ike-key-exchange-payload.c \
-#	output-json-ike.c 
+if ENABLE_IKE
+libsuricata_c_a_SOURCES += app-layer-ike.c 
+libsuricata_c_a_SOURCES += detect-ike-exch-type.c 
+libsuricata_c_a_SOURCES += detect-ike-spi.c 
+libsuricata_c_a_SOURCES += detect-ike-vendor.c 
+libsuricata_c_a_SOURCES += detect-ike-chosen-sa.c 
+libsuricata_c_a_SOURCES += detect-ike-key-exchange-payload-length.c 
+libsuricata_c_a_SOURCES += detect-ike-nonce-payload-length.c 
+libsuricata_c_a_SOURCES += detect-ike-nonce-payload.c 
+libsuricata_c_a_SOURCES += detect-ike-key-exchange-payload.c 
+libsuricata_c_a_SOURCES += output-json-ike.c 
+endif
 
 if ENABLE_SCTP
 libsuricata_c_a_SOURCES += decode-sctp.c 
@@ -1318,13 +1316,13 @@ if ENABLE_GENEVE
 libsuricata_c_a_SOURCES += decode-geneve.c 
 endif
 
-#	DCERPC
-#	output-json-dcerpc.c
-#	detect-dce-iface.c \
-#	detect-dce-opnum.c \
-#	detect-dce-stub-data.c \
-#	detect-engine-dcepayload.c
-
+if ENABLE_DCERPC
+libsuricata_c_a_SOURCES += output-json-dcerpc.c
+libsuricata_c_a_SOURCES += detect-dce-iface.c 
+libsuricata_c_a_SOURCES += detect-dce-opnum.c
+libsuricata_c_a_SOURCES += detect-dce-stub-data.c 
+libsuricata_c_a_SOURCES += detect-engine-dcepayload.c
+endif
 
 if ENABLE_MODBUS
 libsuricata_c_a_SOURCES += app-layer-modbus.c
@@ -1374,8 +1372,9 @@ if ENABLE_VLAN
 libsuricata_c_a_SOURCES += decode-vlan.c 
 endif
 
-#	CHDLC
-#	decode-chdlc.c 
+if ENABLE_CHDLC
+libsuricata_c_a_SOURCES += decode-chdlc.c
+endif
 
 if ENABLE_NSH
 libsuricata_c_a_SOURCES += decode-nsh.c

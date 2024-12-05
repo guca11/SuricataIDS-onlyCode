@@ -52,7 +52,9 @@ enum AppProtoEnum {
 #if ENABLE_SMB
     ALPROTO_SMB,
 #endif
-//    ALPROTO_DCERPC,
+#if ENABLE_DCERPC
+    ALPROTO_DCERPC,
+#endif
     ALPROTO_IRC,
 #if ENABLE_DNS
     ALPROTO_DNS,
@@ -182,8 +184,10 @@ static inline bool AppProtoEquals(AppProto sigproto, AppProto alproto)
         case ALPROTO_HTTP:
             return (alproto == ALPROTO_HTTP1) || (alproto == ALPROTO_HTTP2);
         #endif
-        /*case ALPROTO_DCERPC:
-            return (alproto == ALPROTO_SMB);*/
+        #if ENABLE_DCERPC
+        case ALPROTO_DCERPC:
+            return (alproto == ALPROTO_SMB);
+        #endif
     }
     return false;
 }
@@ -194,10 +198,12 @@ static inline AppProto AppProtoCommon(AppProto sigproto, AppProto alproto)
     switch (sigproto) {
 #if ENABLE_SMB    
         case ALPROTO_SMB:
-            /*if (alproto == ALPROTO_DCERPC) {
+            #if ENABLE_DCERPC
+            if (alproto == ALPROTO_DCERPC) {
                 // ok to have dcerpc keywords in smb sig
                 return ALPROTO_SMB;
-            }*/
+            }
+            #endif
             break;
 #endif        
 	#if ENABLE_HTTP

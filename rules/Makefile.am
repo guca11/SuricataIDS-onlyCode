@@ -123,14 +123,19 @@ if ENABLE_ERSPAN
 dist_rule_DATA += decoder-events-erspan.rules
 endif
 
-# REMOVED PROTOCOLS RULES
+if ENABLE_CHDLC
+dist_rule_DATA += decoder-events-chdlc.rules
+endif
 
-# DNP3
-# dnp3-events.rules
+if ENABLE_DNP3
+dist_rule_DATA += dnp3-events.rules
+endif
 
-# ENIP
-# enip-events.rules
+if ENABLE_ENIP
+dist_rule_DATA += enip-events.rules
+endif
 
-
- 
+if ENABLE_DCERPC
+dist_rule_DATA += decoder-events-dcerpc.rules
+endif
 

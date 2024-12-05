@@ -99,7 +99,9 @@
 #include "output-json-dnp3.h"
 #endif
 #include "output-json-metadata.h"
-//#include "output-json-dcerpc.h"
+#if ENABLE_DCERPC
+#include "output-json-dcerpc.h"
+#endif
 #include "output-json-frame.h"
 #include "app-layer-parser.h"
 #include "output-filestore.h"
@@ -1206,7 +1208,9 @@ void OutputRegisterLoggers(void)
     SCLogDebug("rdp json logger registered.");
     #endif
     /* DCERPC JSON logger. */
-//    JsonDCERPCLogRegister();
+    #if ENABLE_DCERPC
+    JsonDCERPCLogRegister();
+    #endif
     /* app layer frames */
     JsonFrameLogRegister();
     /* BitTorrent DHT JSON logger */

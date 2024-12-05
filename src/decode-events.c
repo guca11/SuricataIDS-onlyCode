@@ -567,17 +567,21 @@ const struct DecodeEvents_ DEvents[] = {
     },
     #endif
 
-    /* Cisco Fabric Path/DCE events. *//*
+    /* Cisco Fabric Path/DCE events. */
+    #if ENABLE_DCERPC
     {
             "decoder.dce.pkt_too_small",
             DCE_PKT_TOO_SMALL,
-    },*/
+    },
+    #endif
 
     /* Cisco HDLC events. */
-    /*{
+    #if ENABLE_CHDLC
+    {
             "decoder.chdlc.pkt_too_small",
             CHDLC_PKT_TOO_SMALL,
-    },*/
+    },
+    #endif
 
     /* NSH events */
     #if ENABLE_NSH

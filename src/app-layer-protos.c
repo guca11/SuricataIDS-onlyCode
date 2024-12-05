@@ -57,7 +57,9 @@ const AppProtoStringTuple AppProtoStrings[ALPROTO_MAX] = {
 #if ENABLE_SMB    
     { ALPROTO_SMB, "smb" },
 #endif
-//    { ALPROTO_DCERPC, "dcerpc" },
+#if ENABLE_DCERPC
+    { ALPROTO_DCERPC, "dcerpc" },
+#endif
     { ALPROTO_IRC, "irc" },
 #if ENABLE_DNS    
     { ALPROTO_DNS, "dns" },

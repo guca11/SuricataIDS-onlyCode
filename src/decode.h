@@ -1090,7 +1090,9 @@ typedef struct DecodeThreadVars_
     uint16_t counter_invalid;
 
     uint16_t counter_eth;
-//    uint16_t counter_chdlc;
+    #if ENABLE_CHDLC
+    uint16_t counter_chdlc;
+    #endif
     uint16_t counter_ipv4;
     #if ENABLE_IPV6
     uint16_t counter_ipv6;
@@ -1360,7 +1362,9 @@ int DecodeMPLS(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint
 int DecodeERSPAN(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeERSPANTypeI(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 #endif
-//int DecodeCHDLC(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#if ENABLE_CHDLC
+int DecodeCHDLC(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
 //int DecodeTEMPLATE(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 #if ENABLE_NSH
 int DecodeNSH(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
@@ -1447,9 +1451,11 @@ void DecodeUnregisterCounters(void);
 #define DLT_EN10MB 1
 #endif
 
-/*#ifndef DLT_C_HDLC
+#if ENABLE_CHDLC
+#ifndef DLT_C_HDLC
 #define DLT_C_HDLC 104
-#endif*/
+#endif
+#endif
 
 /* taken from pcap's bpf.h */
 #ifndef DLT_RAW
@@ -1485,7 +1491,9 @@ void DecodeUnregisterCounters(void);
 #if ENABLE_GRE
 #define LINKTYPE_GRE_OVER_IP 778
 #endif
-//#define LINKTYPE_CISCO_HDLC  DLT_C_HDLC
+#if ENABLE_CHDLC
+#define LINKTYPE_CISCO_HDLC  DLT_C_HDLC
+#endif
 #if ENABLE_PPP
 #define PPP_OVER_GRE         11
 #endif
@@ -1690,9 +1698,11 @@ static inline void DecodeLinkLayer(ThreadVars *tv, DecodeThreadVars *dtv,
         case LINKTYPE_NULL:
             DecodeNull(tv, dtv, p, data, len);
             break;
-       /*case LINKTYPE_CISCO_HDLC:
+        #if ENABLE_CHDLC
+        case LINKTYPE_CISCO_HDLC:
             DecodeCHDLC(tv, dtv, p, data, len);
-            break;*/
+            break;
+        #endif
         default:
             SCLogError("datalink type "
                        "%" PRId32 " not yet supported",
@@ -1752,14 +1762,16 @@ static inline bool DecodeNetworkLayer(ThreadVars *tv, DecodeThreadVars *dtv,
             DecodeMPLS(tv, dtv, p, data, len);
             break;
         #endif
-        /*case ETHERNET_TYPE_DCE:
+        #if ENABLE_DCERPC
+        case ETHERNET_TYPE_DCE:
             if (unlikely(len < ETHERNET_DCE_HEADER_LEN)) {
                 ENGINE_SET_INVALID_EVENT(p, DCE_PKT_TOO_SMALL);
             } else {
                 // DCE layer is ethernet + 2 bytes, followed by another ethernet
                 DecodeEthernet(tv, dtv, p, data + 2, len - 2);
             }
-            break;*/
+            break;
+        #endif
         #if ENABLE_VNTAG
         case ETHERNET_TYPE_VNTAG:
             DecodeVNTag(tv, dtv, p, data, len);

@@ -46,7 +46,9 @@
 #include "rust.h"
 
 #include "detect-engine-payload.h"
-//#include "detect-engine-dcepayload.h"
+#if ENABLE_DCERPC
+#include "detect-engine-dcepayload.h"
+#endif
 #if ENABLE_DNS
 #include "detect-dns-opcode.h"
 #include "detect-dns-rcode.h"
@@ -167,9 +169,11 @@
 #include "detect-icmp-id.h"
 #include "detect-icmp-seq.h"
 #include "detect-icmpv4hdr.h"
-/*#include "detect-dce-iface.h"
+#if ENABLE_DCERPC
+#include "detect-dce-iface.h"
 #include "detect-dce-opnum.h"
-#include "detect-dce-stub-data.h"*/
+#include "detect-dce-stub-data.h"
+#endif
 #include "detect-urilen.h"
 #include "detect-bsize.h"
 #include "detect-detection-filter.h"
@@ -652,9 +656,11 @@ void SigTableSetup(void)
     DetectIcmpIdRegister();
     DetectIcmpSeqRegister();
     DetectIcmpv4HdrRegister();
-/*    DetectDceIfaceRegister();
+    #if ENABLE_DCERPC
+    DetectDceIfaceRegister();
     DetectDceOpnumRegister();
-    DetectDceStubDataRegister();*/
+    DetectDceStubDataRegister();
+    #endif
     
     #if ENABLE_SMB 
     DetectSmbNamedPipeRegister();
