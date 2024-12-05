@@ -1025,9 +1025,9 @@ app-layer:
       enabled: @ENABLE_NFS_STRING@
       # max-tx: 1024
     tcp:
-      enabled: @ENABLE_TCP_STRING@  
+      enabled: yes
     tcp-pkt:
-      enabled: @ENABLE_TCP_STRING@
+      enabled: yes
     tftp:
       enabled: @ENABLE_TFPT_STRING@
     dns:

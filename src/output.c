@@ -93,7 +93,9 @@
 #if ENABLE_MQTT
 #include "output-json-mqtt.h"
 #endif
-//#include "output-json-pgsql.h"
+#if ENABLE_PGSQL
+#include "output-json-pgsql.h"
+#endif
 #include "output-lua.h"
 #if ENABLE_DNP3
 #include "output-json-dnp3.h"
@@ -117,13 +119,11 @@ typedef struct RootLogger_ {
 
     TAILQ_ENTRY(RootLogger_) entries;
 } RootLogger;
-
 /* List of registered root loggers. These are registered at start up and
  * are independent of configuration. Later we will build a list of active
  * loggers based on configuration. */
 static TAILQ_HEAD(, RootLogger_) registered_loggers =
     TAILQ_HEAD_INITIALIZER(registered_loggers);
-
 /* List of active root loggers. This means that at least one logger is enabled
  * for each root logger type in the config. */
 static TAILQ_HEAD(, RootLogger_) active_loggers =
@@ -944,7 +944,9 @@ void OutputRegisterRootLoggers(void)
     #if ENABLE_MQTT
     RegisterSimpleJsonApplayerLogger(ALPROTO_MQTT, JsonMQTTAddMetadata, NULL);
     #endif
-    //RegisterSimpleJsonApplayerLogger(ALPROTO_PGSQL, JsonPgsqlAddMetadata, NULL);
+    #if ENABLE_PGSQL
+    RegisterSimpleJsonApplayerLogger(ALPROTO_PGSQL, JsonPgsqlAddMetadata, NULL);
+    #endif
     #if ENABLE_WEBSOCKET
     RegisterSimpleJsonApplayerLogger(ALPROTO_WEBSOCKET, rs_websocket_logger_log, NULL);
     #endif
@@ -1075,9 +1077,9 @@ void OutputRegisterLoggers(void)
     SCLogDebug("modbus json logger registered.");
     #endif
     /* tcp streaming data */
-    #if ENABLE_TCP
+    //#if ENABLE_TCP
     LogTcpDataLogRegister();
-    #endif
+    //#endif
     /* log stats */
     LogStatsLogRegister();
 
@@ -1166,20 +1168,20 @@ void OutputRegisterLoggers(void)
             OutputJsonLogInitSub, ALPROTO_RFB, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
     #endif
-#if ENABLE_MQTT
+    #if ENABLE_MQTT
     /* MQTT JSON logger. */
     JsonMQTTLogRegister();
-#endif
+    #endif
     /* Pgsql JSON logger. */
     #if ENABLE_PGSQL
     JsonPgsqlLogRegister();
     #endif
     /* WebSocket JSON logger. */
-#if ENABLE_WEBSOCKET    
+    #if ENABLE_WEBSOCKET    
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonWebSocketLog", "eve-log.websocket",
             OutputJsonLogInitSub, ALPROTO_WEBSOCKET, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
-#endif
+    #endif
     /* Enip JSON logger. */
     #if ENABLE_ENIP
    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonEnipLog", "eve-log.enip",

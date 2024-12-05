@@ -685,16 +685,16 @@ void DecodeRegisterPerfCounters(DecodeThreadVars *dtv, ThreadVars *tv)
     dtv->counter_vlan_qinqinq = StatsRegisterCounter("decoder.vlan_qinqinq", tv);
     dtv->counter_ieee8021ah = StatsRegisterCounter("decoder.ieee8021ah", tv);
     #endif
-#if ENABLE_VXLAN
+    #if ENABLE_VXLAN
     dtv->counter_vxlan = StatsRegisterCounter("decoder.vxlan", tv);
-#endif
-#if ENABLE_VNTAG
+    #endif
+    #if ENABLE_VNTAG
     dtv->counter_vntag = StatsRegisterCounter("decoder.vntag", tv);
-#endif 
-#if ENABLE_TEREDO
+    #endif 
+    #if ENABLE_TEREDO
     dtv->counter_teredo = StatsRegisterCounter("decoder.teredo", tv);
-#endif
-#if ENABLE_IPV6
+    #endif
+    #if ENABLE_IPV6
     dtv->counter_ipv4inipv6 = StatsRegisterCounter("decoder.ipv4_in_ipv6", tv);
     dtv->counter_ipv6inipv6 = StatsRegisterCounter("decoder.ipv6_in_ipv6", tv);
     #endif

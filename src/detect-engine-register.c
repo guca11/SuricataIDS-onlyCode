@@ -505,10 +505,10 @@ void SigTableSetup(void)
     DetectThresholdRegister();
     DetectMetadataRegister();
     DetectMsgRegister();
-    #if ENABLE_TCP
+    //#if ENABLE_TCP
     DetectAckRegister();
     DetectSeqRegister();
-    #endif
+    //#endif
     DetectContentRegister();
     DetectUricontentRegister();
 
@@ -617,14 +617,14 @@ void SigTableSetup(void)
     DetectFlowBytesToClientRegister();
     DetectFlowBytesToServerRegister();
     DetectRequiresRegister();
-    #if ENABLE_TCP
+    //#if ENABLE_TCP
     DetectWindowRegister();
-    #endif
+    //#endif
     DetectRpcRegister();
-#if ENABLE_FTP    
+    #if ENABLE_FTP    
     DetectFtpbounceRegister();
     DetectFtpdataRegister();
-#endif
+    #endif
     DetectIsdataatRegister();
     DetectIdRegister();
     DetectDsizeRegister();
@@ -639,9 +639,9 @@ void SigTableSetup(void)
     DetectXbitsRegister();
     DetectEngineEventRegister();
     DetectIpOptsRegister();
-    #if ENABLE_TCP
+    //#if ENABLE_TCP
     DetectFlagsRegister();
-    #endif
+    //#endif
     DetectFragBitsRegister();
     DetectFragOffsetRegister();
     DetectGidRegister();
@@ -706,13 +706,13 @@ void SigTableSetup(void)
     DetectBase64DataRegister();
     //DetectTemplateRegister();
     //DetectTemplate2Register();
-    #if ENABLE_TCP
+    //#if ENABLE_TCP
     DetectTcphdrRegister();
     DetectTcpmssRegister();
-    #endif    
-    #if ENABLE_UDP
+    //#endif    
+    //#if ENABLE_UDP
     DetectUdphdrRegister();
-    #endif
+    //#endif
     #if ENABLE_IPV6
     DetectICMPv6hdrRegister();
     DetectICMPv6mtuRegister();
@@ -721,17 +721,17 @@ void SigTableSetup(void)
     DetectIPAddrBufferRegister();
     DetectIpv4hdrRegister();
     
-#if ENABLE_KRB5    
+    #if ENABLE_KRB5    
     DetectKrb5CNameRegister();
     DetectKrb5ErrCodeRegister();
     DetectKrb5MsgTypeRegister();
     DetectKrb5SNameRegister();
     DetectKrb5TicketEncryptionRegister();
-#endif
-#if ENABLE_SIP
+    #endif
+    #if ENABLE_SIP
     DetectSipMethodRegister();
     DetectSipUriRegister();
-#endif
+    #endif
     DetectTargetRegister();
     //DetectTemplateRustBufferRegister();
     #if ENABLE_QUIC

@@ -104,7 +104,7 @@ pub mod ftp;
 pub mod smb;
 #[cfg(feature = "krb")]
 pub mod krb;
-#[cfg(any(feature = "dmb", feature = "dcerpc"))]
+#[cfg(any(feature = "smb", feature = "dcerpc"))]
 pub mod dcerpc;
 #[cfg(feature = "modbus")]
 pub mod modbus;

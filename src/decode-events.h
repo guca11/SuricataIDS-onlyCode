@@ -128,7 +128,7 @@ enum {
     #endif
     /* ETHERNET EVENTS */
     ETHERNET_PKT_TOO_SMALL, /**< ethernet packet smaller than minimum size */
-    #if ENABLE_PPP
+    #if ENABLE_PPP || ENABLE_PPPOE
     /* PPP EVENTS */
     PPP_PKT_TOO_SMALL,     /**< ppp packet smaller than minimum size */
     PPPVJU_PKT_TOO_SMALL,  /**< ppp vj uncompressed packet smaller than minimum size */
@@ -136,12 +136,13 @@ enum {
     PPPIPV6_PKT_TOO_SMALL, /**< ppp ipv6 packet smaller than minimum size */
     PPP_WRONG_TYPE,        /**< wrong type in ppp frame */
     PPP_UNSUP_PROTO,       /**< protocol not supported for ppp */
+    #endif
     #if ENABLE_PPPOE
     /* PPPOE EVENTS */
     PPPOE_PKT_TOO_SMALL,  /**< pppoe packet smaller than minimum size */
     PPPOE_WRONG_CODE,     /**< wrong code for pppoe */
     PPPOE_MALFORMED_TAGS, /**< malformed tags in pppoe */
-#endif
+    #endif
     /* GRE EVENTS */
     #if ENABLE_GRE
     GRE_PKT_TOO_SMALL,              /**< gre packet smaller than minimum size */
@@ -169,8 +170,8 @@ enum {
     #endif
     /* VNTAG EVENTS */
     #if ENABLE_VNTAG
-    //VNTAG_HEADER_TOO_SMALL, /**< vntag header smaller than minimum size */
-    //VNTAG_UNKNOWN_TYPE,     /**< vntag unknown type */
+    VNTAG_HEADER_TOO_SMALL, /**< vntag header smaller than minimum size */
+    VNTAG_UNKNOWN_TYPE,     /**< vntag unknown type */
     #endif
     /* RAW EVENTS */
     #if ENABLE_RAW
@@ -179,10 +180,10 @@ enum {
     /* LINKTYPE NULL EVENTS */
     LTNULL_PKT_TOO_SMALL,    /**< pkt too small for lt:null */
     LTNULL_UNSUPPORTED_TYPE, /**< pkt has a type that the decoder doesn't support */
-
     /* SCTP EVENTS */
-    //SCTP_PKT_TOO_SMALL, /**< sctp packet smaller than minimum size */
-
+    #if ENABLE_SCTP
+    SCTP_PKT_TOO_SMALL, /**< sctp packet smaller than minimum size */
+    #endif
     /* ESP EVENTS */
     #if ENABLE_ESP
     ESP_PKT_TOO_SMALL, /**< esp packet smaller than minimum size */
@@ -205,7 +206,7 @@ enum {
     #endif
     #if ENABLE_VXLAN
     /* VXLAN events */
-    //VXLAN_UNKNOWN_PAYLOAD_TYPE,
+    VXLAN_UNKNOWN_PAYLOAD_TYPE,
     #endif
     /* Geneve events */
     #if ENABLE_GENEVE

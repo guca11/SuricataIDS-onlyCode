@@ -552,19 +552,19 @@ endif
 #	ETHERNET
 noinst_HEADERS += decode-ethernet.h
 
-if ENABLE_UDP
+#if ENABLE_UDP
 noinst_HEADERS += detect-udphdr.h
-endif
+#endif
 noinst_HEADERS += decode-udp.h
 
-if ENABLE_TCP
+#if ENABLE_TCP
 noinst_HEADERS += detect-tcp-ack.h
 noinst_HEADERS += detect-tcphdr.h
 noinst_HEADERS += detect-tcpmss.h 
 noinst_HEADERS += detect-tcp-seq.h 
 noinst_HEADERS += detect-tcp-window.h 
 noinst_HEADERS += log-tcp-data.h 
-endif
+#endif
 noinst_HEADERS += decode-tcp.h
 noinst_HEADERS += detect-tcp-flags.h
 noinst_HEADERS += stream-tcp.h 
@@ -1239,18 +1239,18 @@ endif
 libsuricata_c_a_SOURCES += decode-ethernet.c
 
 libsuricata_c_a_SOURCES += decode-udp.c
-if ENABLE_UDP
+#if ENABLE_UDP
 libsuricata_c_a_SOURCES += detect-udphdr.c
-endif
+#endif
 
-if ENABLE_TCP
+#if ENABLE_TCP
 libsuricata_c_a_SOURCES += detect-tcp-ack.c
 libsuricata_c_a_SOURCES += detect-tcphdr.c
 libsuricata_c_a_SOURCES += detect-tcpmss.c
 libsuricata_c_a_SOURCES += detect-tcp-seq.c
 libsuricata_c_a_SOURCES += detect-tcp-window.c 
 libsuricata_c_a_SOURCES += log-tcp-data.c 
-endif
+#endif
 libsuricata_c_a_SOURCES += decode-tcp.c
 libsuricata_c_a_SOURCES += detect-tcp-flags.c
 libsuricata_c_a_SOURCES += stream-tcp.c
@@ -1352,8 +1352,8 @@ libsuricata_c_a_SOURCES += app-layer-tftp.c
 endif
 
 if ENABLE_SIP
-libsuricata_c_a_SOURCES += detect-sip-method.h 
-libsuricata_c_a_SOURCES += detect-sip-uri.h
+libsuricata_c_a_SOURCES += detect-sip-method.c
+libsuricata_c_a_SOURCES += detect-sip-uri.c
 endif
 
 if ENABLE_QUIC

@@ -183,7 +183,6 @@ static void DecodeIPV6ExtHdrs(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p, 
                 DecodeSCTP(tv, dtv, p, pkt, plen);
                 SCReturn;
             #endif
-
             case IPPROTO_ROUTING:
                 IPV6_SET_L4PROTO(p,nh);
                 hdrextlen = 8 + (*(pkt+1) * 8);  /* 8 bytes + length in 8 octet units */

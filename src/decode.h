@@ -92,9 +92,9 @@ enum PktSrcEnum {
 #endif
 
 #include "decode-ethernet.h"
-#if ENABLE_GRE
+//#if ENABLE_GRE
 #include "decode-gre.h"
-#endif
+//#endif
 #if ENABLE_PPP
 #include "decode-ppp.h"
 #endif
@@ -106,15 +106,15 @@ enum PktSrcEnum {
 #include "decode-icmpv4.h"
 #include "decode-tcp.h"
 #include "decode-udp.h"
-#if ENABLE_SCTP
+//#if ENABLE_SCTP
 #include "decode-sctp.h"
-#endif
+//#endif
 #if ENABLE_ESP
 #include "decode-esp.h"
 #endif
-#if ENABLE_VLAN
+//#if ENABLE_VLAN
 #include "decode-vlan.h"
-#endif
+//#endif
 #if ENABLE_MPLS
 #include "decode-mpls.h"
 #endif
@@ -489,12 +489,12 @@ struct PacketL4 {
         UDPHdr *udph;
         ICMPV4Hdr *icmpv4h;
         ICMPV6Hdr *icmpv6h;
-        #if ENABLE_SCTP
+        //#if ENABLE_SCTP
         SCTPHdr *sctph;
-        #endif
-        #if ENABLE_GRE
+        //#endif
+        //#if ENABLE_GRE
         GREHdr *greh;
-        #endif
+        //#endif
         ESPHdr *esph;
     } hdrs;
     union L4Vars {
@@ -1148,25 +1148,25 @@ typedef struct DecodeThreadVars_
     #if ENABLE_VNTAG
     uint16_t counter_vntag;
     #endif  
-#if ENABLE_PPPOE
+    #if ENABLE_PPPOE
     uint16_t counter_pppoe;
-#endif
-#if ENABLE_TEREDO
+    #endif
+    #if ENABLE_TEREDO
     uint16_t counter_teredo;
-#endif
-#if ENABLE_MPLS
+    #endif
+    #if ENABLE_MPLS
     uint16_t counter_mpls;
-#endif
-#if ENABLE_IPV6
+    #endif
+    #if ENABLE_IPV6
     uint16_t counter_ipv4inipv6;
     uint16_t counter_ipv6inipv6;
-#endif
-#if ENABLE_ERSPAN
+    #endif
+    #if ENABLE_ERSPAN
     uint16_t counter_erspan;
-#endif
-#if ENABLE_NSH
+    #endif
+    #if ENABLE_NSH
     uint16_t counter_nsh;
-#endif
+    #endif
     /** frag stats - defrag runs in the context of the decoder. */
     uint16_t counter_defrag_ipv4_fragments;
     uint16_t counter_defrag_ipv4_reassembled;

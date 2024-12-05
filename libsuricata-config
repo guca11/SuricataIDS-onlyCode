@@ -4,7 +4,7 @@ prefix="/usr/local"
 exec_prefix="${prefix}"
 includedir="${prefix}/include"
 libdir="${exec_prefix}/lib"
-LIBS="-llz4 -lmagic -lcap-ng -lpcap -lnet -ljansson -lpthread -lyaml -lpcre2-8  -lz -lpcap  -ldl -lrt -lm"
+LIBS="-lmagic -lcap-ng -lpcap -lnet -ljansson -lpthread -lyaml -lpcre2-8  -lz -lpcap  -ldl -lrt -lm"
 
 shared_lib="-lsuricata"
 static_lib="-lsuricata_c -lsuricata_rust"

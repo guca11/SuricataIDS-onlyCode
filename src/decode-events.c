@@ -326,7 +326,7 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.ethernet.pkt_too_small",
             ETHERNET_PKT_TOO_SMALL,
     },
-    #if ENABLE_PPP
+    #if ENABLE_PPP || ENABLE_PPPOE
     /* PPP EVENTS */
     {
             "decoder.ppp.pkt_too_small",
@@ -479,13 +479,13 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.ltnull.unsupported_type",
             LTNULL_UNSUPPORTED_TYPE,
     },
-
     /* SCTP EVENTS */
-    /*{
+    #if ENABLE_SCTP
+    {
             "decoder.sctp.pkt_too_small",
             SCTP_PKT_TOO_SMALL,
-    },*/
-
+    },
+    #endif
     /* ESP EVENTS */
     #if ENABLE_ESP
     {

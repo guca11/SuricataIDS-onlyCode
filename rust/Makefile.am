@@ -177,7 +177,6 @@ else
 	cd $(abs_top_srcdir)/rust && \
 		@rustup_home@ CARGO_HOME="$(CARGO_HOME)" \
 		CARGO_TARGET_DIR="$(abs_top_builddir)/rust/target" \
-		$(CARGO) clean && $(CARGO) fetch && \
 		$(CARGO) build $(RELEASE) $(NIGHTLY_ARGS) \
 			--features "$(RUST_FEATURES)" $(RUST_TARGET)
 endif

@@ -165,7 +165,9 @@ static void AlertJsonSourceTarget(const Packet *p, const PacketAlert *pa,
                 break;
             case IPPROTO_UDP:
             case IPPROTO_TCP:
+            #if ENABLE_SCTP
             case IPPROTO_SCTP:
+            #endif
                 jb_set_uint(js, "port", addr->dp);
                 break;
         }

@@ -2782,7 +2782,7 @@ AC_ARG_ENABLE([network],
      	ENABLE_TLS=1
      	ENABLE_TLS_STRING="yes"
      	ENABLE_DNS=1
-     	ENABLE_DNS_STRING="yes"     #vedere come fare doh2_string
+     	ENABLE_DNS_STRING="yes" 
      	ENABLE_DHCP=1
      	ENABLE_DHCP_STRING="yes"
      	ENABLE_PPPOE=1
@@ -2878,6 +2878,442 @@ AC_SUBST(ENABLE_ARP_STRING)
 AC_DEFINE_UNQUOTED([ENABLE_ARP], [$ENABLE_ARP], [Define if ARP support is enabled])
 
 AM_CONDITIONAL([ENABLE_ARP], [test "x$ENABLE_ARP" = "x1"])
+
+#IKE
+#ike, ppp, vntag, sll, rfb, quic, nfs, modbus, mpls, gre, erspan, chdlc, dnp3, enip, dcerpc, pgsql, sip, tftp, sctp, vxlan, geneve, vlan, nsh, teredo
+
+AC_ARG_ENABLE([ike],
+    [AS_HELP_STRING([--enable-ike], [Enable IKE protocol])],
+    [if test "x$enable_ike" = "xyes"; then
+         ENABLE_IKE=1
+         ENABLE_IKE_STRING="yes"
+     else
+         ENABLE_IKE=0
+         ENABLE_IKE_STRING="no"
+     fi],
+    [ENABLE_IKE=1
+     ENABLE_IKE_STRING="yes"])
+
+AC_SUBST(ENABLE_IKE)
+AC_SUBST(ENABLE_IKE_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_IKE], [$ENABLE_IKE], [Define if IKE support is enabled])
+
+AM_CONDITIONAL([ENABLE_IKE], [test "x$ENABLE_IKE" = "x1"])
+
+AC_ARG_ENABLE([ppp],
+    [AS_HELP_STRING([--enable-ppp], [Enable PPP protocol])],
+    [if test "x$enable_ppp" = "xyes"; then
+         ENABLE_PPP=1
+         ENABLE_PPP_STRING="yes"
+     else
+         ENABLE_PPP=0
+         ENABLE_PPP_STRING="no"
+     fi],
+    [ENABLE_PPP=1
+     ENABLE_PPP_STRING="yes"])
+
+AC_SUBST(ENABLE_PPP)
+AC_SUBST(ENABLE_PPP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_PPP], [$ENABLE_PPP], [Define if PPP support is enabled])
+
+AM_CONDITIONAL([ENABLE_PPP], [test "x$ENABLE_PPP" = "x1"])
+
+AC_ARG_ENABLE([vntag],
+    [AS_HELP_STRING([--enable-vntag], [Enable VNTAG protocol])],
+    [if test "x$enable_vntag" = "xyes"; then
+         ENABLE_VNTAG=1
+         ENABLE_VNTAG_STRING="yes"
+     else
+         ENABLE_VNTAG=0
+         ENABLE_VNTAG_STRING="no"
+     fi],
+    [ENABLE_VNTAG=1
+     ENABLE_VNTAG_STRING="yes"])
+
+AC_SUBST(ENABLE_VNTAG)
+AC_SUBST(ENABLE_VNTAG_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_VNTAG], [$ENABLE_VNTAG], [Define if VNTAG support is enabled])
+
+AM_CONDITIONAL([ENABLE_VNTAG], [test "x$ENABLE_VNTAG" = "x1"])
+
+AC_ARG_ENABLE([sll],
+    [AS_HELP_STRING([--enable-sll], [Enable SLL protocol])],
+    [if test "x$enable_sll" = "xyes"; then
+         ENABLE_SLL=1
+         ENABLE_SLL_STRING="yes"
+     else
+         ENABLE_SLL=0
+         ENABLE_SLL_STRING="no"
+     fi],
+    [ENABLE_SLL=1
+     ENABLE_SLL_STRING="yes"])
+
+AC_SUBST(ENABLE_SLL)
+AC_SUBST(ENABLE_SLL_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_SLL], [$ENABLE_SLL], [Define if SLL support is enabled])
+
+AM_CONDITIONAL([ENABLE_SLL], [test "x$ENABLE_SLL" = "x1"])
+
+AC_ARG_ENABLE([rfb],
+    [AS_HELP_STRING([--enable-rfb], [Enable RFB protocol])],
+    [if test "x$enable_rfb" = "xyes"; then
+         ENABLE_RFB=1
+         ENABLE_RFB_STRING="yes"
+     else
+         ENABLE_RFB=0
+         ENABLE_RFB_STRING="no"
+     fi],
+    [ENABLE_RFB=1
+     ENABLE_RFB_STRING="yes"])
+
+AC_SUBST(ENABLE_RFB)
+AC_SUBST(ENABLE_RFB_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_RFB], [$ENABLE_RFB], [Define if RFB support is enabled])
+
+AM_CONDITIONAL([ENABLE_RFB], [test "x$ENABLE_RFB" = "x1"])
+
+AC_ARG_ENABLE([quic],
+    [AS_HELP_STRING([--enable-quic], [Enable QUIC protocol])],
+    [if test "x$enable_quic" = "xyes"; then
+         ENABLE_QUIC=1
+         ENABLE_QUIC_STRING="yes"
+     else
+         ENABLE_QUIC=0
+         ENABLE_QUIC_STRING="no"
+     fi],
+    [ENABLE_QUIC=1
+     ENABLE_QUIC_STRING="yes"])
+
+AC_SUBST(ENABLE_QUIC)
+AC_SUBST(ENABLE_QUIC_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_QUIC], [$ENABLE_QUIC], [Define if QUIC support is enabled])
+
+AM_CONDITIONAL([ENABLE_QUIC], [test "x$ENABLE_QUIC" = "x1"])
+
+AC_ARG_ENABLE([nfs],
+    [AS_HELP_STRING([--enable-nfs], [Enable NFS protocol])],
+    [if test "x$enable_nfs" = "xyes"; then
+         ENABLE_NFS=1
+         ENABLE_NFS_STRING="yes"
+     else
+         ENABLE_NFS=0
+         ENABLE_NFS_STRING="no"
+     fi],
+    [ENABLE_NFS=1
+     ENABLE_NFS_STRING="yes"])
+
+AC_SUBST(ENABLE_NFS)
+AC_SUBST(ENABLE_NFS_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_NFS], [$ENABLE_NFS], [Define if NFS support is enabled])
+
+AM_CONDITIONAL([ENABLE_NFS], [test "x$ENABLE_NFS" = "x1"])
+
+AC_ARG_ENABLE([modbus],
+    [AS_HELP_STRING([--enable-modbus], [Enable MODBUS protocol])],
+    [if test "x$enable_modbus" = "xyes"; then
+         ENABLE_MODBUS=1
+         ENABLE_MODBUS_STRING="yes"
+     else
+         ENABLE_MODBUS=0
+         ENABLE_MODBUS_STRING="no"
+     fi],
+    [ENABLE_MODBUS=1
+     ENABLE_MODBUS_STRING="yes"])
+
+AC_SUBST(ENABLE_MODBUS)
+AC_SUBST(ENABLE_MODBUS_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_MODBUS], [$ENABLE_MODBUS], [Define if MODBUS support is enabled])
+
+AM_CONDITIONAL([ENABLE_MODBUS], [test "x$ENABLE_MODBUS" = "x1"])
+
+AC_ARG_ENABLE([mpls],
+    [AS_HELP_STRING([--enable-mpls], [Enable MPLS protocol])],
+    [if test "x$enable_mpls" = "xyes"; then
+         ENABLE_MPLS=1
+         ENABLE_MPLS_STRING="yes"
+     else
+         ENABLE_MPLS=0
+         ENABLE_MPLS_STRING="no"
+     fi],
+    [ENABLE_MPLS=1
+     ENABLE_MPLS_STRING="yes"])
+
+AC_SUBST(ENABLE_MPLS)
+AC_SUBST(ENABLE_MPLS_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_MPLS], [$ENABLE_MPLS], [Define if MPLS support is enabled])
+
+AM_CONDITIONAL([ENABLE_MPLS], [test "x$ENABLE_MPLS" = "x1"])
+
+AC_ARG_ENABLE([gre],
+    [AS_HELP_STRING([--enable-gre], [Enable GRE protocol])],
+    [if test "x$enable_gre" = "xyes"; then
+         ENABLE_GRE=1
+         ENABLE_GRE_STRING="yes"
+     else
+         ENABLE_GRE=0
+         ENABLE_GRE_STRING="no"
+     fi],
+    [ENABLE_GRE=1
+     ENABLE_GRE_STRING="yes"])
+
+AC_SUBST(ENABLE_GRE)
+AC_SUBST(ENABLE_GRE_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_GRE], [$ENABLE_GRE], [Define if GRE support is enabled])
+
+AM_CONDITIONAL([ENABLE_GRE], [test "x$ENABLE_GRE" = "x1"])
+
+AC_ARG_ENABLE([erspan],
+    [AS_HELP_STRING([--enable-erspan], [Enable ERSPAN protocol])],
+    [if test "x$enable_erspan" = "xyes"; then
+         ENABLE_ERSPAN=1
+         ENABLE_ERSPAN_STRING="yes"
+     else
+         ENABLE_ERSPAN=0
+         ENABLE_ERSPAN_STRING="no"
+     fi],
+    [ENABLE_ERSPAN=1
+     ENABLE_ERSPAN_STRING="yes"])
+
+AC_SUBST(ENABLE_ERSPAN)
+AC_SUBST(ENABLE_ERSPAN_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_ERSPAN], [$ENABLE_ERSPAN], [Define if ERSPAN support is enabled])
+
+AM_CONDITIONAL([ENABLE_ERSPAN], [test "x$ENABLE_ERSPAN" = "x1"])
+
+AC_ARG_ENABLE([chdlc],
+    [AS_HELP_STRING([--enable-chdlc], [Enable CHDLC protocol])],
+    [if test "x$enable_chdlc" = "xyes"; then
+         ENABLE_CHDLC=1
+         ENABLE_CHDLC_STRING="yes"
+     else
+         ENABLE_CHDLC=0
+         ENABLE_CHDLC_STRING="no"
+     fi],
+    [ENABLE_CHDLC=1
+     ENABLE_CHDLC_STRING="yes"])
+
+AC_SUBST(ENABLE_CHDLC)
+AC_SUBST(ENABLE_CHDLC_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_CHDLC], [$ENABLE_CHDLC], [Define if CHDLC support is enabled])
+
+AM_CONDITIONAL([ENABLE_CHDLC], [test "x$ENABLE_CHDLC" = "x1"])
+
+AC_ARG_ENABLE([dnp3],
+    [AS_HELP_STRING([--enable-dnp3], [Enable DNP3 protocol])],
+    [if test "x$enable_dnp3" = "xyes"; then
+         ENABLE_DNP3=1
+         ENABLE_DNP3_STRING="yes"
+     else
+         ENABLE_DNP3=0
+         ENABLE_DNP3_STRING="no"
+     fi],
+    [ENABLE_DNP3=1
+     ENABLE_DNP3_STRING="yes"])
+
+AC_SUBST(ENABLE_DNP3)
+AC_SUBST(ENABLE_DNP3_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_DNP3], [$ENABLE_DNP3], [Define if DNP3 support is enabled])
+
+AM_CONDITIONAL([ENABLE_DNP3], [test "x$ENABLE_DNP3" = "x1"])
+
+AC_ARG_ENABLE([enip],
+    [AS_HELP_STRING([--enable-enip], [Enable ENIP protocol])],
+    [if test "x$enable_enip" = "xyes"; then
+         ENABLE_ENIP=1
+         ENABLE_ENIP_STRING="yes"
+     else
+         ENABLE_ENIP=0
+         ENABLE_ENIP_STRING="no"
+     fi],
+    [ENABLE_ENIP=1
+     ENABLE_ENIP_STRING="yes"])
+
+AC_SUBST(ENABLE_ENIP)
+AC_SUBST(ENABLE_ENIP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_ENIP], [$ENABLE_ENIP], [Define if ENIP support is enabled])
+
+AM_CONDITIONAL([ENABLE_ENIP], [test "x$ENABLE_ENIP" = "x1"])
+
+AC_ARG_ENABLE([dcerpc],
+    [AS_HELP_STRING([--enable-dcerpc], [Enable DCERPC protocol])],
+    [if test "x$enable_dcerpc" = "xyes"; then
+         ENABLE_DCERPC=1
+         ENABLE_DCERPC_STRING="yes"
+     else
+         ENABLE_DCERPC=0
+         ENABLE_DCERPC_STRING="no"
+     fi],
+    [ENABLE_DCERPC=1
+     ENABLE_DCERPC_STRING="yes"])
+
+AC_SUBST(ENABLE_DCERPC)
+AC_SUBST(ENABLE_DCERPC_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_DCERPC], [$ENABLE_DCERPC], [Define if DCERPC support is enabled])
+
+AM_CONDITIONAL([ENABLE_DCERPC], [test "x$ENABLE_DCERPC" = "x1"])
+
+AC_ARG_ENABLE([pgsql],
+    [AS_HELP_STRING([--enable-pgsql], [Enable PGSQL protocol])],
+    [if test "x$enable_pgsql" = "xyes"; then
+         ENABLE_PGSQL=1
+         ENABLE_PGSQL_STRING="yes"
+     else
+         ENABLE_PGSQL=0
+         ENABLE_PGSQL_STRING="no"
+     fi],
+    [ENABLE_PGSQL=1
+     ENABLE_PGSQL_STRING="yes"])
+
+AC_SUBST(ENABLE_PGSQL)
+AC_SUBST(ENABLE_PGSQL_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_PGSQL], [$ENABLE_PGSQL], [Define if PGSQL support is enabled])
+
+AM_CONDITIONAL([ENABLE_PGSQL], [test "x$ENABLE_PGSQL" = "x1"])
+
+AC_ARG_ENABLE([sip],
+    [AS_HELP_STRING([--enable-sip], [Enable SIP protocol])],
+    [if test "x$enable_sip" = "xyes"; then
+         ENABLE_SIP=1
+         ENABLE_SIP_STRING="yes"
+     else
+         ENABLE_SIP=0
+         ENABLE_SIP_STRING="no"
+     fi],
+    [ENABLE_SIP=1
+     ENABLE_SIP_STRING="yes"])
+
+AC_SUBST(ENABLE_SIP)
+AC_SUBST(ENABLE_SIP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_SIP], [$ENABLE_SIP], [Define if SIP support is enabled])
+
+AM_CONDITIONAL([ENABLE_SIP], [test "x$ENABLE_SIP" = "x1"])
+
+AC_ARG_ENABLE([tftp],
+    [AS_HELP_STRING([--enable-tftp], [Enable TFTP protocol])],
+    [if test "x$enable_tftp" = "xyes"; then
+         ENABLE_TFTP=1
+         ENABLE_TFTP_STRING="yes"
+     else
+         ENABLE_TFTP=0
+         ENABLE_TFTP_STRING="no"
+     fi],
+    [ENABLE_TFTP=1
+     ENABLE_TFTP_STRING="yes"])
+
+AC_SUBST(ENABLE_TFTP)
+AC_SUBST(ENABLE_TFTP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_TFTP], [$ENABLE_TFTP], [Define if TFTP support is enabled])
+
+AM_CONDITIONAL([ENABLE_TFTP], [test "x$ENABLE_TFTP" = "x1"])
+
+AC_ARG_ENABLE([sctp],
+    [AS_HELP_STRING([--enable-sctp], [Enable SCTP protocol])],
+    [if test "x$enable_sctp" = "xyes"; then
+         ENABLE_SCTP=1
+         ENABLE_SCTP_STRING="yes"
+     else
+         ENABLE_SCTP=0
+         ENABLE_SCTP_STRING="no"
+     fi],
+    [ENABLE_SCTP=1
+     ENABLE_SCTP_STRING="yes"])
+
+AC_SUBST(ENABLE_SCTP)
+AC_SUBST(ENABLE_SCTP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_SCTP], [$ENABLE_SCTP], [Define if SCTP support is enabled])
+
+AM_CONDITIONAL([ENABLE_SCTP], [test "x$ENABLE_SCTP" = "x1"])
+
+AC_ARG_ENABLE([vxlan],
+    [AS_HELP_STRING([--enable-vxlan], [Enable VXLAN protocol])],
+    [if test "x$enable_vxlan" = "xyes"; then
+         ENABLE_VXLAN=1
+         ENABLE_VXLAN_STRING="yes"
+     else
+         ENABLE_VXLAN=0
+         ENABLE_VXLAN_STRING="no"
+     fi],
+    [ENABLE_VXLAN=1
+     ENABLE_VXLAN_STRING="yes"])
+
+AC_SUBST(ENABLE_VXLAN)
+AC_SUBST(ENABLE_VXLAN_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_VXLAN], [$ENABLE_VXLAN], [Define if VXLAN support is enabled])
+
+AM_CONDITIONAL([ENABLE_VXLAN], [test "x$ENABLE_VXLAN" = "x1"])
+
+AC_ARG_ENABLE([geneve],
+    [AS_HELP_STRING([--enable-geneve], [Enable GENEVE protocol])],
+    [if test "x$enable_geneve" = "xyes"; then
+         ENABLE_GENEVE=1
+         ENABLE_GENEVE_STRING="yes"
+     else
+         ENABLE_GENEVE=0
+         ENABLE_GENEVE_STRING="no"
+     fi],
+    [ENABLE_GENEVE=1
+     ENABLE_GENEVE_STRING="yes"])
+
+AC_SUBST(ENABLE_GENEVE)
+AC_SUBST(ENABLE_GENEVE_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_GENEVE], [$ENABLE_GENEVE], [Define if GENEVE support is enabled])
+
+AM_CONDITIONAL([ENABLE_GENEVE], [test "x$ENABLE_GENEVE" = "x1"])
+
+AC_ARG_ENABLE([vlan],
+    [AS_HELP_STRING([--enable-vlan], [Enable VLAN protocol])],
+    [if test "x$enable_vlan" = "xyes"; then
+         ENABLE_VLAN=1
+         ENABLE_VLAN_STRING="yes"
+     else
+         ENABLE_VLAN=0
+         ENABLE_VLAN_STRING="no"
+     fi],
+    [ENABLE_VLAN=1
+     ENABLE_VLAN_STRING="yes"])
+
+AC_SUBST(ENABLE_VLAN)
+AC_SUBST(ENABLE_VLAN_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_VLAN], [$ENABLE_VLAN], [Define if VLAN support is enabled])
+
+AM_CONDITIONAL([ENABLE_VLAN], [test "x$ENABLE_VLAN" = "x1"])
+
+AC_ARG_ENABLE([nsh],
+    [AS_HELP_STRING([--enable-nsh], [Enable NSH protocol])],
+    [if test "x$enable_nsh" = "xyes"; then
+         ENABLE_NSH=1
+         ENABLE_NSH_STRING="yes"
+     else
+         ENABLE_NSH=0
+         ENABLE_NSH_STRING="no"
+     fi],
+    [ENABLE_NSH=1
+     ENABLE_NSH_STRING="yes"])
+
+AC_SUBST(ENABLE_NSH)
+AC_SUBST(ENABLE_NSH_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_NSH], [$ENABLE_NSH], [Define if NSH support is enabled])
+
+AM_CONDITIONAL([ENABLE_NSH], [test "x$ENABLE_NSH" = "x1"])
+
+AC_ARG_ENABLE([teredo],
+    [AS_HELP_STRING([--enable-teredo], [Enable TEREDO protocol])],
+    [if test "x$enable_teredo" = "xyes"; then
+         ENABLE_TEREDO=1
+         ENABLE_TEREDO_STRING="yes"
+     else
+         ENABLE_TEREDO=0
+         ENABLE_TEREDO_STRING="no"
+     fi],
+    [ENABLE_TEREDO=1
+     ENABLE_TEREDO_STRING="yes"])
+
+AC_SUBST(ENABLE_TEREDO)
+AC_SUBST(ENABLE_TEREDO_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_TEREDO], [$ENABLE_TEREDO], [Define if TEREDO support is enabled])
+
+AM_CONDITIONAL([ENABLE_TEREDO], [test "x$ENABLE_TEREDO" = "x1"])
+
 
 #### ----------- END SECTION TO DEFINE CUSTOM PROTOCOLS CONFIGURATION ------------- ####
 

@@ -196,7 +196,7 @@ static inline bool AppProtoEquals(AppProto sigproto, AppProto alproto)
 static inline AppProto AppProtoCommon(AppProto sigproto, AppProto alproto)
 {
     switch (sigproto) {
-#if ENABLE_SMB    
+        #if ENABLE_SMB    
         case ALPROTO_SMB:
             #if ENABLE_DCERPC
             if (alproto == ALPROTO_DCERPC) {
@@ -205,7 +205,7 @@ static inline AppProto AppProtoCommon(AppProto sigproto, AppProto alproto)
             }
             #endif
             break;
-#endif        
+        #endif        
 	#if ENABLE_HTTP
         case ALPROTO_HTTP:
             // we had a generic http sig, now version specific

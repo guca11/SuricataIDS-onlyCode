@@ -75,13 +75,13 @@ if ENABLE_IPV6
 dist_rule_DATA += decoder-events-ipv6.rules 
 endif
 
-if ENABLE_UDP
+#if ENABLE_UDP
 dist_rule_DATA += decoder-events-udp.rules 
-endif
+#endif
 
-if ENABLE_TCP
+#if ENABLE_TCP
 dist_rule_DATA += decoder-events-tcp.rules 
-endif
+#endif
 
 if ENABLE_VNTAG
 dist_rule_DATA += decoder-events-vntag.rules 
