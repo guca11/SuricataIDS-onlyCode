@@ -1182,7 +1182,8 @@
     else
         AC_MSG_RESULT(no)
     fi
-
+echo "$LDFLAGS"
+echo "$STAGING_DIR"
   # libpcap
     AC_ARG_WITH(libpcap_includes,
             [  --with-libpcap-includes=DIR  libpcap include directory],
