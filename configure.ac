@@ -1091,10 +1091,13 @@
 
     LIBNET_DETECT_FAIL="no"
     LIBNET_INC_DIR=""
-
+    echo "$libnet_dir"
+    echo "$with_libnet_libraries"
     for i in $libnet_dir; do
+    echo "$i"
     if test -r "$i/libnet.h"; then
         LIBNET_INC_DIR="$i"
+        echo "found here"
     fi
     done
 
