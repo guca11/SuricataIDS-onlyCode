@@ -1181,8 +1181,8 @@ app-layer:
     # DNP3
     dnp3:
       enabled: @ENABLE_DNP3_STRING@
-#      detection-ports:
-#        dp: 20000
+      detection-ports:
+        dp: 20000
 
     # SCADA EtherNet/IP and CIP protocol support
     enip:
