@@ -42,8 +42,9 @@
 #include "app-layer-parser.h"
 #include "app-layer-protos.h"
 #include "app-layer-htp.h"
+#if ENABLE_SMTP
 #include "app-layer-smtp.h"
-
+#endif
 #include "util-unittest.h"
 #include "util-unittest-helper.h"
 #include "util-profiling.h"

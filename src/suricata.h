@@ -185,6 +185,7 @@ int RunmodeIsUnittests(void);
 #else
 #define RunmodeIsUnittests() 0
 #endif
+int SCRunmodeGet(void);
 
 /**
  * \brief Get the current run mode.

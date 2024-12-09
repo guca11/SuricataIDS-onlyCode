@@ -25,7 +25,6 @@
  */
 
 #include "suricata-common.h"
-#include "thread-storage.h"
 #include "util-unittest.h"
 #include "util-debug.h"
 #include "threads.h"
@@ -150,6 +149,5 @@ void ThreadMacrosRegisterTests(void)
     UtRegisterTest("ThreadMacrosTest03RWLocks", ThreadMacrosTest03RWLocks);
     UtRegisterTest("ThreadMacrosTest04RWLocks", ThreadMacrosTest04RWLocks);
 //    UtRegisterTest("ThreadMacrosTest05RWLocks", ThreadMacrosTest05RWLocks);
-    RegisterThreadStorageTests();
 #endif /* UNIT TESTS */
 }

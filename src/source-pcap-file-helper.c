@@ -251,28 +251,38 @@ TmEcode InitPcapFile(PcapFileFileVars *pfv)
 TmEcode ValidateLinkType(int datalink, DecoderFunc *DecoderFn)
 {
     switch (datalink) {
+        #if ENABLE_SLL
         case LINKTYPE_LINUX_SLL:
             *DecoderFn = DecodeSll;
             break;
+        #endif
         case LINKTYPE_ETHERNET:
             *DecoderFn = DecodeEthernet;
             break;
+        #if ENABLE_PPP
         case LINKTYPE_PPP:
             *DecoderFn = DecodePPP;
             break;
+        #endif
+        #if ENABLE_RAW            
         case LINKTYPE_IPV4:
         case LINKTYPE_IPV6:
         case LINKTYPE_RAW:
         case LINKTYPE_RAW2:
+        #if ENABLE_GRE
         case LINKTYPE_GRE_OVER_IP:
+        #endif
             *DecoderFn = DecodeRaw;
             break;
+        #endif            
         case LINKTYPE_NULL:
             *DecoderFn = DecodeNull;
             break;
+        #if ENABLE_CHDLC
         case LINKTYPE_CISCO_HDLC:
             *DecoderFn = DecodeCHDLC;
             break;
+        #endif
 
         default:
             SCLogError(

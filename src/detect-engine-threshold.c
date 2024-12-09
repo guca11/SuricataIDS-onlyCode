@@ -141,10 +141,10 @@ static inline int CompareAddress(const Address *a, const Address *b)
     return 0;
 }
 
-static uint32_t ThresholdEntryHash(uint32_t seed, void *ptr)
+static uint32_t ThresholdEntryHash(void *ptr)
 {
     const ThresholdEntry *e = ptr;
-    uint32_t hash = hashword(e->key, sizeof(e->key) / sizeof(uint32_t), seed);
+    uint32_t hash = hashword(e->key, sizeof(e->key) / sizeof(uint32_t), 0);
     switch (e->key[TRACK]) {
         case TRACK_BOTH:
             hash += HashAddress(&e->addr2);
@@ -873,7 +873,9 @@ static int ThresholdGetFromHash(struct Thresholds *tctx, const Packet *p, const 
                 COPY_ADDRESS(&p->dst, &lookup.addr);
                 COPY_ADDRESS(&p->src, &lookup.addr2);
             }
-        } else {
+        } 
+        #if ENABLE_IPV6
+        else {
             if (AddressIPv6Lt(&p->src, &p->dst)) {
                 COPY_ADDRESS(&p->src, &lookup.addr);
                 COPY_ADDRESS(&p->dst, &lookup.addr2);
@@ -882,6 +884,7 @@ static int ThresholdGetFromHash(struct Thresholds *tctx, const Packet *p, const 
                 COPY_ADDRESS(&p->src, &lookup.addr2);
             }
         }
+        #endif
     }
 
     struct THashDataGetResult res = THashGetFromHash(tctx->thash, &lookup);

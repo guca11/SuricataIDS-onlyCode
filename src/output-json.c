@@ -199,18 +199,24 @@ static void EveAddPacketVars(const Packet *p, JsonBuilder *js_vars)
             if (pv->key != NULL) {
                 uint32_t offset = 0;
                 uint8_t keybuf[pv->key_len + 1];
-                PrintStringsToBuffer(keybuf, &offset, pv->key_len + 1, pv->key, pv->key_len);
+                PrintStringsToBuffer(keybuf, &offset,
+                        sizeof(keybuf),
+                        pv->key, pv->key_len);
                 uint32_t len = pv->value_len;
                 uint8_t printable_buf[len + 1];
                 offset = 0;
-                PrintStringsToBuffer(printable_buf, &offset, len + 1, pv->value, pv->value_len);
+                PrintStringsToBuffer(printable_buf, &offset,
+                        sizeof(printable_buf),
+                        pv->value, pv->value_len);
                 jb_set_string(js_vars, (char *)keybuf, (char *)printable_buf);
             } else {
                 const char *varname = VarNameStoreLookupById(pv->id, VAR_TYPE_PKT_VAR);
                 uint32_t len = pv->value_len;
                 uint8_t printable_buf[len + 1];
                 uint32_t offset = 0;
-                PrintStringsToBuffer(printable_buf, &offset, len + 1, pv->value, pv->value_len);
+                PrintStringsToBuffer(printable_buf, &offset,
+                        sizeof(printable_buf),
+                        pv->value, pv->value_len);
                 jb_set_string(js_vars, varname, (char *)printable_buf);
             }
             jb_close(js_vars);
@@ -265,8 +271,9 @@ static void EveAddFlowVars(const Flow *f, JsonBuilder *js_root, JsonBuilder **js
                     uint32_t len = fv->data.fv_str.value_len;
                     uint8_t printable_buf[len + 1];
                     uint32_t offset = 0;
-                    PrintStringsToBuffer(printable_buf, &offset, len + 1, fv->data.fv_str.value,
-                            fv->data.fv_str.value_len);
+                    PrintStringsToBuffer(printable_buf, &offset,
+                            sizeof(printable_buf),
+                            fv->data.fv_str.value, fv->data.fv_str.value_len);
 
                     jb_start_object(js_flowvars);
                     jb_set_string(js_flowvars, varname, (char *)printable_buf);
@@ -281,13 +288,16 @@ static void EveAddFlowVars(const Flow *f, JsonBuilder *js_root, JsonBuilder **js
 
                 uint8_t keybuf[fv->keylen + 1];
                 uint32_t offset = 0;
-                PrintStringsToBuffer(keybuf, &offset, fv->keylen + 1, fv->key, fv->keylen);
+                PrintStringsToBuffer(keybuf, &offset,
+                        sizeof(keybuf),
+                        fv->key, fv->keylen);
 
                 uint32_t len = fv->data.fv_str.value_len;
                 uint8_t printable_buf[len + 1];
                 offset = 0;
-                PrintStringsToBuffer(printable_buf, &offset, len + 1, fv->data.fv_str.value,
-                        fv->data.fv_str.value_len);
+                PrintStringsToBuffer(printable_buf, &offset,
+                        sizeof(printable_buf),
+                        fv->data.fv_str.value, fv->data.fv_str.value_len);
 
                 jb_start_object(js_flowvars);
                 jb_set_string(js_flowvars, (const char *)keybuf, (char *)printable_buf);
@@ -419,9 +429,9 @@ void EveAddCommonOptions(const OutputJsonCommonSettings *cfg, const Packet *p, c
  * \param js JSON object
  * \param max_length If non-zero, restricts the number of packet data bytes handled.
  */
-void EvePacket(const Packet *p, JsonBuilder *js, uint32_t max_length)
+void EvePacket(const Packet *p, JsonBuilder *js, unsigned long max_length)
 {
-    uint32_t max_len = max_length == 0 ? GET_PKT_LEN(p) : max_length;
+    unsigned long max_len = max_length == 0 ? GET_PKT_LEN(p) : max_length;
     jb_set_base64(js, "packet", GET_PKT_DATA(p), max_len);
 
     if (!jb_open_object(js, "packet_info")) {
@@ -554,7 +564,9 @@ void JsonAddrInfoInit(const Packet *p, enum OutputJsonLogDirection dir, JsonAddr
     switch (p->proto) {
         case IPPROTO_UDP:
         case IPPROTO_TCP:
+        #if ENABLE_SCTP
         case IPPROTO_SCTP:
+        #endif
             addr->sp = sp;
             addr->dp = dp;
             addr->log_port = true;
@@ -921,8 +933,7 @@ int OutputJSONMemBufferCallback(const char *str, size_t size, void *data)
         MemBufferExpand(memb, wrapper->expand_by);
     }
 
-    DEBUG_VALIDATE_BUG_ON(size > UINT32_MAX);
-    MemBufferWriteRaw((*memb), (const uint8_t *)str, (uint32_t)size);
+    MemBufferWriteRaw((*memb), (const uint8_t *)str, size);
     return 0;
 }
 
@@ -955,8 +966,7 @@ int OutputJSONBuffer(json_t *js, LogFileCtx *file_ctx, MemBuffer **buffer)
     return 0;
 }
 
-void OutputJsonBuilderBuffer(
-        ThreadVars *tv, const Packet *p, Flow *f, JsonBuilder *js, OutputJsonThreadCtx *ctx)
+int OutputJsonBuilderBuffer(JsonBuilder *js, OutputJsonThreadCtx *ctx)
 {
     LogFileCtx *file_ctx = ctx->file_ctx;
     MemBuffer **buffer = &ctx->buffer;
@@ -968,8 +978,6 @@ void OutputJsonBuilderBuffer(
         jb_set_string(js, "pcap_filename", PcapFileGetFilename());
     }
 
-    SCEveRunCallbacks(tv, p, f, js);
-
     jb_close(js);
 
     MemBufferReset(*buffer);
@@ -979,27 +987,14 @@ void OutputJsonBuilderBuffer(
     }
 
     size_t jslen = jb_len(js);
-    DEBUG_VALIDATE_BUG_ON(jb_len(js) > UINT32_MAX);
-    size_t remaining = MEMBUFFER_SIZE(*buffer) - MEMBUFFER_OFFSET(*buffer);
-    if (jslen >= remaining) {
-        size_t expand_by = jslen + 1 - remaining;
-        if (MemBufferExpand(buffer, (uint32_t)expand_by) < 0) {
-            if (!ctx->too_large_warning) {
-                /* Log a warning once, and include enough of the log
-                 * message to hopefully identify the event_type. */
-                char partial[120];
-                size_t partial_len = MIN(sizeof(partial), jslen);
-                memcpy(partial, jb_ptr(js), partial_len - 1);
-                partial[partial_len - 1] = '\0';
-                SCLogWarning("Formatted JSON EVE record too large, will be dropped: %s", partial);
-                ctx->too_large_warning = true;
-            }
-            return;
-        }
+    if (MEMBUFFER_OFFSET(*buffer) + jslen >= MEMBUFFER_SIZE(*buffer)) {
+        MemBufferExpand(buffer, jslen);
     }
 
-    MemBufferWriteRaw((*buffer), jb_ptr(js), (uint32_t)jslen);
+    MemBufferWriteRaw((*buffer), jb_ptr(js), jslen);
     LogFileWrite(file_ctx, *buffer);
+
+    return 0;
 }
 
 static inline enum LogFileType FileTypeFromConf(const char *typestr)
@@ -1065,11 +1060,9 @@ static int LogFileTypePrepare(
                     &json_ctx->file_ctx->filetype.init_data) < 0) {
             return -1;
         }
-        if (json_ctx->filetype->ThreadInit) {
-            if (json_ctx->filetype->ThreadInit(json_ctx->file_ctx->filetype.init_data, 0,
-                        &json_ctx->file_ctx->filetype.thread_data) < 0) {
-                return -1;
-            }
+        if (json_ctx->filetype->ThreadInit(json_ctx->file_ctx->filetype.init_data, 0,
+                    &json_ctx->file_ctx->filetype.thread_data) < 0) {
+            return -1;
         }
         json_ctx->file_ctx->filetype.filetype = json_ctx->filetype;
     }
@@ -1153,7 +1146,7 @@ OutputInitResult OutputJsonInitCtx(ConfNode *conf)
             {
                 FatalError("Failed to allocate memory for eve-log.prefix setting.");
             }
-            json_ctx->file_ctx->prefix_len = (uint32_t)strlen(prefix);
+            json_ctx->file_ctx->prefix_len = strlen(prefix);
         }
 
         /* Threaded file output */
@@ -1215,6 +1208,7 @@ OutputInitResult OutputJsonInitCtx(ConfNode *conf)
         }
 
         /* Do we have a global eve xff configuration? */
+        #if ENABLE_HTTP
         const ConfNode *xff = ConfNodeLookupChild(conf, "xff");
         if (xff != NULL) {
             json_ctx->xff_cfg = SCCalloc(1, sizeof(HttpXFFCfg));
@@ -1222,7 +1216,8 @@ OutputInitResult OutputJsonInitCtx(ConfNode *conf)
                 HttpXFFGetCfg(conf, json_ctx->xff_cfg);
             }
         }
-
+	#endif
+	
         const char *pcapfile_s = ConfNodeLookupChildValue(conf, "pcap-file");
         if (pcapfile_s != NULL && ConfValIsTrue(pcapfile_s)) {
             json_ctx->file_ctx->is_pcap_offline =

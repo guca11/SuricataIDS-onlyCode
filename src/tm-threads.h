@@ -108,6 +108,7 @@ void TmThreadSetPrio(ThreadVars *);
 int TmThreadGetNbThreads(uint8_t type);
 
 void TmThreadInitMC(ThreadVars *);
+void TmThreadTestThreadUnPaused(ThreadVars *);
 void TmThreadContinue(ThreadVars *);
 void TmThreadContinueThreads(void);
 void TmThreadCheckThreadState(void);
@@ -286,14 +287,5 @@ void TmThreadsSetThreadTimestamp(const int id, const SCTime_t ts);
 void TmThreadsGetMinimalTimestamp(struct timeval *ts);
 uint16_t TmThreadsGetWorkerThreadMax(void);
 bool TmThreadsTimeSubsysIsReady(void);
-
-/** \brief Wait for a thread to become unpaused.
- *
- * Check if a thread should wait to be unpaused and wait if so, or
- * until the thread kill flag is set.
- *
- * \returns true if the thread was unpaused, false if killed.
- */
-bool TmThreadsWaitForUnpause(ThreadVars *tv);
 
 #endif /* SURICATA_TM_THREADS_H */

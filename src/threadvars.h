@@ -28,7 +28,6 @@
 #include "counters.h"
 #include "packet-queue.h"
 #include "util-atomic.h"
-#include "util-storage.h"
 
 struct TmSlot_;
 
@@ -136,7 +135,6 @@ typedef struct ThreadVars_ {
     struct FlowQueue_ *flow_queue;
     bool break_loop;
 
-    Storage storage[];
 } ThreadVars;
 
 /** Thread setup flags: */

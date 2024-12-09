@@ -29,7 +29,6 @@
 #include "flow.h"
 #include "flow-private.h"
 #include "flow-util.h"
-#include "flow-callbacks.h"
 #include "flow-var.h"
 #include "app-layer.h"
 
@@ -131,7 +130,7 @@ static inline void FlowSetICMPv4CounterPart(Flow *f)
 
     f->icmp_d.type = (uint8_t)ctype;
 }
-
+#if ENABLE_IPV6
 static inline void FlowSetICMPv6CounterPart(Flow *f)
 {
     int ctype = ICMPv6GetCounterpart(f->icmp_s.type);
@@ -140,10 +139,10 @@ static inline void FlowSetICMPv6CounterPart(Flow *f)
 
     f->icmp_d.type = (uint8_t)ctype;
 }
-
+#endif
 /* initialize the flow from the first packet
  * we see from it. */
-void FlowInit(ThreadVars *tv, Flow *f, const Packet *p)
+void FlowInit(Flow *f, const Packet *p)
 {
     SCEnter();
     SCLogDebug("flow %p", f);
@@ -178,16 +177,26 @@ void FlowInit(ThreadVars *tv, Flow *f, const Packet *p)
         f->icmp_s.type = p->icmp_s.type;
         f->icmp_s.code = p->icmp_s.code;
         FlowSetICMPv4CounterPart(f);
-    } else if (PacketIsICMPv6(p)) {
+    } 
+    #if ENABLE_IPV6
+    else if (PacketIsICMPv6(p)) {
         f->icmp_s.type = p->icmp_s.type;
         f->icmp_s.code = p->icmp_s.code;
         FlowSetICMPv6CounterPart(f);
-    } else if (PacketIsSCTP(p)) {
+    }
+    #endif
+    #if ENABLE_SCTP
+    else if (PacketIsSCTP(p)) {
         f->sp = p->sp;
         f->dp = p->dp;
-    } else if (PacketIsESP(p)) {
+    }
+    #endif
+    #if ENABLE_ESP
+    else if (PacketIsESP(p)) {
         f->esp.spi = ESP_GET_SPI(PacketGetESP(p));
-    } else {
+    }
+    #endif
+    else {
         /* nothing to do for this IP proto. */
         SCLogDebug("no special setup for IP proto %u", p->proto);
     }
@@ -203,8 +212,6 @@ void FlowInit(ThreadVars *tv, Flow *f, const Packet *p)
         MacSet *ms = MacSetInit(10);
         FlowSetStorageById(f, MacSetGetFlowStorageID(), ms);
     }
-
-    SCFlowRunInitCallbacks(tv, f, p);
 
     SCReturn;
 }

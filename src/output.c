@@ -53,35 +53,63 @@
 #include "output-eve-stream.h"
 #include "log-httplog.h"
 #include "output-json-http.h"
+#if ENABLE_DNS
 #include "output-json-dns.h"
+#endif
+#if ENABLE_TLS
 #include "log-tlslog.h"
 #include "log-tlsstore.h"
 #include "output-json-tls.h"
+#endif
 #include "log-pcap.h"
 // for SSHTxLogCondition
+#if ENABLE_SSH
 #include "app-layer-ssh.h"
+#endif
 #include "output-json-file.h"
+#if ENABLE_SMTP
 #include "output-json-smtp.h"
+#endif
 #include "output-json-stats.h"
 #include "log-tcp-data.h"
 #include "log-stats.h"
+#if ENABLE_NFS
 #include "output-json-nfs.h"
+#endif
+#if ENABLE_FTP   
 #include "output-json-ftp.h"
 // for misplaced EveFTPDataAddMetadata
 #include "app-layer-ftp.h"
+#endif
+#if ENABLE_SMB
 #include "output-json-smb.h"
+#endif
+#if ENABLE_IKE
 #include "output-json-ike.h"
+#endif
+#if ENABLE_DHCP
 #include "output-json-dhcp.h"
+#endif
+#if ENABLE_MQTT
 #include "output-json-mqtt.h"
+#endif
+#if ENABLE_PGSQL
 #include "output-json-pgsql.h"
+#endif
 #include "output-lua.h"
+#if ENABLE_DNP3
 #include "output-json-dnp3.h"
+#endif
 #include "output-json-metadata.h"
+#if ENABLE_DCERPC
 #include "output-json-dcerpc.h"
+#endif
 #include "output-json-frame.h"
 #include "app-layer-parser.h"
 #include "output-filestore.h"
+#if ENABLE_ARP
 #include "output-json-arp.h"
+#endif
 
 typedef struct RootLogger_ {
     OutputLogFunc LogFunc;
@@ -91,13 +119,11 @@ typedef struct RootLogger_ {
 
     TAILQ_ENTRY(RootLogger_) entries;
 } RootLogger;
-
 /* List of registered root loggers. These are registered at start up and
  * are independent of configuration. Later we will build a list of active
  * loggers based on configuration. */
 static TAILQ_HEAD(, RootLogger_) registered_loggers =
     TAILQ_HEAD_INITIALIZER(registered_loggers);
-
 /* List of active root loggers. This means that at least one logger is enabled
  * for each root logger type in the config. */
 static TAILQ_HEAD(, RootLogger_) active_loggers =
@@ -862,46 +888,87 @@ void OutputRegisterRootLoggers(void)
         FatalError("Failed to allocate simple_json_applayer_loggers");
     }
     // ALPROTO_HTTP1 special: uses some options flags
+    #if ENABLE_FTP       
     RegisterSimpleJsonApplayerLogger(ALPROTO_FTP, EveFTPLogCommand, NULL);
-    // ALPROTO_SMTP special: uses state
-    RegisterSimpleJsonApplayerLogger(ALPROTO_TLS, JsonTlsLogJSONExtended, NULL);
-    // no cast here but done in rust for SSHTransaction
-    RegisterSimpleJsonApplayerLogger(ALPROTO_SSH, rs_ssh_log_json, NULL);
-    // ALPROTO_SMB special: uses state
-    // ALPROTO_DCERPC special: uses state
-    RegisterSimpleJsonApplayerLogger(ALPROTO_DNS, AlertJsonDns, NULL);
-    // either need a cast here or in rust for ModbusTransaction, done here
-    RegisterSimpleJsonApplayerLogger(
-            ALPROTO_MODBUS, (EveJsonSimpleTxLogFunc)rs_modbus_to_json, NULL);
-    RegisterSimpleJsonApplayerLogger(ALPROTO_ENIP, SCEnipLoggerLog, NULL);
-    RegisterSimpleJsonApplayerLogger(ALPROTO_DNP3, AlertJsonDnp3, NULL);
-    // ALPROTO_NFS special: uses state
     // underscore instead of dash for ftp_data
     RegisterSimpleJsonApplayerLogger(ALPROTO_FTPDATA, EveFTPDataAddMetadata, "ftp_data");
+    #endif
+    // ALPROTO_SMTP special: uses state
+    #if ENABLE_TLS
+    RegisterSimpleJsonApplayerLogger(ALPROTO_TLS, JsonTlsLogJSONExtended, NULL);
+    #endif
+    // no cast here but done in rust for SSHTransaction
+    #if ENABLE_SSH    
+    RegisterSimpleJsonApplayerLogger(ALPROTO_SSH, rs_ssh_log_json, NULL);
+    #endif
+    // ALPROTO_SMB special: uses state
+    // ALPROTO_DCERPC special: uses state
+    #if ENABLE_DNS    
+    RegisterSimpleJsonApplayerLogger(ALPROTO_DNS, AlertJsonDns, NULL);
+    #endif
+    // either need a cast here or in rust for ModbusTransaction, done here
+    #if ENABLE_MODBUS
     RegisterSimpleJsonApplayerLogger(
-            ALPROTO_TFTP, (EveJsonSimpleTxLogFunc)rs_tftp_log_json_request, NULL);
+             ALPROTO_MODBUS, (EveJsonSimpleTxLogFunc)rs_modbus_to_json, NULL);
+    #endif
+    #if ENABLE_ENIP
+    RegisterSimpleJsonApplayerLogger(ALPROTO_ENIP, SCEnipLoggerLog, NULL);
+    #endif
+    #if ENABLE_DNP3
+    RegisterSimpleJsonApplayerLogger(ALPROTO_DNP3, AlertJsonDnp3, NULL);
+    #endif
+    // ALPROTO_NFS special: uses state
+    #if ENABLE_TFTP
+    RegisterSimpleJsonApplayerLogger(
+              ALPROTO_TFTP, (EveJsonSimpleTxLogFunc)rs_tftp_log_json_request, NULL);
+    #endif
     // ALPROTO_IKE special: uses state
+    #if ENABLE_KRB5
     RegisterSimpleJsonApplayerLogger(
             ALPROTO_KRB5, (EveJsonSimpleTxLogFunc)rs_krb5_log_json_response, NULL);
+    #endif
+    #if ENABLE_QUIC
     RegisterSimpleJsonApplayerLogger(ALPROTO_QUIC, rs_quic_to_json, NULL);
+    #endif
     // ALPROTO_DHCP TODO missing
+    #if ENABLE_SNMP    
     RegisterSimpleJsonApplayerLogger(
             ALPROTO_SNMP, (EveJsonSimpleTxLogFunc)rs_snmp_log_json_response, NULL);
+    #endif
+    #if ENABLE_SIP
     RegisterSimpleJsonApplayerLogger(ALPROTO_SIP, (EveJsonSimpleTxLogFunc)rs_sip_log_json, NULL);
+    #endif
+    #if ENABLE_RFB
     RegisterSimpleJsonApplayerLogger(ALPROTO_RFB, rs_rfb_logger_log, NULL);
+    #endif
+    #if ENABLE_MQTT
     RegisterSimpleJsonApplayerLogger(ALPROTO_MQTT, JsonMQTTAddMetadata, NULL);
+    #endif
+    #if ENABLE_PGSQL
     RegisterSimpleJsonApplayerLogger(ALPROTO_PGSQL, JsonPgsqlAddMetadata, NULL);
+    #endif
+    #if ENABLE_WEBSOCKET
     RegisterSimpleJsonApplayerLogger(ALPROTO_WEBSOCKET, rs_websocket_logger_log, NULL);
+    #endif
+    #if ENABLE_LDAP    
     RegisterSimpleJsonApplayerLogger(ALPROTO_LDAP, rs_ldap_logger_log, NULL);
+    #endif
+    #if ENABLE_DNS && ENABLE_HTTP
     RegisterSimpleJsonApplayerLogger(ALPROTO_DOH2, AlertJsonDoh2, NULL);
-    RegisterSimpleJsonApplayerLogger(ALPROTO_TEMPLATE, rs_template_logger_log, NULL);
+    #endif
+    //RegisterSimpleJsonApplayerLogger(ALPROTO_TEMPLATE, rs_template_logger_log, NULL);
+    #if ENABLE_RDP
     RegisterSimpleJsonApplayerLogger(ALPROTO_RDP, (EveJsonSimpleTxLogFunc)rs_rdp_to_json, NULL);
+    #endif
     // special case : http2 is logged in http object
+    #if ENABLE_HTTP    
     RegisterSimpleJsonApplayerLogger(ALPROTO_HTTP2, rs_http2_log_json, "http");
+    #endif
     // underscore instead of dash for bittorrent_dht
+    #if ENABLE_BITTORRENT    
     RegisterSimpleJsonApplayerLogger(
             ALPROTO_BITTORRENT_DHT, rs_bittorrent_dht_logger_log, "bittorrent_dht");
-
+    #endif
     OutputPacketLoggerRegister();
     OutputFiledataLoggerRegister();
     OutputFileLoggerRegister();
@@ -927,7 +994,7 @@ static int JsonGenericLogger(ThreadVars *tv, void *thread_data, const Packet *p,
         goto error;
     }
 
-    OutputJsonBuilderBuffer(tv, p, p->flow, js, thread);
+    OutputJsonBuilderBuffer(js, thread);
     jb_free(js);
 
     return TM_ECODE_OK;
@@ -969,36 +1036,50 @@ void OutputRegisterLoggers(void)
     /* json log */
     OutputJsonRegister();
     /* email logs */
+    #if ENABLE_SMTP
     JsonSmtpLogRegister();
+    #endif
     /* http log */
+    #if ENABLE_HTTP    
     LogHttpLogRegister();
     JsonHttpLogRegister();
     OutputRegisterTxSubModuleWithProgress(LOGGER_JSON_TX, "eve-log", "LogHttp2Log", "eve-log.http2",
             OutputJsonLogInitSub, ALPROTO_HTTP2, JsonGenericDirFlowLogger, HTTP2StateClosed,
             HTTP2StateClosed, JsonLogThreadInit, JsonLogThreadDeinit);
+    #endif
     /* tls log */
+#if ENABLE_TLS    
     LogTlsLogRegister();
     JsonTlsLogRegister();
     LogTlsStoreRegister();
+#endif
     /* ssh */
+    #if ENABLE_SSH
     OutputRegisterTxSubModuleWithCondition(LOGGER_JSON_TX, "eve-log", "JsonSshLog", "eve-log.ssh",
             OutputJsonLogInitSub, ALPROTO_SSH, JsonGenericDirFlowLogger, SSHTxLogCondition,
             JsonLogThreadInit, JsonLogThreadDeinit);
+    #endif
     /* pcap log */
     PcapLogRegister();
     /* file log */
     JsonFileLogRegister();
     OutputFilestoreRegister();
     /* dns */
+#if ENABLE_DNS    
     JsonDnsLogRegister();
+#endif
     /* modbus */
+    #if ENABLE_MODBUS
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonModbusLog", "eve-log.modbus",
             OutputJsonLogInitSub, ALPROTO_MODBUS, JsonGenericDirFlowLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
 
     SCLogDebug("modbus json logger registered.");
+    #endif
     /* tcp streaming data */
+    //#if ENABLE_TCP
     LogTcpDataLogRegister();
+    //#endif
     /* log stats */
     LogStatsLogRegister();
 
@@ -1011,18 +1092,25 @@ void OutputRegisterLoggers(void)
     JsonStatsLogRegister();
 
     /* DNP3. */
+    #if ENABLE_DNP3
     JsonDNP3LogRegister();
+    #endif
     JsonMetadataLogRegister();
 
     /* NFS JSON logger. */
+    #if ENABLE_NFS
     JsonNFSLogRegister();
+    #endif
     /* TFTP JSON logger. */
+    #if ENABLE_TFTP
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonTFTPLog", "eve-log.tftp",
             OutputJsonLogInitSub, ALPROTO_TFTP, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
 
     SCLogDebug("TFTP JSON logger registered.");
-    /* FTP and FTP-DATA JSON loggers. */
+    #endif
+/* FTP and FTP-DATA JSON loggers. */
+#if ENABLE_FTP    
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonFTPLog", "eve-log.ftp",
             OutputJsonLogInitSub, ALPROTO_FTP, JsonGenericDirFlowLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
@@ -1030,79 +1118,114 @@ void OutputRegisterLoggers(void)
             OutputJsonLogInitSub, ALPROTO_FTPDATA, JsonGenericDirFlowLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
     SCLogDebug("FTP JSON logger registered.");
-
+#endif
     /* SMB JSON logger. */
+#if ENABLE_SMB    
     JsonSMBLogRegister();
+#endif
     /* IKE JSON logger. */
+    #if ENABLE_IKE
     JsonIKELogRegister();
+    #endif
     /* KRB5 JSON logger. */
+#if ENABLE_KRB5    
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonKRB5Log", "eve-log.krb5",
             OutputJsonLogInitSub, ALPROTO_KRB5, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
-
     SCLogDebug("KRB5 JSON logger registered.");
+#endif
     /* QUIC JSON logger. */
+    #if ENABLE_QUIC
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonQuicLog", "eve-log.quic",
             OutputJsonLogInitSub, ALPROTO_QUIC, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
 
     SCLogDebug("quic json logger registered.");
+    #endif
     /* DHCP JSON logger. */
+#if ENABLE_DHCP    
     JsonDHCPLogRegister();
+#endif
     /* SNMP JSON logger. */
+#if ENABLE_SNMP    
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonSNMPLog", "eve-log.snmp",
             OutputJsonLogInitSub, ALPROTO_SNMP, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
 
     SCLogDebug("SNMP JSON logger registered.");
+#endif
     /* SIP JSON logger. */
+    #if ENABLE_SIP
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonSIPLog", "eve-log.sip",
             OutputJsonLogInitSub, ALPROTO_SIP, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
 
     SCLogDebug("SIP JSON logger registered.");
+    #endif
     /* RFB JSON logger. */
+    #if ENABLE_RFB
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonRFBLog", "eve-log.rfb",
             OutputJsonLogInitSub, ALPROTO_RFB, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
+    #endif
+    #if ENABLE_MQTT
     /* MQTT JSON logger. */
     JsonMQTTLogRegister();
+    #endif
     /* Pgsql JSON logger. */
+    #if ENABLE_PGSQL
     JsonPgsqlLogRegister();
+    #endif
     /* WebSocket JSON logger. */
+    #if ENABLE_WEBSOCKET    
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonWebSocketLog", "eve-log.websocket",
             OutputJsonLogInitSub, ALPROTO_WEBSOCKET, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
+    #endif
     /* Enip JSON logger. */
-    OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonEnipLog", "eve-log.enip",
+    #if ENABLE_ENIP
+   OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonEnipLog", "eve-log.enip",
             OutputJsonLogInitSub, ALPROTO_ENIP, JsonGenericDirFlowLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
+    #endif
     /* Ldap JSON logger. */
+#if ENABLE_LDAP
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonLdapLog", "eve-log.ldap",
             OutputJsonLogInitSub, ALPROTO_LDAP, JsonGenericDirFlowLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
+#endif
     /* DoH2 JSON logger. */
+#if ENABLE_DNS && ENABLE_HTTP    
     JsonDoh2LogRegister();
+#endif
     /* Template JSON logger. */
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonTemplateLog", "eve-log.template",
             OutputJsonLogInitSub, ALPROTO_TEMPLATE, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
     /* RDP JSON logger. */
+    #if ENABLE_RDP
     OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonRdpLog", "eve-log.rdp",
             OutputJsonLogInitSub, ALPROTO_RDP, JsonGenericDirPacketLogger, JsonLogThreadInit,
             JsonLogThreadDeinit);
     SCLogDebug("rdp json logger registered.");
+    #endif
     /* DCERPC JSON logger. */
+    #if ENABLE_DCERPC
     JsonDCERPCLogRegister();
+    #endif
     /* app layer frames */
     JsonFrameLogRegister();
     /* BitTorrent DHT JSON logger */
+#if ENABLE_BITTORRENT    
     if (ConfGetNode("app-layer.protocols.bittorrent-dht") != NULL) {
         /* Register as an eve sub-module. */
         OutputRegisterTxSubModule(LOGGER_JSON_TX, "eve-log", "JsonBitTorrentDHTLog",
                 "eve-log.bittorrent-dht", OutputJsonLogInitSub, ALPROTO_BITTORRENT_DHT,
                 JsonGenericDirPacketLogger, JsonLogThreadInit, JsonLogThreadDeinit);
     }
+#endif    
+#if ENABLE_ARP
     /* ARP JSON logger */
     JsonArpLogRegister();
+#endif
 }

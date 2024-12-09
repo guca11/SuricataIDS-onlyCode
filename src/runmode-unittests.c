@@ -64,8 +64,7 @@
 #include "app-layer-smtp.h"
 
 #include "util-action.h"
-#include "util-radix4-tree.h"
-#include "util-radix6-tree.h"
+#include "util-radix-tree.h"
 #include "util-host-os-info.h"
 #include "util-cidr.h"
 #include "util-unittest-helper.h"
@@ -172,8 +171,7 @@ static void RegisterUnittests(void)
     HostRegisterUnittests();
     IPPairRegisterUnittests();
     SCSigRegisterSignatureOrderingTests();
-    SCRadix4RegisterTests();
-    SCRadix6RegisterTests();
+    SCRadixRegisterTests();
     DefragRegisterTests();
     SigGroupHeadRegisterTests();
     SCHInfoRegisterTests();
@@ -242,7 +240,6 @@ void RunUnittests(int list_unittests, const char *regex_arg)
     AppLayerSetup();
 
     /* hardcoded initialization code */
-    SigTableInit();
     SigTableSetup(); /* load the rule keywords */
     TmqhSetup();
 

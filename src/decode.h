@@ -38,6 +38,10 @@
 #include "app-layer-protos.h"
 #endif
 
+#ifdef HAVE_NAPATECH
+#include "util-napatech.h"
+#endif /* HAVE_NAPATECH */
+
 typedef enum {
     CHECKSUM_VALIDATION_DISABLE,
     CHECKSUM_VALIDATION_ENABLE,
@@ -49,17 +53,27 @@ typedef enum {
 
 enum PktSrcEnum {
     PKT_SRC_WIRE = 1,
+    #if ENABLE_GRE
     PKT_SRC_DECODER_GRE,
+    #endif
     PKT_SRC_DECODER_IPV4,
+    #if ENABLE_IPV6
     PKT_SRC_DECODER_IPV6,
+    #endif
+    #if ENABLE_TEREDO
     PKT_SRC_DECODER_TEREDO,
+    #endif
     PKT_SRC_DEFRAG,
     PKT_SRC_FFR,
     PKT_SRC_STREAM_TCP_DETECTLOG_FLUSH,
+    #if ENABLE_VXLAN
     PKT_SRC_DECODER_VXLAN,
+    #endif
     PKT_SRC_DETECT_RELOAD_FLUSH,
     PKT_SRC_CAPTURE_TIMEOUT,
+    #if ENABLE_GENEVE
     PKT_SRC_DECODER_GENEVE,
+    #endif
     PKT_SRC_SHUTDOWN_FLUSH,
 };
 
@@ -78,20 +92,35 @@ enum PktSrcEnum {
 #endif
 
 #include "decode-ethernet.h"
+//#if ENABLE_GRE
 #include "decode-gre.h"
+//#endif
+#if ENABLE_PPP
 #include "decode-ppp.h"
+#endif
 #include "decode-ipv4.h"
+#if ENABLE_IPV6
 #include "decode-ipv6.h"
-#include "decode-icmpv4.h"
 #include "decode-icmpv6.h"
+#endif
+#include "decode-icmpv4.h"
 #include "decode-tcp.h"
 #include "decode-udp.h"
+//#if ENABLE_SCTP
 #include "decode-sctp.h"
+//#endif
+#if ENABLE_ESP
 #include "decode-esp.h"
+#endif
+//#if ENABLE_VLAN
 #include "decode-vlan.h"
+//#endif
+#if ENABLE_MPLS
 #include "decode-mpls.h"
+#endif
+#if ENABLE_ARP
 #include "decode-arp.h"
-
+#endif
 #include "util-validate.h"
 
 /* forward declarations */
@@ -103,6 +132,8 @@ struct PktPool_;
 /* declare these here as they are called from the
  * PACKET_RECYCLE and PACKET_CLEANUP macro's. */
 typedef struct AppLayerDecoderEvents_ AppLayerDecoderEvents;
+void AppLayerDecoderEventsResetEvents(AppLayerDecoderEvents *events);
+void AppLayerDecoderEventsFreeEvents(AppLayerDecoderEvents **events);
 
 /* Address */
 typedef struct Address_ {
@@ -398,8 +429,12 @@ struct PacketL2 {
 enum PacketL3Types {
     PACKET_L3_UNKNOWN = 0,
     PACKET_L3_IPV4,
+    #if ENABLE_IPV6
     PACKET_L3_IPV6,
+    #endif
+    #if ENABLE_ARP    
     PACKET_L3_ARP,
+    #endif    
 };
 
 struct PacketL3 {
@@ -424,13 +459,25 @@ struct PacketL3 {
 
 enum PacketL4Types {
     PACKET_L4_UNKNOWN = 0,
+    //#if ENABLE_TCP
     PACKET_L4_TCP,
+    //#endif
+    //#if ENABLE_UDP
     PACKET_L4_UDP,
+    //#endif
     PACKET_L4_ICMPV4,
+    #if ENABLE_IPV6
     PACKET_L4_ICMPV6,
+    #endif
+    #if ENABLE_SCTP
     PACKET_L4_SCTP,
+    #endif
+    #if ENABLE_GRE
     PACKET_L4_GRE,
+    #endif
+    #if ENABLE_ESP
     PACKET_L4_ESP,
+    #endif
 };
 
 struct PacketL4 {
@@ -442,8 +489,12 @@ struct PacketL4 {
         UDPHdr *udph;
         ICMPV4Hdr *icmpv4h;
         ICMPV6Hdr *icmpv6h;
+        //#if ENABLE_SCTP
         SCTPHdr *sctph;
+        //#endif
+        //#if ENABLE_GRE
         GREHdr *greh;
+        //#endif
         ESPHdr *esph;
     } hdrs;
     union L4Vars {
@@ -542,6 +593,9 @@ typedef struct Packet_
 #endif /* WINDIVERT */
 #ifdef HAVE_DPDK
         DPDKPacketVars dpdk_v;
+#endif
+#ifdef HAVE_NAPATECH
+        NapatechPacketVars ntpv;
 #endif
 #ifdef HAVE_AF_XDP
         AFXDPPacketVars afxdp_v;
@@ -657,7 +711,6 @@ typedef struct Packet_
 
 static inline bool PacketIsIPv4(const Packet *p);
 static inline bool PacketIsIPv6(const Packet *p);
-
 /** highest mtu of the interfaces we monitor */
 #define DEFAULT_MTU 1500
 #define MINIMUM_MTU 68      /**< ipv4 minimum: rfc791 */
@@ -696,7 +749,8 @@ static inline uint8_t PacketGetIPProto(const Packet *p)
     if (PacketIsIPv4(p)) {
         const IPV4Hdr *hdr = PacketGetIPv4(p);
         return IPV4_GET_RAW_IPPROTO(hdr);
-    } else if (PacketIsIPv6(p)) {
+    } 
+    else if (PacketIsIPv6(p)) {
         return IPV6_GET_L4PROTO(p);
     }
     return 0;
@@ -713,23 +767,34 @@ static inline uint8_t PacketGetIPv4IPProto(const Packet *p)
 
 static inline const IPV6Hdr *PacketGetIPv6(const Packet *p)
 {
+    #if ENABLE_IPV6
     DEBUG_VALIDATE_BUG_ON(!PacketIsIPv6(p));
     return p->l3.hdrs.ip6h;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline IPV6Hdr *PacketSetIPV6(Packet *p, const uint8_t *buf)
 {
+    #if ENABLE_IPV6
     DEBUG_VALIDATE_BUG_ON(p->l3.type != PACKET_L3_UNKNOWN);
     p->l3.type = PACKET_L3_IPV6;
     p->l3.hdrs.ip6h = (IPV6Hdr *)buf;
     return p->l3.hdrs.ip6h;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline bool PacketIsIPv6(const Packet *p)
 {
+    #if ENABLE_IPV6
     return p->l3.type == PACKET_L3_IPV6;
+    #else
+    return false;
+    #endif
 }
-
 static inline void PacketClearL2(Packet *p)
 {
     memset(&p->l2, 0, sizeof(p->l2));
@@ -767,40 +832,64 @@ static inline void PacketClearL4(Packet *p)
 
 static inline TCPHdr *PacketSetTCP(Packet *p, const uint8_t *buf)
 {
+    //#if ENABLE_TCP
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_UNKNOWN);
     p->l4.type = PACKET_L4_TCP;
     p->l4.hdrs.tcph = (TCPHdr *)buf;
     return p->l4.hdrs.tcph;
+    /*#else
+    return NULL;
+    #endif*/
 }
 
 static inline const TCPHdr *PacketGetTCP(const Packet *p)
 {
+    //#if ENABLE_TCP
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_TCP);
     return p->l4.hdrs.tcph;
+    /*#else
+    return NULL;
+    #endif*/
 }
 
 static inline bool PacketIsTCP(const Packet *p)
 {
+    //#if ENABLE_TCP
     return p->l4.type == PACKET_L4_TCP;
+    /*#else
+    return false;
+    #endif*/
 }
 
 static inline UDPHdr *PacketSetUDP(Packet *p, const uint8_t *buf)
 {
+    //#if ENABLE_UDP
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_UNKNOWN);
     p->l4.type = PACKET_L4_UDP;
     p->l4.hdrs.udph = (UDPHdr *)buf;
     return p->l4.hdrs.udph;
+    /*#else
+    return NULL;
+    #endif*/
 }
 
 static inline const UDPHdr *PacketGetUDP(const Packet *p)
 {
+    //#if ENABLE_UDP
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_UDP);
     return p->l4.hdrs.udph;
+    /*#else
+    return NULL;
+    #endif*/
 }
 
 static inline bool PacketIsUDP(const Packet *p)
 {
+    //#if ENABLE_UDP
     return p->l4.type == PACKET_L4_UDP;
+    /*#else
+    return false;
+    #endif*/
 }
 
 static inline ICMPV4Hdr *PacketSetICMPv4(Packet *p, const uint8_t *buf)
@@ -831,99 +920,159 @@ static inline const IPV4Hdr *PacketGetICMPv4EmbIPv4(const Packet *p)
 
 static inline ICMPV6Hdr *PacketSetICMPv6(Packet *p, const uint8_t *buf)
 {
+    #if ENABLE_IPV6
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_UNKNOWN);
     p->l4.type = PACKET_L4_ICMPV6;
     p->l4.hdrs.icmpv6h = (ICMPV6Hdr *)buf;
     return p->l4.hdrs.icmpv6h;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline const ICMPV6Hdr *PacketGetICMPv6(const Packet *p)
 {
+    #if ENABLE_IPV6
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_ICMPV6);
     return p->l4.hdrs.icmpv6h;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline bool PacketIsICMPv6(const Packet *p)
 {
+    #if ENABLE_IPV6
     return p->l4.type == PACKET_L4_ICMPV6;
+    #else
+    return false;
+    #endif
 }
 
 static inline SCTPHdr *PacketSetSCTP(Packet *p, const uint8_t *buf)
 {
+    #if ENABLE_SCTP
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_UNKNOWN);
     p->l4.type = PACKET_L4_SCTP;
     p->l4.hdrs.sctph = (SCTPHdr *)buf;
     return p->l4.hdrs.sctph;
+    #else
+    return NULL;
+    #endif
+
 }
 
 static inline const SCTPHdr *PacketGetSCTP(const Packet *p)
 {
+    #if ENABLE_SCTP
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_SCTP);
     return p->l4.hdrs.sctph;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline bool PacketIsSCTP(const Packet *p)
 {
+    #if ENABLE_SCTP
     return p->l4.type == PACKET_L4_SCTP;
+    #else
+    return false;
+    #endif
 }
 
 static inline GREHdr *PacketSetGRE(Packet *p, const uint8_t *buf)
 {
+    #if ENABLE_GRE
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_UNKNOWN);
     p->l4.type = PACKET_L4_GRE;
     p->l4.hdrs.greh = (GREHdr *)buf;
     return p->l4.hdrs.greh;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline const GREHdr *PacketGetGRE(const Packet *p)
 {
+    #if ENABLE_GRE
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_GRE);
     return p->l4.hdrs.greh;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline bool PacketIsGRE(const Packet *p)
 {
+    #if ENABLE_GRE
     return p->l4.type == PACKET_L4_GRE;
+    #else
+    return false;
+    #endif
 }
 
 static inline ESPHdr *PacketSetESP(Packet *p, const uint8_t *buf)
 {
+    #if ENABLE_ESP
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_UNKNOWN);
     p->l4.type = PACKET_L4_ESP;
     p->l4.hdrs.esph = (ESPHdr *)buf;
     return p->l4.hdrs.esph;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline const ESPHdr *PacketGetESP(const Packet *p)
 {
+    #if ENABLE_ESP
     DEBUG_VALIDATE_BUG_ON(p->l4.type != PACKET_L4_ESP);
     return p->l4.hdrs.esph;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline bool PacketIsESP(const Packet *p)
 {
+    #if ENABLE_ESP
     return p->l4.type == PACKET_L4_ESP;
+    #else
+    return false;
+    #endif
 }
 
 static inline const ARPHdr *PacketGetARP(const Packet *p)
 {
+    #if ENABLE_ARP
     DEBUG_VALIDATE_BUG_ON(p->l3.type != PACKET_L3_ARP);
     return p->l3.hdrs.arph;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline ARPHdr *PacketSetARP(Packet *p, const uint8_t *buf)
 {
+    #if ENABLE_ARP
     DEBUG_VALIDATE_BUG_ON(p->l3.type != PACKET_L3_UNKNOWN);
     p->l3.type = PACKET_L3_ARP;
     p->l3.hdrs.arph = (ARPHdr *)buf;
     return p->l3.hdrs.arph;
+    #else
+    return NULL;
+    #endif
 }
 
 static inline bool PacketIsARP(const Packet *p)
 {
+    #if ENABLE_ARP
     return p->l3.type == PACKET_L3_ARP;
+    #else
+    return false;
+    #endif
 }
-
 /** \brief Structure to hold thread specific data for all decode modules */
 typedef struct DecodeThreadVars_
 {
@@ -941,46 +1090,90 @@ typedef struct DecodeThreadVars_
     uint16_t counter_invalid;
 
     uint16_t counter_eth;
+    #if ENABLE_CHDLC
     uint16_t counter_chdlc;
+    #endif
     uint16_t counter_ipv4;
+    #if ENABLE_IPV6
     uint16_t counter_ipv6;
+    #endif
+    //#if ENABLE_TCP
     uint16_t counter_tcp;
     uint16_t counter_tcp_syn;
     uint16_t counter_tcp_synack;
     uint16_t counter_tcp_rst;
+    //#endif
+    //#if ENABLE_UDP
     uint16_t counter_udp;
+    //#endif
     uint16_t counter_icmpv4;
+    #if ENABLE_IPV6
     uint16_t counter_icmpv6;
+    #endif
+    #if ENABLE_ARP    
     uint16_t counter_arp;
+    #endif
     uint16_t counter_ethertype_unknown;
-
-    uint16_t counter_sll;
+    #if ENABLE_SLL
+    uint16_t counter_sll; 
+    #endif
+    #if ENABLE_RAW
     uint16_t counter_raw;
+    #endif
     uint16_t counter_null;
+    #if ENABLE_SCTP
     uint16_t counter_sctp;
+    #endif
+    #if ENABLE_ESP
     uint16_t counter_esp;
+    #endif
+    #if ENABLE_PPP
     uint16_t counter_ppp;
+    #endif
+    #if ENABLE_GENEVE
     uint16_t counter_geneve;
+    #endif
+    #if ENABLE_GRE
     uint16_t counter_gre;
+    #endif
+    #if ENABLE_VLAN
     uint16_t counter_vlan;
     uint16_t counter_vlan_qinq;
     uint16_t counter_vlan_qinqinq;
-    uint16_t counter_vxlan;
-    uint16_t counter_vntag;
     uint16_t counter_ieee8021ah;
+    #endif
+    #if ENABLE_VXLAN
+    uint16_t counter_vxlan;
+    #endif
+    #if ENABLE_VNTAG
+    uint16_t counter_vntag;
+    #endif  
+    #if ENABLE_PPPOE
     uint16_t counter_pppoe;
+    #endif
+    #if ENABLE_TEREDO
     uint16_t counter_teredo;
+    #endif
+    #if ENABLE_MPLS
     uint16_t counter_mpls;
+    #endif
+    #if ENABLE_IPV6
     uint16_t counter_ipv4inipv6;
     uint16_t counter_ipv6inipv6;
+    #endif
+    #if ENABLE_ERSPAN
     uint16_t counter_erspan;
+    #endif
+    #if ENABLE_NSH
     uint16_t counter_nsh;
-
+    #endif
     /** frag stats - defrag runs in the context of the decoder. */
     uint16_t counter_defrag_ipv4_fragments;
     uint16_t counter_defrag_ipv4_reassembled;
+    #if ENABLE_IPV6
     uint16_t counter_defrag_ipv6_fragments;
     uint16_t counter_defrag_ipv6_reassembled;
+    #endif
     uint16_t counter_defrag_max_hit;
     uint16_t counter_defrag_no_frags;
     uint16_t counter_defrag_tracker_soft_reuse;
@@ -990,7 +1183,6 @@ typedef struct DecodeThreadVars_
 
     uint16_t counter_flow_memcap;
     ExceptionPolicyCounters counter_flow_memcap_eps;
-
     uint16_t counter_tcp_active_sessions;
     uint16_t counter_flow_total;
     uint16_t counter_flow_active;
@@ -1061,15 +1253,29 @@ static inline void PacketTunnelSetVerdicted(Packet *p)
 
 enum DecodeTunnelProto {
     DECODE_TUNNEL_ETHERNET,
+    #if ENABLE_ERSPAN
     DECODE_TUNNEL_ERSPANII,
     DECODE_TUNNEL_ERSPANI,
+    #endif
+    #if ENABLE_VLAN
     DECODE_TUNNEL_VLAN,
+    #endif
     DECODE_TUNNEL_IPV4,
+    #if ENABLE_IPV6
     DECODE_TUNNEL_IPV6,
+    #endif
+    #if ENABLE_TEREDO
     DECODE_TUNNEL_IPV6_TEREDO, /**< separate protocol for stricter error handling */
+    #endif
+    #if ENABLE_PPP
     DECODE_TUNNEL_PPP,
+    #endif
+    #if ENABLE_NSH
     DECODE_TUNNEL_NSH,
+    #endif
+    #if ENABLE_ARP
     DECODE_TUNNEL_ARP,
+    #endif
     DECODE_TUNNEL_UNSET
 };
 
@@ -1101,34 +1307,71 @@ const char *PacketDropReasonToString(enum PacketDropReason r);
 
 /* decoder functions */
 int DecodeEthernet(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#if ENABLE_SLL
 int DecodeSll(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_PPP
 int DecodePPP(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_PPPOE
 int DecodePPPOESession(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodePPPOEDiscovery(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
 int DecodeNull(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#if ENABLE_RAW
 int DecodeRaw(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
 int DecodeIPV4(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint16_t);
+#if ENABLE_IPV6
 int DecodeIPV6(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint16_t);
-int DecodeICMPV4(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeICMPV6(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+int DecodeICMPV4(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+//#if ENABLE_TCP
 int DecodeTCP(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint16_t);
+//#endif
+//#if ENABLE_UDP
 int DecodeUDP(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint16_t);
+//#endif
+#if ENABLE_SCTP
 int DecodeSCTP(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint16_t);
+#endif
+#if ENABLE_ESP
 int DecodeESP(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint16_t);
+#endif
+#if ENABLE_GRE
 int DecodeGRE(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_VLAN
 int DecodeVLAN(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
-int DecodeVNTag(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeIEEE8021ah(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_VNTAG
+int DecodeVNTag(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_GENEVE
 int DecodeGeneve(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_VXLAN
 int DecodeVXLAN(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_MPLS
 int DecodeMPLS(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_ERSPAN
 int DecodeERSPAN(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
 int DecodeERSPANTypeI(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_CHDLC
 int DecodeCHDLC(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
-int DecodeTEMPLATE(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+//int DecodeTEMPLATE(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#if ENABLE_NSH
 int DecodeNSH(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
+#endif
+#if ENABLE_ARP
 int DecodeARP(ThreadVars *, DecodeThreadVars *, Packet *, const uint8_t *, uint32_t);
-
+#endif
 #ifdef UNITTESTS
 void DecodeIPV6FragHeader(Packet *p, const uint8_t *pkt,
                           uint16_t hdrextlen, uint16_t plen,
@@ -1208,8 +1451,10 @@ void DecodeUnregisterCounters(void);
 #define DLT_EN10MB 1
 #endif
 
+#if ENABLE_CHDLC
 #ifndef DLT_C_HDLC
 #define DLT_C_HDLC 104
+#endif
 #endif
 
 /* taken from pcap's bpf.h */
@@ -1229,26 +1474,40 @@ void DecodeUnregisterCounters(void);
  * \todo we need more & maybe put them in a separate file? */
 #define LINKTYPE_NULL        DLT_NULL
 #define LINKTYPE_ETHERNET    DLT_EN10MB
+#if ENABLE_SLL
 #define LINKTYPE_LINUX_SLL   113
+#endif
+#if ENABLE_PPP
 #define LINKTYPE_PPP         9
+#endif
+#if ENABLE_RAW
 #define LINKTYPE_RAW         DLT_RAW
 /* http://www.tcpdump.org/linktypes.html defines DLT_RAW as 101, yet others don't.
  * Libpcap on at least OpenBSD returns 101 as datalink type for RAW pcaps though. */
 #define LINKTYPE_RAW2        101
+#endif
 #define LINKTYPE_IPV4        228
 #define LINKTYPE_IPV6        229
+#if ENABLE_GRE
 #define LINKTYPE_GRE_OVER_IP 778
+#endif
+#if ENABLE_CHDLC
 #define LINKTYPE_CISCO_HDLC  DLT_C_HDLC
+#endif
+#if ENABLE_PPP
 #define PPP_OVER_GRE         11
+#endif
+#if ENABLE_VLAN
 #define VLAN_OVER_GRE        13
-
+#endif
 /* Packet Flags */
 
 /** Flag to indicate that packet header or contents should not be inspected */
 #define PKT_NOPACKET_INSPECTION BIT_U32(0)
 /** Packet has a PPP_VJ_UCOMP header */
+#if ENABLE_PPP
 #define PKT_PPP_VJ_UCOMP BIT_U32(1)
-
+#endif
 /** Flag to indicate that packet contents should not be inspected */
 #define PKT_NOPAYLOAD_INSPECTION BIT_U32(2)
 // vacancy
@@ -1417,23 +1676,33 @@ static inline void DecodeLinkLayer(ThreadVars *tv, DecodeThreadVars *dtv,
     switch (datalink) {
         case LINKTYPE_ETHERNET:
             DecodeEthernet(tv, dtv, p, data, len);
-            break;
+            break;   
+        #if ENABLE_SLL
         case LINKTYPE_LINUX_SLL:
             DecodeSll(tv, dtv, p, data, len);
             break;
+        #endif
+        #if ENABLE_PPP
         case LINKTYPE_PPP:
             DecodePPP(tv, dtv, p, data, len);
             break;
+        #endif
+        #if ENABLE_RAW
         case LINKTYPE_RAW:
+        #if ENABLE_GRE
         case LINKTYPE_GRE_OVER_IP:
+        #endif
             DecodeRaw(tv, dtv, p, data, len);
             break;
+        #endif
         case LINKTYPE_NULL:
             DecodeNull(tv, dtv, p, data, len);
             break;
-       case LINKTYPE_CISCO_HDLC:
+        #if ENABLE_CHDLC
+        case LINKTYPE_CISCO_HDLC:
             DecodeCHDLC(tv, dtv, p, data, len);
             break;
+        #endif
         default:
             SCLogError("datalink type "
                        "%" PRId32 " not yet supported",
@@ -1453,17 +1722,22 @@ static inline bool DecodeNetworkLayer(ThreadVars *tv, DecodeThreadVars *dtv,
             DecodeIPV4(tv, dtv, p, data, ip_len);
             break;
         }
+        #if ENABLE_IPV6
         case ETHERNET_TYPE_IPV6: {
             uint16_t ip_len = (len < USHRT_MAX) ? (uint16_t)len : (uint16_t)USHRT_MAX;
             DecodeIPV6(tv, dtv, p, data, ip_len);
             break;
         }
+        #endif
+        #if ENABLE_PPPOE        
         case ETHERNET_TYPE_PPPOE_SESS:
             DecodePPPOESession(tv, dtv, p, data, len);
             break;
         case ETHERNET_TYPE_PPPOE_DISC:
             DecodePPPOEDiscovery(tv, dtv, p, data, len);
             break;
+        #endif
+        #if ENABLE_VLAN
         case ETHERNET_TYPE_VLAN:
         case ETHERNET_TYPE_8021AD:
         case ETHERNET_TYPE_8021QINQ:
@@ -1476,13 +1750,19 @@ static inline bool DecodeNetworkLayer(ThreadVars *tv, DecodeThreadVars *dtv,
         case ETHERNET_TYPE_8021AH:
             DecodeIEEE8021ah(tv, dtv, p, data, len);
             break;
+        #endif
+        #if ENABLE_ARP            
         case ETHERNET_TYPE_ARP:
             DecodeARP(tv, dtv, p, data, len);
             break;
+        #endif
+        #if ENABLE_MPLS
         case ETHERNET_TYPE_MPLS_UNICAST:
         case ETHERNET_TYPE_MPLS_MULTICAST:
             DecodeMPLS(tv, dtv, p, data, len);
             break;
+        #endif
+        #if ENABLE_DCERPC
         case ETHERNET_TYPE_DCE:
             if (unlikely(len < ETHERNET_DCE_HEADER_LEN)) {
                 ENGINE_SET_INVALID_EVENT(p, DCE_PKT_TOO_SMALL);
@@ -1491,12 +1771,17 @@ static inline bool DecodeNetworkLayer(ThreadVars *tv, DecodeThreadVars *dtv,
                 DecodeEthernet(tv, dtv, p, data + 2, len - 2);
             }
             break;
+        #endif
+        #if ENABLE_VNTAG
         case ETHERNET_TYPE_VNTAG:
             DecodeVNTag(tv, dtv, p, data, len);
             break;
+        #endif
+        #if ENABLE_NSH
         case ETHERNET_TYPE_NSH:
             DecodeNSH(tv, dtv, p, data, len);
             break;
+        #endif
         default:
             SCLogDebug("unknown ether type: %" PRIx16 "", proto);
             StatsIncr(tv, dtv->counter_ethertype_unknown);

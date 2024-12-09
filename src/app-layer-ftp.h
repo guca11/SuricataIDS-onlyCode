@@ -39,7 +39,9 @@ typedef enum {
     FTP_COMMAND_ACCT,
     FTP_COMMAND_ALLO,
     FTP_COMMAND_APPE,
+    #if ENABLE_TLS
     FTP_COMMAND_AUTH_TLS,
+    #endif
     FTP_COMMAND_CDUP,
     FTP_COMMAND_CHMOD,
     FTP_COMMAND_CWD,
@@ -185,7 +187,6 @@ typedef struct FtpDataState_ {
 void RegisterFTPParsers(void);
 void FTPParserRegisterTests(void);
 void FTPParserCleanup(void);
-int FTPSetMemcap(uint64_t size);
 uint64_t FTPMemuseGlobalCounter(void);
 uint64_t FTPMemcapGlobalCounter(void);
 

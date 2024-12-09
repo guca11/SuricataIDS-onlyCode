@@ -28,7 +28,6 @@
 #include "detect-engine.h"
 #include "detect-engine-mpm.h"
 #include "detect-icmpv4hdr.h"
-#include "detect-engine-prefilter.h"
 
 /* prototypes */
 static int DetectIcmpv4HdrSetup(DetectEngineCtx *, Signature *, const char *);

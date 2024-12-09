@@ -57,11 +57,16 @@
 #include "output-json.h"
 #include "output-json-file.h"
 #include "output-json-http.h"
+#if ENABLE_SMTP
 #include "output-json-smtp.h"
+#endif
 #include "output-json-email-common.h"
+#if ENABLE_NFS
 #include "output-json-nfs.h"
+#endif
+#if ENABLE_SMB
 #include "output-json-smb.h"
-
+#endif
 #include "app-layer-htp.h"
 #include "app-layer-htp-xff.h"
 #include "util-memcmp.h"
@@ -104,9 +109,11 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
     int have_xff_ip = 0;
     char xff_buffer[XFF_MAXLEN];
     if ((xff_cfg != NULL) && !(xff_cfg->flags & XFF_DISABLED)) {
+        #if ENABLE_HTTP
         if (FlowGetAppProtocol(p->flow) == ALPROTO_HTTP1) {
             have_xff_ip = HttpXFFGetIPFromTx(p->flow, tx_id, xff_cfg, xff_buffer, XFF_MAXLEN);
         }
+        #endif
         if (have_xff_ip && xff_cfg->flags & XFF_OVERWRITE) {
             if (p->flowflags & FLOW_PKT_TOCLIENT) {
                 strlcpy(addr.dst_ip, xff_buffer, JSON_ADDR_LEN);
@@ -124,11 +131,14 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
     JsonBuilderMark mark = { 0, 0, 0 };
     EveJsonSimpleAppLayerLogger *al;
     switch (p->flow->alproto) {
+        #if ENABLE_HTTP
         case ALPROTO_HTTP1:
             jb_open_object(js, "http");
             EveHttpAddMetadata(p->flow, tx_id, js);
             jb_close(js);
             break;
+        #endif
+        #if ENABLE_SMTP
         case ALPROTO_SMTP:
             jb_get_mark(js, &mark);
             jb_open_object(js, "smtp");
@@ -145,6 +155,8 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
                 jb_restore_mark(js, &mark);
             }
             break;
+        #endif
+        #if ENABLE_NFS
         case ALPROTO_NFS:
             /* rpc */
             jb_get_mark(js, &mark);
@@ -163,6 +175,8 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
                 jb_restore_mark(js, &mark);
             }
             break;
+        #endif
+#if ENABLE_SMB
         case ALPROTO_SMB:
             jb_get_mark(js, &mark);
             jb_open_object(js, "smb");
@@ -172,6 +186,7 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
                 jb_restore_mark(js, &mark);
             }
             break;
+#endif            
         default:
             al = SCEveJsonSimpleGetLogger(p->flow->alproto);
             if (al && al->LogTx) {
@@ -213,8 +228,8 @@ JsonBuilder *JsonBuildFileInfoRecord(const Packet *p, const File *ff, void *tx,
  *  \internal
  *  \brief Write meta data on a single line json record
  */
-static void FileWriteJsonRecord(ThreadVars *tv, JsonFileLogThread *aft, const Packet *p,
-        const File *ff, void *tx, const uint64_t tx_id, uint8_t dir, OutputJsonCtx *eve_ctx)
+static void FileWriteJsonRecord(JsonFileLogThread *aft, const Packet *p, const File *ff, void *tx,
+        const uint64_t tx_id, uint8_t dir, OutputJsonCtx *eve_ctx)
 {
     HttpXFFCfg *xff_cfg = aft->filelog_ctx->xff_cfg != NULL ? aft->filelog_ctx->xff_cfg
                                                             : aft->filelog_ctx->parent_xff_cfg;
@@ -223,7 +238,7 @@ static void FileWriteJsonRecord(ThreadVars *tv, JsonFileLogThread *aft, const Pa
         return;
     }
 
-    OutputJsonBuilderBuffer(tv, p, p->flow, js, aft->ctx);
+    OutputJsonBuilderBuffer(js, aft->ctx);
     jb_free(js);
 }
 
@@ -237,7 +252,7 @@ static int JsonFileLogger(ThreadVars *tv, void *thread_data, const Packet *p, co
 
     SCLogDebug("ff %p", ff);
 
-    FileWriteJsonRecord(tv, aft, p, ff, tx, tx_id, dir, aft->filelog_ctx->eve_ctx);
+    FileWriteJsonRecord(aft, p, ff, tx, tx_id, dir, aft->filelog_ctx->eve_ctx);
     return 0;
 }
 
@@ -329,7 +344,7 @@ static OutputInitResult OutputFileLogInitSub(ConfNode *conf, OutputCtx *parent_c
 
         FileForceHashParseCfg(conf);
     }
-
+    #if ENABLE_HTTP
     if (conf != NULL && ConfNodeLookupChild(conf, "xff") != NULL) {
         output_file_ctx->xff_cfg = SCCalloc(1, sizeof(HttpXFFCfg));
         if (output_file_ctx->xff_cfg != NULL) {
@@ -338,6 +353,9 @@ static OutputInitResult OutputFileLogInitSub(ConfNode *conf, OutputCtx *parent_c
     } else if (ojc->xff_cfg) {
         output_file_ctx->parent_xff_cfg = ojc->xff_cfg;
     }
+    #else
+    output_file_ctx->parent_xff_cfg = ojc->xff_cfg;
+    #endif
 
     output_file_ctx->eve_ctx = ojc;
     output_ctx->data = output_file_ctx;

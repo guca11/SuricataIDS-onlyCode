@@ -43,7 +43,9 @@
 Packet *TmqhInputFlow(ThreadVars *t);
 void TmqhOutputFlowHash(ThreadVars *t, Packet *p);
 void TmqhOutputFlowIPPair(ThreadVars *t, Packet *p);
+#if ENABLE_FTP
 static void TmqhOutputFlowFTPHash(ThreadVars *t, Packet *p);
+#endif
 void *TmqhOutputFlowSetupCtx(const char *queue_str);
 void TmqhOutputFlowFreeCtx(void *ctx);
 void TmqhFlowRegisterTests(void);
@@ -68,9 +70,13 @@ void TmqhFlowRegister(void)
             tmqh_table[TMQH_FLOW].OutHandler = TmqhOutputFlowHash;
         } else if (strcasecmp(scheduler, "ippair") == 0) {
             tmqh_table[TMQH_FLOW].OutHandler = TmqhOutputFlowIPPair;
-        } else if (strcasecmp(scheduler, "ftp-hash") == 0) {
+        } 
+#if ENABLE_FTP
+        else if (strcasecmp(scheduler, "ftp-hash") == 0) {
             tmqh_table[TMQH_FLOW].OutHandler = TmqhOutputFlowFTPHash;
-        } else {
+        }
+#endif 
+        else {
             SCLogError("Invalid entry \"%s\" "
                        "for autofp-scheduler in conf.  Killing engine.",
                     scheduler);
@@ -89,8 +95,9 @@ void TmqhFlowPrintAutofpHandler(void)
 
     PRINT_IF_FUNC(TmqhOutputFlowHash, "Hash");
     PRINT_IF_FUNC(TmqhOutputFlowIPPair, "IPPair");
+#if ENABLE_FTP    
     PRINT_IF_FUNC(TmqhOutputFlowFTPHash, "FTPHash");
-
+#endif
 #undef PRINT_IF_FUNC
 }
 
@@ -267,6 +274,7 @@ void TmqhOutputFlowIPPair(ThreadVars *tv, Packet *p)
     SCMutexUnlock(&q->mutex_q);
 }
 
+#if ENABLE_FTP
 static void TmqhOutputFlowFTPHash(ThreadVars *tv, Packet *p)
 {
     uint32_t qid;
@@ -292,7 +300,7 @@ static void TmqhOutputFlowFTPHash(ThreadVars *tv, Packet *p)
     SCCondSignal(&q->cond_q);
     SCMutexUnlock(&q->mutex_q);
 }
-
+#endif
 #ifdef UNITTESTS
 
 static int TmqhOutputFlowSetupCtxTest01(void)

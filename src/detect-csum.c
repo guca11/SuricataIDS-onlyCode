@@ -391,6 +391,7 @@ static void DetectTCPV4CsumFree(DetectEngineCtx *de_ctx, void *ptr)
  *
  * \retval 1 if the Packet contents match the keyword option; 0 otherwise
  */
+
 static int DetectTCPV6CsumMatch(DetectEngineThreadCtx *det_ctx,
         Packet *p, const Signature *s, const SigMatchCtx *ctx)
 {
@@ -555,6 +556,7 @@ static void DetectUDPV4CsumFree(DetectEngineCtx *de_ctx, void *ptr)
  *
  * \retval 1 if the Packet contents match the keyword option; 0 otherwise
  */
+
 static int DetectUDPV6CsumMatch(DetectEngineThreadCtx *det_ctx,
         Packet *p, const Signature *s, const SigMatchCtx *ctx)
 {
@@ -718,6 +720,7 @@ static void DetectICMPV4CsumFree(DetectEngineCtx *de_ctx, void *ptr)
  *
  * \retval 1 if the Packet contents match the keyword option; 0 otherwise
  */
+
 static int DetectICMPV6CsumMatch(DetectEngineThreadCtx *det_ctx,
         Packet *p, const Signature *s, const SigMatchCtx *ctx)
 {

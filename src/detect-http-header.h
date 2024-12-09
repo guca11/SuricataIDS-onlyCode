@@ -25,6 +25,7 @@
 #define SURICATA_DETECT_HTTP_HEADER_H
 
 void DetectHttpHeaderRegister(void);
+void DetectHttpRawHeaderRegister(void);
 void DetectHttpRequestHeaderRegister(void);
 void DetectHttpResponseHeaderRegister(void);
 

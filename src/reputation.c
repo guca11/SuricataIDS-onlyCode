@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2022 Open Information Security Foundation
+/* Copyright (C) 2007-2019 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -39,8 +39,6 @@
 #include "util-print.h"
 #include "util-unittest.h"
 #include "util-validate.h"
-#include "util-radix4-tree.h"
-#include "util-radix6-tree.h"
 
 /** effective reputation version, atomic as the host
  *  time out code will use it to check if a host's
@@ -77,9 +75,6 @@ static void SRepCIDRFreeUserData(void *data)
         SCFree(data);
 }
 
-static SCRadix4Config iprep_radix4_config = { SRepCIDRFreeUserData, NULL };
-static SCRadix6Config iprep_radix6_config = { SRepCIDRFreeUserData, NULL };
-
 static void SRepCIDRAddNetblock(SRepCIDRTree *cidr_ctx, char *ip, int cat, uint8_t value)
 {
     SReputation *user_data = NULL;
@@ -91,18 +86,34 @@ static void SRepCIDRAddNetblock(SRepCIDRTree *cidr_ctx, char *ip, int cat, uint8
     user_data->rep[cat] = value;
 
     if (strchr(ip, ':') != NULL) {
+        if (cidr_ctx->srepIPV6_tree[cat] == NULL) {
+            cidr_ctx->srepIPV6_tree[cat] = SCRadixCreateRadixTree(SRepCIDRFreeUserData, NULL);
+            if (cidr_ctx->srepIPV6_tree[cat] == NULL) {
+                SCLogDebug("Error initializing Reputation IPV6 with CIDR module for cat %d", cat);
+                exit(EXIT_FAILURE);
+            }
+            SCLogDebug("Reputation IPV6 with CIDR module for cat %d initialized", cat);
+        }
+
         SCLogDebug("adding ipv6 host %s", ip);
-        if (!SCRadix6AddKeyIPV6String(
-                    &cidr_ctx->srep_ipv6_tree[cat], &iprep_radix6_config, ip, (void *)user_data)) {
+        if (!SCRadixAddKeyIPV6String(ip, cidr_ctx->srepIPV6_tree[cat], (void *)user_data)) {
             SCFree(user_data);
             if (sc_errno != SC_EEXIST)
                 SCLogWarning("failed to add ipv6 host %s", ip);
         }
 
     } else {
+        if (cidr_ctx->srepIPV4_tree[cat] == NULL) {
+            cidr_ctx->srepIPV4_tree[cat] = SCRadixCreateRadixTree(SRepCIDRFreeUserData, NULL);
+            if (cidr_ctx->srepIPV4_tree[cat] == NULL) {
+                SCLogDebug("Error initializing Reputation IPV4 with CIDR module for cat %d", cat);
+                exit(EXIT_FAILURE);
+            }
+            SCLogDebug("Reputation IPV4 with CIDR module for cat %d initialized", cat);
+        }
+
         SCLogDebug("adding ipv4 host %s", ip);
-        if (!SCRadix4AddKeyIPV4String(
-                    &cidr_ctx->srep_ipv4_tree[cat], &iprep_radix4_config, ip, (void *)user_data)) {
+        if (!SCRadixAddKeyIPV4String(ip, cidr_ctx->srepIPV4_tree[cat], (void *)user_data)) {
             SCFree(user_data);
             if (sc_errno != SC_EEXIST)
                 SCLogWarning("failed to add ipv4 host %s", ip);
@@ -113,7 +124,7 @@ static void SRepCIDRAddNetblock(SRepCIDRTree *cidr_ctx, char *ip, int cat, uint8
 static int8_t SRepCIDRGetIPv4IPRep(SRepCIDRTree *cidr_ctx, uint8_t *ipv4_addr, uint8_t cat)
 {
     void *user_data = NULL;
-    (void)SCRadix4TreeFindBestMatch(&cidr_ctx->srep_ipv4_tree[cat], ipv4_addr, &user_data);
+    (void)SCRadixFindKeyIPV4BestMatch(ipv4_addr, cidr_ctx->srepIPV4_tree[cat], &user_data);
     if (user_data == NULL)
         return -1;
 
@@ -124,7 +135,7 @@ static int8_t SRepCIDRGetIPv4IPRep(SRepCIDRTree *cidr_ctx, uint8_t *ipv4_addr, u
 static int8_t SRepCIDRGetIPv6IPRep(SRepCIDRTree *cidr_ctx, uint8_t *ipv6_addr, uint8_t cat)
 {
     void *user_data = NULL;
-    (void)SCRadix6TreeFindBestMatch(&cidr_ctx->srep_ipv6_tree[cat], ipv6_addr, &user_data);
+    (void)SCRadixFindKeyIPV6BestMatch(ipv6_addr, cidr_ctx->srepIPV6_tree[cat], &user_data);
     if (user_data == NULL)
         return -1;
 
@@ -573,12 +584,6 @@ int SRepInit(DetectEngineCtx *de_ctx)
     de_ctx->srepCIDR_ctx = (SRepCIDRTree *)SCCalloc(1, sizeof(SRepCIDRTree));
     if (de_ctx->srepCIDR_ctx == NULL)
         exit(EXIT_FAILURE);
-
-    for (int i = 0; i < SREP_MAX_CATS; i++) {
-        de_ctx->srepCIDR_ctx->srep_ipv4_tree[i] = SCRadix4TreeInitialize();
-        de_ctx->srepCIDR_ctx->srep_ipv6_tree[i] = SCRadix6TreeInitialize();
-    }
-
     SRepCIDRTree *cidr_ctx = de_ctx->srepCIDR_ctx;
 
     if (SRepGetVersion() == 0) {
@@ -646,13 +651,21 @@ int SRepInit(DetectEngineCtx *de_ctx)
     return 0;
 }
 
-void SRepDestroy(DetectEngineCtx *de_ctx)
-{
+void SRepDestroy(DetectEngineCtx *de_ctx) {
     if (de_ctx->srepCIDR_ctx != NULL) {
-        for (int i = 0; i < SREP_MAX_CATS; i++) {
-            SCRadix4TreeRelease(&de_ctx->srepCIDR_ctx->srep_ipv4_tree[i], &iprep_radix4_config);
-            SCRadix6TreeRelease(&de_ctx->srepCIDR_ctx->srep_ipv6_tree[i], &iprep_radix6_config);
+        int i;
+        for (i = 0; i < SREP_MAX_CATS; i++) {
+            if (de_ctx->srepCIDR_ctx->srepIPV4_tree[i] != NULL) {
+                SCRadixReleaseRadixTree(de_ctx->srepCIDR_ctx->srepIPV4_tree[i]);
+                de_ctx->srepCIDR_ctx->srepIPV4_tree[i] = NULL;
+            }
+
+            if (de_ctx->srepCIDR_ctx->srepIPV6_tree[i] != NULL) {
+                SCRadixReleaseRadixTree(de_ctx->srepCIDR_ctx->srepIPV6_tree[i]);
+                de_ctx->srepCIDR_ctx->srepIPV6_tree[i] = NULL;
+            }
         }
+
         SCFree(de_ctx->srepCIDR_ctx);
         de_ctx->srepCIDR_ctx = NULL;
     }

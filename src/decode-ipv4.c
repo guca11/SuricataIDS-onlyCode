@@ -567,24 +567,35 @@ int DecodeIPV4(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
 
     /* check what next decoder to invoke */
     switch (p->proto) {
+        //#if ENABLE_TCP
         case IPPROTO_TCP:
             DecodeTCP(tv, dtv, p, data, data_len);
             break;
+        //#endif    
+        //#if ENABLE_UDP
         case IPPROTO_UDP:
             DecodeUDP(tv, dtv, p, data, data_len);
             break;
+        //#endif
         case IPPROTO_ICMP:
             DecodeICMPV4(tv, dtv, p, data, data_len);
             break;
+        #if ENABLE_GRE
         case IPPROTO_GRE:
             DecodeGRE(tv, dtv, p, data, data_len);
             break;
+        #endif
+        #if ENABLE_SCTP
         case IPPROTO_SCTP:
             DecodeSCTP(tv, dtv, p, data, data_len);
             break;
+        #endif
+        #if ENABLE_ESP 
         case IPPROTO_ESP:
             DecodeESP(tv, dtv, p, data, data_len);
-            break;
+            break; 
+        #endif
+        #if ENABLE_IPV6
         case IPPROTO_IPV6:
             {
                 /* spawn off tunnel packet */
@@ -596,12 +607,15 @@ int DecodeIPV4(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
                 FlowSetupPacket(p);
                 break;
             }
+        #endif    
+        #if ENABLE_PPP
         case IPPROTO_IP:
-            /* check PPP VJ uncompressed packets and decode tcp dummy */
+            // check PPP VJ uncompressed packets and decode tcp dummy
             if (p->flags & PKT_PPP_VJ_UCOMP) {
                 DecodeTCP(tv, dtv, p, data, data_len);
             }
             break;
+        #endif
         case IPPROTO_ICMPV6:
             ENGINE_SET_INVALID_EVENT(p, IPV4_WITH_ICMPV6);
             break;

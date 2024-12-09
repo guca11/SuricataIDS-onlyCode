@@ -28,7 +28,9 @@
 #include "app-layer.h"
 #include "app-layer-protos.h"
 #include "app-layer-parser.h"
+#if ENABLE_SMTP
 #include "app-layer-smtp.h"
+#endif
 #include "detect.h"
 #include "detect-parse.h"
 #include "detect-engine.h"
@@ -144,8 +146,9 @@ static int DetectAppLayerEventPktMatch(DetectEngineThreadCtx *det_ctx,
 static DetectAppLayerEventData *DetectAppLayerEventParsePkt(const char *arg,
                                                             AppLayerEventType *event_type)
 {
-    uint8_t event_id = 0;
-    if (AppLayerGetPktEventInfo(arg, &event_id) != 0) {
+    int event_id = 0;
+    int r = AppLayerGetPktEventInfo(arg, &event_id);
+    if (r < 0 || r > UINT8_MAX) {
         SCLogError("app-layer-event keyword "
                    "supplied with packet based event - \"%s\" that isn't "
                    "supported yet.",
@@ -164,21 +167,25 @@ static DetectAppLayerEventData *DetectAppLayerEventParsePkt(const char *arg,
 
 static bool OutdatedEvent(const char *raw)
 {
+    #if ENABLE_TLS
     if (strcmp(raw, "tls.certificate_missing_element") == 0 ||
             strcmp(raw, "tls.certificate_unknown_element") == 0 ||
             strcmp(raw, "tls.certificate_invalid_string") == 0) {
         return true;
     }
+    #endif
     return false;
 }
 
 static AppProto AppLayerEventGetProtoByName(char *alproto_name)
 {
     AppProto alproto = AppLayerGetProtoByName(alproto_name);
+    #if ENABLE_HTTP
     if (alproto == ALPROTO_HTTP) {
         // app-layer events http refer to http1
         alproto = ALPROTO_HTTP1;
     }
+    #endif
     return alproto;
 }
 
@@ -234,7 +241,6 @@ static int DetectAppLayerEventSetup(DetectEngineCtx *de_ctx, Signature *s, const
                 return -3;
             }
         }
-
         uint8_t ipproto = 0;
         if (s->proto.proto[IPPROTO_TCP / 8] & 1 << (IPPROTO_TCP % 8)) {
             ipproto = IPPROTO_TCP;
@@ -246,7 +252,7 @@ static int DetectAppLayerEventSetup(DetectEngineCtx *de_ctx, Signature *s, const
         }
 
         int r;
-        uint8_t event_id = 0;
+        int event_id = 0;
         if (!needs_detctx) {
             r = AppLayerParserGetEventInfo(ipproto, alproto, event_name, &event_id, &event_type);
         } else {
@@ -264,6 +270,10 @@ static int DetectAppLayerEventSetup(DetectEngineCtx *de_ctx, Signature *s, const
                         alproto_name, event_name);
                 return -3;
             }
+        }
+        if (event_id > UINT8_MAX) {
+            SCLogWarning("app-layer-event keyword's id has invalid value");
+            return -4;
         }
         data = SCCalloc(1, sizeof(*data));
         if (unlikely(data == NULL))

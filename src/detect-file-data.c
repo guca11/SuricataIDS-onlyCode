@@ -40,7 +40,9 @@
 #include "app-layer.h"
 #include "app-layer-parser.h"
 #include "app-layer-htp.h"
+#if ENABLE_SMTP
 #include "app-layer-smtp.h"
+#endif
 
 #include "flow.h"
 #include "flow-var.h"
@@ -109,9 +111,11 @@ static void SetupDetectEngineConfig(DetectEngineCtx *de_ctx) {
     /* add protocol specific settings here */
 
     /* SMTP */
+#if ENABLE_SMTP
     de_ctx->filedata_config[ALPROTO_SMTP].content_limit = smtp_config.content_limit;
     de_ctx->filedata_config[ALPROTO_SMTP].content_inspect_min_size =
             smtp_config.content_inspect_min_size;
+#endif
 }
 
 /**
@@ -139,14 +143,14 @@ static int DetectFiledataSetup (DetectEngineCtx *de_ctx, Signature *s, const cha
                 AppLayerGetProtoName(s->alproto));
         return -1;
     }
-
+#if ENABLE_SMTP
     if (s->alproto == ALPROTO_SMTP && (s->init_data->init_flags & SIG_FLAG_INIT_FLOW) &&
         !(s->flags & SIG_FLAG_TOSERVER) && (s->flags & SIG_FLAG_TOCLIENT)) {
         SCLogError("The 'file-data' keyword cannot be used with SMTP flow:to_client or "
                    "flow:from_server.");
         return -1;
     }
-
+#endif
     if (DetectBufferSetActiveList(de_ctx, s, DetectBufferTypeGetByName("file_data")) < 0)
         return -1;
 
@@ -158,11 +162,13 @@ static int DetectFiledataSetup (DetectEngineCtx *de_ctx, Signature *s, const cha
 static void DetectFiledataSetupCallback(const DetectEngineCtx *de_ctx,
                                         Signature *s)
 {
+    #if ENABLE_HTTP
     if (s->alproto == ALPROTO_HTTP1 || s->alproto == ALPROTO_UNKNOWN ||
             s->alproto == ALPROTO_HTTP) {
         AppLayerHtpEnableResponseBodyCallback();
     }
-
+    #endif
+    
     /* server body needs to be inspected in sync with stream if possible */
     s->init_data->init_flags |= SIG_FLAG_INIT_NEED_FLUSH;
 
@@ -253,6 +259,7 @@ static InspectionBuffer *FiledataGetDataCallback(DetectEngineThreadCtx *det_ctx,
 
     bool ips = false;
     uint64_t offset = 0;
+    #if ENABLE_HTTP
     if (f->alproto == ALPROTO_HTTP1) {
 
         htp_tx_t *tx = txv;
@@ -322,6 +329,7 @@ static InspectionBuffer *FiledataGetDataCallback(DetectEngineThreadCtx *det_ctx,
         }
 
     } else {
+    #endif
         if ((content_limit == 0 || file_size < content_limit) &&
                 file_size < content_inspect_min_size && !(flow_flags & STREAM_EOF) &&
                 !(cur_file->state > FILE_STATE_OPENED)) {
@@ -332,8 +340,10 @@ static InspectionBuffer *FiledataGetDataCallback(DetectEngineThreadCtx *det_ctx,
             goto empty_return;
         }
         offset = cur_file->content_inspected;
+    #if ENABLE_HTTP
     }
-
+    #endif
+    
     const uint8_t *data;
     uint32_t data_len;
 
@@ -356,6 +366,7 @@ static InspectionBuffer *FiledataGetDataCallback(DetectEngineThreadCtx *det_ctx,
                "; data_len %" PRIu32 "; file_size %" PRIu64,
             list_id, buffer->inspect_offset, buffer->inspect_len, data_len, file_size);
 
+    #if ENABLE_HTTP
     if (f->alproto == ALPROTO_HTTP1 && flow_flags & STREAM_TOCLIENT) {
         HtpState *htp_state = f->alstate;
         /* built-in 'transformation' */
@@ -372,7 +383,7 @@ static InspectionBuffer *FiledataGetDataCallback(DetectEngineThreadCtx *det_ctx,
             }
         }
     }
-
+    #endif
     SCLogDebug("content inspected: %" PRIu64, cur_file->content_inspected);
 
     /* get buffer for the list id if it is different from the base id */
@@ -402,14 +413,6 @@ uint8_t DetectEngineInspectFiledata(DetectEngineCtx *de_ctx, DetectEngineThreadC
     FileContainer *ffc = files.fc;
     if (ffc == NULL) {
         return DETECT_ENGINE_INSPECT_SIG_CANT_MATCH_FILES;
-    }
-    if (ffc->head == NULL) {
-        const bool eof = (AppLayerParserGetStateProgress(f->proto, f->alproto, txv, flags) >
-                          engine->progress);
-        if (eof && engine->match_on_null) {
-            return DETECT_ENGINE_INSPECT_SIG_MATCH;
-        }
-        return DETECT_ENGINE_INSPECT_SIG_NO_MATCH;
     }
 
     int local_file_id = 0;

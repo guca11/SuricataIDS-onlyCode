@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2024 Open Information Security Foundation
+/* Copyright (C) 2007-2013 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -66,44 +66,6 @@
 #define DETECT_XBITS_TYPE_SET_READ 3
 #define DETECT_XBITS_TYPE_SET      4
 
-/**
- * \brief Different kinds of helper data that can be used by the signature
- *        ordering module.  Used by the "user" field in SCSigSignatureWrapper
- */
-typedef enum {
-    DETECT_SIGORDER_FLOWBITS,
-    DETECT_SIGORDER_FLOWVAR,
-    DETECT_SIGORDER_PKTVAR,
-    DETECT_SIGORDER_FLOWINT,
-    DETECT_SIGORDER_HOSTBITS,
-    DETECT_SIGORDER_IPPAIRBITS,
-    DETECT_SIGORDER_MAX
-} DetectSigorderUserDataType;
-
-/**
- * \brief Signature wrapper used by signature ordering module while ordering
- *        signatures
- */
-typedef struct SCSigSignatureWrapper_ {
-    /* the wrapped signature */
-    Signature *sig;
-
-    /* user data that is to be associated with this sigwrapper */
-    int user[DETECT_SIGORDER_MAX];
-
-    struct SCSigSignatureWrapper_ *next;
-} SCSigSignatureWrapper;
-
-/**
- * \brief Structure holding the signature ordering function used by the
- *        signature ordering module
- */
-typedef struct SCSigOrderFunc_ {
-    /* Pointer to the Signature Ordering function */
-    int (*SWCompare)(SCSigSignatureWrapper *sw1, SCSigSignatureWrapper *sw2);
-
-    struct SCSigOrderFunc_ *next;
-} SCSigOrderFunc;
 
 /**
  * \brief Registers a keyword-based, signature ordering function
@@ -229,11 +191,14 @@ static inline int SCSigGetFlowintType(Signature *sig)
     while (sm != NULL) {
         if (sm->type == DETECT_FLOWINT) {
             fi = (DetectFlowintData *)sm->ctx;
-            if (fi->modifier == FLOWINT_MODIFIER_LT || fi->modifier == FLOWINT_MODIFIER_LE ||
-                    fi->modifier == FLOWINT_MODIFIER_EQ || fi->modifier == FLOWINT_MODIFIER_NE ||
-                    fi->modifier == FLOWINT_MODIFIER_GE || fi->modifier == FLOWINT_MODIFIER_GT ||
-                    fi->modifier == FLOWINT_MODIFIER_ISNOTSET ||
-                    fi->modifier == FLOWINT_MODIFIER_ISSET) {
+            if (fi->modifier == FLOWINT_MODIFIER_LT ||
+                fi->modifier == FLOWINT_MODIFIER_LE ||
+                fi->modifier == FLOWINT_MODIFIER_EQ ||
+                fi->modifier == FLOWINT_MODIFIER_NE ||
+                fi->modifier == FLOWINT_MODIFIER_GE ||
+                fi->modifier == FLOWINT_MODIFIER_GT ||
+                fi->modifier == FLOWINT_MODIFIER_NOTSET ||
+                fi->modifier == FLOWINT_MODIFIER_ISSET) {
                 read++;
             } else {
 #ifdef DEBUG
@@ -474,7 +439,7 @@ static inline int SCSigGetXbitsType(Signature *sig, enum VarTypes type)
  */
 static inline void SCSigProcessUserDataForFlowbits(SCSigSignatureWrapper *sw)
 {
-    sw->user[DETECT_SIGORDER_FLOWBITS] = SCSigGetFlowbitsType(sw->sig);
+    sw->user[SC_RADIX_USER_DATA_FLOWBITS] = SCSigGetFlowbitsType(sw->sig);
 }
 
 /**
@@ -486,12 +451,12 @@ static inline void SCSigProcessUserDataForFlowbits(SCSigSignatureWrapper *sw)
  */
 static inline void SCSigProcessUserDataForFlowvar(SCSigSignatureWrapper *sw)
 {
-    sw->user[DETECT_SIGORDER_FLOWVAR] = SCSigGetFlowvarType(sw->sig);
+    sw->user[SC_RADIX_USER_DATA_FLOWVAR] = SCSigGetFlowvarType(sw->sig);
 }
 
 static inline void SCSigProcessUserDataForFlowint(SCSigSignatureWrapper *sw)
 {
-    sw->user[DETECT_SIGORDER_FLOWINT] = SCSigGetFlowintType(sw->sig);
+    sw->user[SC_RADIX_USER_DATA_FLOWINT] = SCSigGetFlowintType(sw->sig);
 }
 
 /**
@@ -503,7 +468,7 @@ static inline void SCSigProcessUserDataForFlowint(SCSigSignatureWrapper *sw)
  */
 static inline void SCSigProcessUserDataForPktvar(SCSigSignatureWrapper *sw)
 {
-    sw->user[DETECT_SIGORDER_PKTVAR] = SCSigGetPktvarType(sw->sig);
+    sw->user[SC_RADIX_USER_DATA_PKTVAR] = SCSigGetPktvarType(sw->sig);
 }
 
 /**
@@ -515,7 +480,7 @@ static inline void SCSigProcessUserDataForPktvar(SCSigSignatureWrapper *sw)
  */
 static inline void SCSigProcessUserDataForHostbits(SCSigSignatureWrapper *sw)
 {
-    sw->user[DETECT_SIGORDER_HOSTBITS] = SCSigGetXbitsType(sw->sig, VAR_TYPE_HOST_BIT);
+    sw->user[SC_RADIX_USER_DATA_HOSTBITS] = SCSigGetXbitsType(sw->sig, VAR_TYPE_HOST_BIT);
 }
 
 /**
@@ -527,7 +492,7 @@ static inline void SCSigProcessUserDataForHostbits(SCSigSignatureWrapper *sw)
  */
 static inline void SCSigProcessUserDataForIPPairbits(SCSigSignatureWrapper *sw)
 {
-    sw->user[DETECT_SIGORDER_IPPAIRBITS] = SCSigGetXbitsType(sw->sig, VAR_TYPE_IPPAIR_BIT);
+    sw->user[SC_RADIX_USER_DATA_IPPAIRBITS] = SCSigGetXbitsType(sw->sig, VAR_TYPE_IPPAIR_BIT);
 }
 
 /* Return 1 if sw1 comes before sw2 in the final list. */
@@ -644,7 +609,8 @@ static int SCSigOrderByActionCompare(SCSigSignatureWrapper *sw1,
 static int SCSigOrderByFlowbitsCompare(SCSigSignatureWrapper *sw1,
                                        SCSigSignatureWrapper *sw2)
 {
-    return sw1->user[DETECT_SIGORDER_FLOWBITS] - sw2->user[DETECT_SIGORDER_FLOWBITS];
+    return sw1->user[SC_RADIX_USER_DATA_FLOWBITS] -
+        sw2->user[SC_RADIX_USER_DATA_FLOWBITS];
 }
 
 /**
@@ -657,7 +623,8 @@ static int SCSigOrderByFlowbitsCompare(SCSigSignatureWrapper *sw1,
 static int SCSigOrderByFlowvarCompare(SCSigSignatureWrapper *sw1,
                                       SCSigSignatureWrapper *sw2)
 {
-    return sw1->user[DETECT_SIGORDER_FLOWVAR] - sw2->user[DETECT_SIGORDER_FLOWVAR];
+    return sw1->user[SC_RADIX_USER_DATA_FLOWVAR] -
+        sw2->user[SC_RADIX_USER_DATA_FLOWVAR];
 }
 
 /**
@@ -670,13 +637,15 @@ static int SCSigOrderByFlowvarCompare(SCSigSignatureWrapper *sw1,
 static int SCSigOrderByPktvarCompare(SCSigSignatureWrapper *sw1,
                                      SCSigSignatureWrapper *sw2)
 {
-    return sw1->user[DETECT_SIGORDER_PKTVAR] - sw2->user[DETECT_SIGORDER_PKTVAR];
+    return sw1->user[SC_RADIX_USER_DATA_PKTVAR] -
+        sw2->user[SC_RADIX_USER_DATA_PKTVAR];
 }
 
 static int SCSigOrderByFlowintCompare(SCSigSignatureWrapper *sw1,
                                       SCSigSignatureWrapper *sw2)
 {
-    return sw1->user[DETECT_SIGORDER_FLOWINT] - sw2->user[DETECT_SIGORDER_FLOWINT];
+    return sw1->user[SC_RADIX_USER_DATA_FLOWINT] -
+        sw2->user[SC_RADIX_USER_DATA_FLOWINT];
 }
 
 /**
@@ -689,7 +658,8 @@ static int SCSigOrderByFlowintCompare(SCSigSignatureWrapper *sw1,
 static int SCSigOrderByHostbitsCompare(SCSigSignatureWrapper *sw1,
                                        SCSigSignatureWrapper *sw2)
 {
-    return sw1->user[DETECT_SIGORDER_HOSTBITS] - sw2->user[DETECT_SIGORDER_HOSTBITS];
+    return sw1->user[SC_RADIX_USER_DATA_HOSTBITS] -
+        sw2->user[SC_RADIX_USER_DATA_HOSTBITS];
 }
 
 /**
@@ -702,7 +672,8 @@ static int SCSigOrderByHostbitsCompare(SCSigSignatureWrapper *sw1,
 static int SCSigOrderByIPPairbitsCompare(SCSigSignatureWrapper *sw1,
                                          SCSigSignatureWrapper *sw2)
 {
-    return sw1->user[DETECT_SIGORDER_IPPAIRBITS] - sw2->user[DETECT_SIGORDER_IPPAIRBITS];
+    return sw1->user[SC_RADIX_USER_DATA_IPPAIRBITS] -
+        sw2->user[SC_RADIX_USER_DATA_IPPAIRBITS];
 }
 
 /**

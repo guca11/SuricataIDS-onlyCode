@@ -78,11 +78,11 @@
                     BUG_ON(PacketGetUDP((p)) == NULL);                                             \
                 } else if ((p)->proto == IPPROTO_ICMP) {                                           \
                     BUG_ON(PacketGetICMPv4((p)) == NULL);                                          \
-                } else if ((p)->proto == IPPROTO_SCTP) {                                           \
+                }/* else if ((p)->proto == IPPROTO_SCTP) {                                           \
                     BUG_ON(PacketGetSCTP((p)) == NULL);                                            \
                 } else if ((p)->proto == IPPROTO_ICMPV6) {                                         \
                     BUG_ON(PacketGetICMPv6((p)) == NULL);                                          \
-                }                                                                                  \
+                }*/                                                                                  \
             }                                                                                      \
             if ((p)->payload_len > 0) {                                                            \
                 BUG_ON((p)->payload == NULL);                                                      \

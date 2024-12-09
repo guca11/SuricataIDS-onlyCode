@@ -29,9 +29,7 @@
 #include "suricata.h"
 #include "stream.h"
 #include "runmodes.h"
-#include "thread-callbacks.h"
 #include "threadvars.h"
-#include "thread-storage.h"
 #include "tm-queues.h"
 #include "tm-queuehandlers.h"
 #include "tm-threads.h"
@@ -233,6 +231,7 @@ static void *TmThreadsSlotPktAcqLoop(void *td)
 {
     ThreadVars *tv = (ThreadVars *)td;
     TmSlot *s = tv->tm_slots;
+    char run = 1;
     TmEcode r = TM_ECODE_OK;
     TmSlot *slot = NULL;
 
@@ -241,6 +240,8 @@ static void *TmThreadsSlotPktAcqLoop(void *td)
     if (tv->thread_setup_flags != 0)
         TmThreadSetupOptions(tv);
 
+    /* Drop the capabilities for this thread */
+    SCDropCaps(tv);
     CaptureStatsSetup(tv);
     PacketPoolInit();
 
@@ -304,20 +305,25 @@ static void *TmThreadsSlotPktAcqLoop(void *td)
     StatsSetupPrivate(tv);
 
     TmThreadsSetFlag(tv, THV_INIT_DONE);
-    bool run = TmThreadsWaitForUnpause(tv);
 
-    while (run) {
+    while(run) {
+        if (TmThreadsCheckFlag(tv, THV_PAUSE)) {
+            TmThreadsSetFlag(tv, THV_PAUSED);
+            TmThreadTestThreadUnPaused(tv);
+            TmThreadsUnsetFlag(tv, THV_PAUSED);
+        }
+
         r = s->PktAcqLoop(tv, SC_ATOMIC_GET(s->slot_data), s);
 
         if (r == TM_ECODE_FAILED) {
             TmThreadsSetFlag(tv, THV_FAILED);
-            run = false;
+            run = 0;
         }
         if (TmThreadsCheckFlag(tv, THV_KILL_PKTACQ) || suricata_ctl_flags) {
-            run = false;
+            run = 0;
         }
         if (r == TM_ECODE_DONE) {
-            run = false;
+            run = 0;
         }
     }
     StatsSyncCounters(tv);
@@ -358,32 +364,12 @@ error:
     return NULL;
 }
 
-/**
- * Also returns if the kill flag is set.
- */
-bool TmThreadsWaitForUnpause(ThreadVars *tv)
-{
-    if (TmThreadsCheckFlag(tv, THV_PAUSE)) {
-        TmThreadsSetFlag(tv, THV_PAUSED);
-
-        while (TmThreadsCheckFlag(tv, THV_PAUSE)) {
-            SleepUsec(100);
-
-            if (TmThreadsCheckFlag(tv, THV_KILL))
-                return false;
-        }
-
-        TmThreadsUnsetFlag(tv, THV_PAUSED);
-    }
-
-    return true;
-}
-
 static void *TmThreadsSlotVar(void *td)
 {
     ThreadVars *tv = (ThreadVars *)td;
     TmSlot *s = (TmSlot *)tv->tm_slots;
     Packet *p = NULL;
+    char run = 1;
     TmEcode r = TM_ECODE_OK;
 
     CaptureStatsSetup(tv);
@@ -454,11 +440,16 @@ static void *TmThreadsSlotVar(void *td)
     // enter infinite loops. They use this as the core loop. As a result, at this
     // point the worker threads can be considered both initialized and running.
     TmThreadsSetFlag(tv, THV_INIT_DONE | THV_RUNNING);
-    bool run = TmThreadsWaitForUnpause(tv);
 
     s = (TmSlot *)tv->tm_slots;
 
     while (run) {
+        if (TmThreadsCheckFlag(tv, THV_PAUSE)) {
+            TmThreadsSetFlag(tv, THV_PAUSED);
+            TmThreadTestThreadUnPaused(tv);
+            TmThreadsUnsetFlag(tv, THV_PAUSED);
+        }
+
         /* input a packet */
         p = tv->tmqh_in(tv);
 
@@ -490,7 +481,7 @@ static void *TmThreadsSlotVar(void *td)
         }
 
         if (TmThreadsCheckFlag(tv, THV_KILL)) {
-            run = false;
+            run = 0;
         }
     } /* while (run) */
     StatsSyncCounters(tv);
@@ -921,7 +912,7 @@ ThreadVars *TmThreadCreate(const char *name, const char *inq_name, const char *i
     SCLogDebug("creating thread \"%s\"...", name);
 
     /* XXX create separate function for this: allocate a thread container */
-    tv = SCCalloc(1, sizeof(ThreadVars) + ThreadStorageSize());
+    tv = SCCalloc(1, sizeof(ThreadVars));
     if (unlikely(tv == NULL))
         goto error;
 
@@ -1012,8 +1003,6 @@ ThreadVars *TmThreadCreate(const char *name, const char *inq_name, const char *i
 
     if (mucond != 0)
         TmThreadInitMC(tv);
-
-    SCThreadRunInitCallbacks(tv);
 
     return tv;
 
@@ -1581,8 +1570,6 @@ static void TmThreadFree(ThreadVars *tv)
 
     SCLogDebug("Freeing thread '%s'.", tv->name);
 
-    ThreadFreeStorage(tv);
-
     if (tv->flow_queue) {
         BUG_ON(tv->flow_queue->qlen != 0);
         SCFree(tv->flow_queue);
@@ -1748,6 +1735,24 @@ static void TmThreadDeinitMC(ThreadVars *tv)
     if (tv->ctrl_cond) {
         SCCtrlCondDestroy(tv->ctrl_cond);
         SCFree(tv->ctrl_cond);
+    }
+}
+
+/**
+ * \brief Tests if the thread represented in the arg has been unpaused or not.
+ *
+ *        The function would return if the thread tv has been unpaused or if the
+ *        kill flag for the thread has been set.
+ *
+ * \param tv Pointer to the TV instance.
+ */
+void TmThreadTestThreadUnPaused(ThreadVars *tv)
+{
+    while (TmThreadsCheckFlag(tv, THV_PAUSE)) {
+        SleepUsec(100);
+
+        if (TmThreadsCheckFlag(tv, THV_KILL))
+            break;
     }
 }
 
@@ -2072,7 +2077,7 @@ typedef struct Thread_ {
 
     SCTime_t pktts;         /**< current packet time of this thread
                              *   (offline mode) */
-    SCTime_t sys_sec_stamp; /**< timestamp in real system
+    uint32_t sys_sec_stamp; /**< timestamp in seconds of the real system
                              *   time when the pktts was last updated. */
 } Thread;
 
@@ -2196,24 +2201,14 @@ void TmThreadsSetThreadTimestamp(const int id, const SCTime_t ts)
     int idx = id - 1;
     Thread *t = &thread_store.threads[idx];
     t->pktts = ts;
-    SCTime_t now = SCTimeGetTime();
-
-#ifdef DEBUG
-    if (t->sys_sec_stamp.secs != 0) {
-        SCTime_t tmpts = SCTIME_ADD_SECS(t->sys_sec_stamp, 3);
-        if (SCTIME_CMP_LT(tmpts, now)) {
-            SCLogDebug("%s: thread slept for %u secs", t->name, (uint32_t)(now.secs - tmpts.secs));
-        }
-    }
-#endif
-
-    t->sys_sec_stamp = now;
+    struct timeval systs;
+    gettimeofday(&systs, NULL);
+    t->sys_sec_stamp = (uint32_t)systs.tv_sec;
     SCMutexUnlock(&thread_store_lock);
 }
 
 bool TmThreadsTimeSubsysIsReady(void)
 {
-    static SCTime_t nullts = SCTIME_INITIALIZER;
     bool ready = true;
     SCMutexLock(&thread_store_lock);
     for (size_t s = 0; s < thread_store.threads_size; s++) {
@@ -2222,7 +2217,7 @@ bool TmThreadsTimeSubsysIsReady(void)
             break;
         if (t->type != TVT_PPT)
             continue;
-        if (SCTIME_CMP_EQ(t->sys_sec_stamp, nullts)) {
+        if (t->sys_sec_stamp == 0) {
             ready = false;
             break;
         }
@@ -2233,7 +2228,8 @@ bool TmThreadsTimeSubsysIsReady(void)
 
 void TmThreadsInitThreadsTimestamp(const SCTime_t ts)
 {
-    SCTime_t now = SCTimeGetTime();
+    struct timeval systs;
+    gettimeofday(&systs, NULL);
     SCMutexLock(&thread_store_lock);
     for (size_t s = 0; s < thread_store.threads_size; s++) {
         Thread *t = &thread_store.threads[s];
@@ -2242,7 +2238,7 @@ void TmThreadsInitThreadsTimestamp(const SCTime_t ts)
         if (t->type != TVT_PPT)
             continue;
         t->pktts = ts;
-        t->sys_sec_stamp = now;
+        t->sys_sec_stamp = (uint32_t)systs.tv_sec;
     }
     SCMutexUnlock(&thread_store_lock);
 }
@@ -2250,10 +2246,11 @@ void TmThreadsInitThreadsTimestamp(const SCTime_t ts)
 void TmThreadsGetMinimalTimestamp(struct timeval *ts)
 {
     struct timeval local = { 0 };
-    static SCTime_t nullts = SCTIME_INITIALIZER;
+    static struct timeval nullts;
     bool set = false;
     size_t s;
-    SCTime_t now = SCTimeGetTime();
+    struct timeval systs;
+    gettimeofday(&systs, NULL);
 
     SCMutexLock(&thread_store_lock);
     for (s = 0; s < thread_store.threads_size; s++) {
@@ -2263,10 +2260,11 @@ void TmThreadsGetMinimalTimestamp(struct timeval *ts)
         /* only packet threads set timestamps based on packets */
         if (t->type != TVT_PPT)
             continue;
-        if (SCTIME_CMP_NEQ(t->pktts, nullts)) {
-            SCTime_t sys_sec_stamp = SCTIME_ADD_SECS(t->sys_sec_stamp, 1);
+        struct timeval pkttv = { .tv_sec = SCTIME_SECS(t->pktts),
+            .tv_usec = SCTIME_USECS(t->pktts) };
+        if (!(timercmp(&pkttv, &nullts, ==))) {
             /* ignore sleeping threads */
-            if (SCTIME_CMP_LT(sys_sec_stamp, now))
+            if (t->sys_sec_stamp + 1 < (uint32_t)systs.tv_sec)
                 continue;
 
             if (!set) {

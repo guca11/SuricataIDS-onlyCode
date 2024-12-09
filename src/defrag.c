@@ -372,6 +372,7 @@ error_remove_tracker:
  *
  * \param tracker The defragmentation tracker to reassemble from.
  */
+#if ENABLE_IPV6
 static Packet *
 Defrag6Reassemble(ThreadVars *tv, DefragTracker *tracker, Packet *p)
 {
@@ -527,7 +528,7 @@ error_remove_tracker:
         PacketFreeOrRelease(rp);
     return NULL;
 }
-
+#endif
 /**
  * The RB_TREE compare function for fragments.
  *
@@ -605,6 +606,7 @@ DefragInsertFrag(ThreadVars *tv, DecodeThreadVars *dtv, DefragTracker *tracker, 
             return NULL;
         }
     }
+    #if ENABLE_IPV6
     else if (tracker->af == AF_INET6) {
         const IPV6Hdr *ip6h = PacketGetIPv6(p);
         more_frags = IPV6_EXTHDR_GET_FH_FLAG(p);
@@ -641,6 +643,7 @@ DefragInsertFrag(ThreadVars *tv, DecodeThreadVars *dtv, DefragTracker *tracker, 
             return NULL;
         }
     }
+    #endif
     else {
         DEBUG_VALIDATE_BUG_ON(1);
         return NULL;
@@ -856,7 +859,7 @@ DefragInsertFrag(ThreadVars *tv, DecodeThreadVars *dtv, DefragTracker *tracker, 
         }
     }
 
-    if (ltrim >= data_len) {
+    if (ltrim > data_len) {
         /* Full packet has been trimmed due to the overlap policy. Overlap
          * already set. */
         goto done;
@@ -869,9 +872,12 @@ DefragInsertFrag(ThreadVars *tv, DecodeThreadVars *dtv, DefragTracker *tracker, 
     if (new == NULL) {
         if (af == AF_INET) {
             ENGINE_SET_EVENT(p, IPV4_FRAG_IGNORED);
-        } else {
+        }
+        #if ENABLE_IPV6
+        else {
             ENGINE_SET_EVENT(p, IPV6_FRAG_IGNORED);
         }
+        #endif
         if (tv != NULL && dtv != NULL) {
             StatsIncr(tv, dtv->counter_defrag_no_frags);
         }
@@ -884,9 +890,12 @@ DefragInsertFrag(ThreadVars *tv, DecodeThreadVars *dtv, DefragTracker *tracker, 
         SCMutexUnlock(&defrag_context->frag_pool_lock);
         if (af == AF_INET) {
             ENGINE_SET_EVENT(p, IPV4_FRAG_IGNORED);
-        } else {
+        }
+        #if ENABLE_IPV6
+         else {
             ENGINE_SET_EVENT(p, IPV6_FRAG_IGNORED);
         }
+        #endif
         goto error_remove_tracker;
     }
     memcpy(new->pkt, GET_PKT_DATA(p) + ltrim, GET_PKT_LEN(p) - ltrim);
@@ -939,6 +948,7 @@ DefragInsertFrag(ThreadVars *tv, DecodeThreadVars *dtv, DefragTracker *tracker, 
                 }
             }
         }
+        #if ENABLE_IPV6
         else if (tracker->af == AF_INET6) {
             r = Defrag6Reassemble(tv, tracker, p);
             if (r != NULL && tv != NULL && dtv != NULL) {
@@ -955,6 +965,7 @@ DefragInsertFrag(ThreadVars *tv, DecodeThreadVars *dtv, DefragTracker *tracker, 
                 }
             }
         }
+        #endif
     }
 
 
@@ -963,9 +974,11 @@ done:
         if (af == AF_INET) {
             ENGINE_SET_EVENT(p, IPV4_FRAG_OVERLAP);
         }
+        #if ENABLE_IPV6
         else {
             ENGINE_SET_EVENT(p, IPV6_FRAG_OVERLAP);
         }
+        #endif
     }
     return r;
 error_remove_tracker:
@@ -989,9 +1002,12 @@ DefragGetOsPolicy(Packet *p)
 
     if (PacketIsIPv4(p)) {
         policy = SCHInfoGetIPv4HostOSFlavour((uint8_t *)GET_IPV4_DST_ADDR_PTR(p));
-    } else if (PacketIsIPv6(p)) {
+    }
+    #if ENABLE_IPV6
+     else if (PacketIsIPv6(p)) {
         policy = SCHInfoGetIPv6HostOSFlavour((uint8_t *)GET_IPV6_DST_ADDR(p));
     }
+    #endif
 
     if (policy == -1) {
         return default_policy;
@@ -1073,11 +1089,15 @@ Defrag(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
         af = AF_INET;
         more_frags = IPV4_GET_RAW_FLAG_MF(ip4h);
         frag_offset = IPV4_GET_RAW_FRAGOFFSET(ip4h);
-    } else if (PacketIsIPv6(p)) {
+    }
+    #if ENABLE_IPV6
+     else if (PacketIsIPv6(p)) {
         af = AF_INET6;
         frag_offset = IPV6_EXTHDR_GET_FH_OFFSET(p);
         more_frags = IPV6_EXTHDR_GET_FH_FLAG(p);
-    } else {
+    }
+    #endif
+     else {
         return NULL;
     }
 
@@ -1089,9 +1109,11 @@ Defrag(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p)
         if (af == AF_INET) {
             StatsIncr(tv, dtv->counter_defrag_ipv4_fragments);
         }
+        #if ENABLE_IPV6
         else if (af == AF_INET6) {
             StatsIncr(tv, dtv->counter_defrag_ipv6_fragments);
         }
+        #endif
     }
 
     /* return a locked tracker or NULL */

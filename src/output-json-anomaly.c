@@ -143,16 +143,16 @@ static int AnomalyDecodeEventJson(ThreadVars *tv, JsonAnomalyLogThread *aft,
             EvePacket(p, js, GET_PKT_LEN(p) < 32 ? GET_PKT_LEN(p) : 32);
         }
 
-        OutputJsonBuilderBuffer(tv, p, p->flow, js, aft->ctx);
+        OutputJsonBuilderBuffer(js, aft->ctx);
         jb_free(js);
     }
 
     return TM_ECODE_OK;
 }
 
-static int AnomalyAppLayerDecoderEventJson(ThreadVars *tv, JsonAnomalyLogThread *aft,
-        const Packet *p, AppLayerDecoderEvents *decoder_events, bool is_pktlayer, const char *layer,
-        uint64_t tx_id)
+static int AnomalyAppLayerDecoderEventJson(JsonAnomalyLogThread *aft,
+                        const Packet *p, AppLayerDecoderEvents *decoder_events,
+                        bool is_pktlayer, const char *layer, uint64_t tx_id)
 {
     const char *alprotoname = AppLayerGetProtoName(p->flow->alproto);
 
@@ -201,7 +201,7 @@ static int AnomalyAppLayerDecoderEventJson(ThreadVars *tv, JsonAnomalyLogThread 
 
         /* anomaly */
         jb_close(js);
-        OutputJsonBuilderBuffer(tv, p, p->flow, js, aft->ctx);
+        OutputJsonBuilderBuffer(js, aft->ctx);
         jb_free(js);
 
         /* Current implementation assumes a single owner for this value */
@@ -223,7 +223,8 @@ static int JsonAnomalyTxLogger(ThreadVars *tv, void *thread_data, const Packet *
     decoder_events = AppLayerParserGetEventsByTx(f->proto, f->alproto, tx);
     if (decoder_events && decoder_events->event_last_logged < decoder_events->cnt) {
         SCLogDebug("state %p, tx: %p, tx_id: %"PRIu64, state, tx, tx_id);
-        AnomalyAppLayerDecoderEventJson(tv, aft, p, decoder_events, false, "proto_parser", tx_id);
+        AnomalyAppLayerDecoderEventJson(aft, p, decoder_events, false,
+                                        "proto_parser", tx_id);
     }
     return TM_ECODE_OK;
 }
@@ -254,8 +255,8 @@ static int AnomalyJson(ThreadVars *tv, JsonAnomalyLogThread *aft, const Packet *
     if (aft->json_output_ctx->flags & LOG_JSON_APPLAYER_TYPE) {
         /* app layer proto detect events */
         if (rc == TM_ECODE_OK && AnomalyHasPacketAppLayerEvents(p)) {
-            rc = AnomalyAppLayerDecoderEventJson(
-                    tv, aft, p, p->app_layer_events, true, "proto_detect", TX_ID_UNUSED);
+            rc = AnomalyAppLayerDecoderEventJson(aft, p, p->app_layer_events,
+                                                 true, "proto_detect", TX_ID_UNUSED);
         }
 
         /* parser state events */
@@ -263,8 +264,8 @@ static int AnomalyJson(ThreadVars *tv, JsonAnomalyLogThread *aft, const Packet *
             SCLogDebug("Checking for anomaly events; alproto %d", p->flow->alproto);
             AppLayerDecoderEvents *parser_events = AppLayerParserGetDecoderEvents(p->flow->alparser);
             if (parser_events && (parser_events->event_last_logged < parser_events->cnt)) {
-                rc = AnomalyAppLayerDecoderEventJson(
-                        tv, aft, p, parser_events, false, "parser", TX_ID_UNUSED);
+                rc = AnomalyAppLayerDecoderEventJson(aft, p, parser_events,
+                                                     false, "parser", TX_ID_UNUSED);
             }
         }
     }

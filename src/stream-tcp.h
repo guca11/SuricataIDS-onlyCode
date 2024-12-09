@@ -121,6 +121,7 @@ int StreamTcpSetMemcap(uint64_t);
 uint64_t StreamTcpGetMemcap(void);
 int StreamTcpCheckMemcap(uint64_t);
 uint64_t StreamTcpMemuseCounter(void);
+uint64_t StreamTcpReassembleMemuseGlobalCounter(void);
 
 int StreamTcpSegmentForEach(const Packet *p, uint8_t flag,
                         StreamSegmentCallback CallbackFunc,
@@ -203,5 +204,8 @@ void StreamTcpUpdateAppLayerProgress(TcpSession *ssn, char direction,
 
 uint64_t StreamTcpGetUsable(const TcpStream *stream, const bool eof);
 uint64_t StreamDataRightEdge(const TcpStream *stream, const bool eof);
+
+void StreamTcpThreadCacheEnable(void);
+void StreamTcpThreadCacheCleanup(void);
 
 #endif /* SURICATA_STREAM_TCP_H */

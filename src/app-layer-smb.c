@@ -46,7 +46,6 @@ void RegisterSMBParsers(void)
 {
     rs_smb_init(&sfc);
     rs_smb_register_parser();
-
 #ifdef UNITTESTS
     AppLayerParserRegisterProtocolUnittests(IPPROTO_TCP, ALPROTO_SMB, SMBParserRegisterTests);
 #endif

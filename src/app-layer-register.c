@@ -154,6 +154,7 @@ int AppLayerRegisterParser(const struct AppLayerParser *p, AppProto alproto)
         AppLayerParserRegisterLocalStorageFunc(p->ip_proto, alproto,
                 p->LocalStorageAlloc, p->LocalStorageFree);
     }
+
     if (p->GetTxFiles) {
         AppLayerParserRegisterGetTxFilesFunc(p->ip_proto, alproto, p->GetTxFiles);
     }

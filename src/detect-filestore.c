@@ -466,11 +466,12 @@ static int DetectFilestoreSetup (DetectEngineCtx *de_ctx, Signature *s, const ch
                 fd->scope = FILESTORE_SCOPE_DEFAULT;
         }
     }
-
+    
+    #if ENABLE_HTTP
     if (s->alproto == ALPROTO_HTTP1 || s->alproto == ALPROTO_HTTP) {
         AppLayerHtpNeedFileInspection();
     }
-
+    #endif
     if (SigMatchAppendSMToList(
                 de_ctx, s, DETECT_FILESTORE, (SigMatchCtx *)fd, g_file_match_list_id) == NULL) {
         DetectFilestoreFree(de_ctx, fd);

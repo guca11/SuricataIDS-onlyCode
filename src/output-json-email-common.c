@@ -41,7 +41,9 @@
 #include "util-debug.h"
 #include "app-layer-parser.h"
 #include "output.h"
+#if ENABLE_SMTP
 #include "app-layer-smtp.h"
+#endif
 #include "app-layer.h"
 #include "util-privs.h"
 #include "util-buffer.h"
@@ -82,7 +84,7 @@ struct {
     { "date", "date", LOG_EMAIL_DEFAULT },
     { NULL, NULL, LOG_EMAIL_DEFAULT},
 };
-
+#if ENABLE_SMTP
 static void EveEmailLogJSONMd5(OutputJsonEmailCtx *email_ctx, JsonBuilder *js, SMTPTransaction *tx)
 {
     if (email_ctx->flags & LOG_EMAIL_SUBJECT_MD5) {
@@ -188,7 +190,7 @@ TmEcode EveEmailLogJson(JsonEmailLogThread *aft, JsonBuilder *js, const Packet *
     SCReturnInt(TM_ECODE_OK);
 }
 
-bool EveEmailAddMetadata(const Flow *f, uint64_t tx_id, JsonBuilder *js)
+bool EveEmailAddMetadata(const Flow *f, uint32_t tx_id, JsonBuilder *js)
 {
     SMTPState *smtp_state = (SMTPState *)FlowGetAppState(f);
     if (smtp_state) {
@@ -200,7 +202,7 @@ bool EveEmailAddMetadata(const Flow *f, uint64_t tx_id, JsonBuilder *js)
 
     return false;
 }
-
+#endif
 void OutputEmailInitConf(ConfNode *conf, OutputJsonEmailCtx *email_ctx)
 {
     if (conf) {

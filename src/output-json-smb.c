@@ -59,7 +59,7 @@ static int JsonSMBLogger(ThreadVars *tv, void *thread_data,
     }
     jb_close(jb);
 
-    OutputJsonBuilderBuffer(tv, p, p->flow, jb, thread);
+    OutputJsonBuilderBuffer(jb, thread);
 
     jb_free(jb);
     return TM_ECODE_OK;

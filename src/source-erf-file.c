@@ -288,7 +288,7 @@ DecodeErfFile(ThreadVars *tv, Packet *p, void *data)
 
     /* Update counters. */
     DecodeUpdatePacketCounters(tv, dtv, p);
-
+    
     DecodeEthernet(tv, dtv, p, GET_PKT_DATA(p), GET_PKT_LEN(p));
 
     PacketDecodeFinalize(tv, dtv, p);

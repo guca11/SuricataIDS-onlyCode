@@ -21,7 +21,7 @@
  * \author Victor Julien <victor@inliniac.net>
  */
 
-#include "detect-smb-ntlmssp.h"
+
 #include "suricata-common.h"
 #include "suricata.h"
 #include "detect.h"
@@ -46,13 +46,18 @@
 #include "rust.h"
 
 #include "detect-engine-payload.h"
+#if ENABLE_DCERPC
 #include "detect-engine-dcepayload.h"
+#endif
+#if ENABLE_DNS
 #include "detect-dns-opcode.h"
 #include "detect-dns-rcode.h"
 #include "detect-dns-rrtype.h"
 #include "detect-dns-query.h"
 #include "detect-dns-answer-name.h"
 #include "detect-dns-query-name.h"
+#endif
+#if ENABLE_TLS
 #include "detect-tls-sni.h"
 #include "detect-tls-certs.h"
 #include "detect-tls-cert-fingerprint.h"
@@ -66,6 +71,7 @@
 #include "detect-tls-ja3-string.h"
 #include "detect-tls-ja3s-hash.h"
 #include "detect-tls-ja3s-string.h"
+#endif
 #include "detect-engine-state.h"
 #include "detect-engine-analyzer.h"
 
@@ -75,17 +81,19 @@
 #include "detect-http-host.h"
 
 #include "detect-mark.h"
+#if ENABLE_NFS
 #include "detect-nfs-procedure.h"
 #include "detect-nfs-version.h"
-
+#endif
 #include "detect-engine-event.h"
 #include "decode.h"
 
 #include "detect-config.h"
-
+#if ENABLE_SMB
+#include "detect-smb-ntlmssp.h"
 #include "detect-smb-share.h"
 #include "detect-smb-version.h"
-
+#endif
 #include "detect-base64-decode.h"
 #include "detect-base64-data.h"
 #include "detect-ipaddr.h"
@@ -126,7 +134,10 @@
 #include "detect-flow-pkts.h"
 #include "detect-requires.h"
 #include "detect-tcp-window.h"
+#if ENABLE_FTP
 #include "detect-ftpbounce.h"
+#include "detect-ftpdata.h"
+#endif
 #include "detect-isdataat.h"
 #include "detect-id.h"
 #include "detect-rpc.h"
@@ -158,9 +169,11 @@
 #include "detect-icmp-id.h"
 #include "detect-icmp-seq.h"
 #include "detect-icmpv4hdr.h"
+#if ENABLE_DCERPC
 #include "detect-dce-iface.h"
 #include "detect-dce-opnum.h"
 #include "detect-dce-stub-data.h"
+#endif
 #include "detect-urilen.h"
 #include "detect-bsize.h"
 #include "detect-detection-filter.h"
@@ -196,26 +209,44 @@
 #include "detect-icmpv6-mtu.h"
 #include "detect-ipv4hdr.h"
 #include "detect-ipv6hdr.h"
+#if ENABLE_KRB5
 #include "detect-krb5-cname.h"
 #include "detect-krb5-errcode.h"
 #include "detect-krb5-msgtype.h"
 #include "detect-krb5-sname.h"
 #include "detect-krb5-ticket-encryption.h"
+#endif
+#if ENABLE_SIP
 #include "detect-sip-method.h"
 #include "detect-sip-uri.h"
+#endif
 #include "detect-target.h"
+#include "detect-template-rust-buffer.h"
+#if ENABLE_QUIC
 #include "detect-quic-sni.h"
 #include "detect-quic-ua.h"
 #include "detect-quic-version.h"
 #include "detect-quic-cyu-hash.h"
 #include "detect-quic-cyu-string.h"
+#endif
+#if ENABLE_TLS
 #include "detect-ja4-hash.h"
-
+#endif
 #include "detect-bypass.h"
-#include "detect-ftpdata.h"
 #include "detect-engine-content-inspection.h"
 
+#include "detect-transform-compress-whitespace.h"
+#include "detect-transform-strip-whitespace.h"
+#include "detect-transform-strip-pseudo-headers.h"
+#include "detect-transform-md5.h"
+#include "detect-transform-sha1.h"
+#include "detect-transform-sha256.h"
+#include "detect-transform-dotprefix.h"
 #include "detect-transform-pcrexform.h"
+#include "detect-transform-urldecode.h"
+#include "detect-transform-xor.h"
+#include "detect-transform-casechange.h"
+#include "detect-transform-header-lowercase.h"
 #include "detect-transform-base64.h"
 
 #include "util-rule-vars.h"
@@ -223,11 +254,16 @@
 #include "app-layer.h"
 #include "app-layer-protos.h"
 #include "app-layer-htp.h"
+#if ENABLE_SMTP
 #include "app-layer-smtp.h"
+#endif
 #include "detect-frame.h"
+#if ENABLE_TLS
 #include "detect-tls.h"
 #include "detect-tls-cert-validity.h"
 #include "detect-tls-version.h"
+#endif
+#if ENABLE_SSH
 #include "detect-ssh-proto.h"
 #include "detect-ssh-proto-version.h"
 #include "detect-ssh-software.h"
@@ -236,11 +272,19 @@
 #include "detect-ssh-hassh-server.h"
 #include "detect-ssh-hassh-string.h"
 #include "detect-ssh-hassh-server-string.h"
+#endif
 #include "detect-http-stat-code.h"
+#if ENABLE_TLS
 #include "detect-ssl-version.h"
 #include "detect-ssl-state.h"
+#endif
+#if ENABLE_MODBUS
 #include "detect-modbus.h"
+#endif
+#if ENABLE_DNP3
 #include "detect-dnp3.h"
+#endif
+#if ENABLE_IKE
 #include "detect-ike-exch-type.h"
 #include "detect-ike-spi.h"
 #include "detect-ike-vendor.h"
@@ -249,7 +293,7 @@
 #include "detect-ike-nonce-payload-length.h"
 #include "detect-ike-nonce-payload.h"
 #include "detect-ike-key-exchange-payload.h"
-
+#endif
 #include "action-globals.h"
 #include "tm-threads.h"
 
@@ -347,28 +391,6 @@ static void SigMultilinePrint(int i, const char *prefix)
     printf("\n");
 }
 
-/** \brief Check if a keyword exists. */
-bool SigTableHasKeyword(const char *keyword)
-{
-    for (int i = 0; i < DETECT_TBLSIZE; i++) {
-        if (sigmatch_table[i].flags & SIGMATCH_NOT_BUILT) {
-            continue;
-        }
-
-        const char *name = sigmatch_table[i].name;
-
-        if (name == NULL || strlen(name) == 0) {
-            continue;
-        }
-
-        if (strcmp(keyword, name) == 0) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
 int SigTableList(const char *keyword)
 {
     size_t size = DETECT_TBLSIZE;
@@ -461,7 +483,7 @@ void SigTableCleanup(void)
     }
 }
 
-void SigTableInit(void)
+void SigTableSetup(void)
 {
     if (sigmatch_table == NULL) {
         DETECT_TBLSIZE = DETECT_TBLSIZE_STATIC + DETECT_TBLSIZE_STEP;
@@ -469,12 +491,10 @@ void SigTableInit(void)
         if (sigmatch_table == NULL) {
             DETECT_TBLSIZE = 0;
             FatalError("Could not allocate sigmatch_table");
+            return;
         }
     }
-}
 
-void SigTableSetup(void)
-{
     DetectSidRegister();
     DetectPriorityRegister();
     DetectPrefilterRegister();
@@ -485,8 +505,10 @@ void SigTableSetup(void)
     DetectThresholdRegister();
     DetectMetadataRegister();
     DetectMsgRegister();
+    //#if ENABLE_TCP
     DetectAckRegister();
     DetectSeqRegister();
+    //#endif
     DetectContentRegister();
     DetectUricontentRegister();
 
@@ -494,6 +516,7 @@ void SigTableSetup(void)
      * engine registration order and ultimately the order
      * of inspect engines in the rule. Which in turn affects
      * state keeping */
+    #if ENABLE_HTTP
     DetectHttpUriRegister();
     DetectHttpRequestLineRegister();
     DetectHttpClientBodyRegister();
@@ -509,7 +532,7 @@ void SigTableSetup(void)
     DetectHttpRawHeaderRegister();
     DetectHttpMethodRegister();
     DetectHttpCookieRegister();
-
+    #endif
     DetectFilenameRegister();
     DetectFilestoreRegister();
     DetectFilemagicRegister();
@@ -518,22 +541,29 @@ void SigTableSetup(void)
     DetectFileSha256Register();
     DetectFilesizeRegister();
 
+    #if ENABLE_HTTP
     DetectHttpUARegister();
     DetectHttpHHRegister();
 
     DetectHttpStatMsgRegister();
     DetectHttpStatCodeRegister();
     DetectHttp2Register();
-
+    #endif
+    #if ENABLE_DNS
     DetectDnsQueryRegister();
     DetectDnsOpcodeRegister();
     DetectDnsRcodeRegister();
     DetectDnsRrtypeRegister();
     DetectDnsAnswerNameRegister();
     DetectDnsQueryNameRegister();
+    #endif
+    #if ENABLE_MODBUS
     DetectModbusRegister();
+    #endif
+    #if ENABLE_DNP3
     DetectDNP3Register();
-
+    #endif
+    #if ENABLE_IKE
     DetectIkeExchTypeRegister();
     DetectIkeSpiRegister();
     DetectIkeVendorRegister();
@@ -542,7 +572,8 @@ void SigTableSetup(void)
     DetectIkeNoncePayloadLengthRegister();
     DetectIkeNonceRegister();
     DetectIkeKeyExchangeRegister();
-
+    #endif
+#if ENABLE_TLS
     DetectTlsSniRegister();
     DetectTlsIssuerRegister();
     DetectTlsSubjectRegister();
@@ -558,7 +589,7 @@ void SigTableSetup(void)
     DetectTlsJa3StringRegister();
     DetectTlsJa3SHashRegister();
     DetectTlsJa3SStringRegister();
-
+#endif
     DetectAppLayerEventRegister();
     /* end of order dependent regs */
 
@@ -586,10 +617,14 @@ void SigTableSetup(void)
     DetectFlowBytesToClientRegister();
     DetectFlowBytesToServerRegister();
     DetectRequiresRegister();
+    //#if ENABLE_TCP
     DetectWindowRegister();
+    //#endif
     DetectRpcRegister();
+    #if ENABLE_FTP    
     DetectFtpbounceRegister();
     DetectFtpdataRegister();
+    #endif
     DetectIsdataatRegister();
     DetectIdRegister();
     DetectDsizeRegister();
@@ -604,7 +639,9 @@ void SigTableSetup(void)
     DetectXbitsRegister();
     DetectEngineEventRegister();
     DetectIpOptsRegister();
+    //#if ENABLE_TCP
     DetectFlagsRegister();
+    //#endif
     DetectFragBitsRegister();
     DetectFragOffsetRegister();
     DetectGidRegister();
@@ -619,23 +656,33 @@ void SigTableSetup(void)
     DetectIcmpIdRegister();
     DetectIcmpSeqRegister();
     DetectIcmpv4HdrRegister();
+    #if ENABLE_DCERPC
     DetectDceIfaceRegister();
     DetectDceOpnumRegister();
     DetectDceStubDataRegister();
+    #endif
+    
+    #if ENABLE_SMB 
     DetectSmbNamedPipeRegister();
     DetectSmbShareRegister();
     DetectSmbNtlmsspUserRegister();
     DetectSmbNtlmsspDomainRegister();
     DetectSmbVersionRegister();
+    #endif
+    #if ENABLE_TLS
     DetectTlsRegister();
     DetectTlsValidityRegister();
     DetectTlsVersionRegister();
+    #endif
+    #if ENABLE_NFS
     DetectNfsProcedureRegister();
     DetectNfsVersionRegister();
+    #endif
     DetectUrilenRegister();
     DetectBsizeRegister();
     DetectDetectionFilterRegister();
     DetectAsn1Register();
+    #if ENABLE_SSH
     DetectSshProtocolRegister();
     DetectSshVersionRegister();
     DetectSshSoftwareRegister();
@@ -644,8 +691,11 @@ void SigTableSetup(void)
     DetectSshHasshServerRegister();
     DetectSshHasshStringRegister();
     DetectSshHasshServerStringRegister();
+    #endif
+    #if ENABLE_TLS
     DetectSslStateRegister();
     DetectSslVersionRegister();
+    #endif
     DetectByteExtractRegister();
     DetectFiledataRegister();
     DetectPktDataRegister();
@@ -654,31 +704,46 @@ void SigTableSetup(void)
     DetectAppLayerProtocolRegister();
     DetectBase64DecodeRegister();
     DetectBase64DataRegister();
-    DetectTemplateRegister();
-    DetectTemplate2Register();
+    //DetectTemplateRegister();
+    //DetectTemplate2Register();
+    //#if ENABLE_TCP
     DetectTcphdrRegister();
-    DetectUdphdrRegister();
     DetectTcpmssRegister();
+    //#endif    
+    //#if ENABLE_UDP
+    DetectUdphdrRegister();
+    //#endif
+    #if ENABLE_IPV6
     DetectICMPv6hdrRegister();
     DetectICMPv6mtuRegister();
+    DetectIpv6hdrRegister();
+    #endif
     DetectIPAddrBufferRegister();
     DetectIpv4hdrRegister();
-    DetectIpv6hdrRegister();
+    
+    #if ENABLE_KRB5    
     DetectKrb5CNameRegister();
     DetectKrb5ErrCodeRegister();
     DetectKrb5MsgTypeRegister();
     DetectKrb5SNameRegister();
     DetectKrb5TicketEncryptionRegister();
+    #endif
+    #if ENABLE_SIP
     DetectSipMethodRegister();
     DetectSipUriRegister();
+    #endif
     DetectTargetRegister();
+    //DetectTemplateRustBufferRegister();
+    #if ENABLE_QUIC
     DetectQuicSniRegister();
     DetectQuicUaRegister();
     DetectQuicVersionRegister();
     DetectQuicCyuHashRegister();
     DetectQuicCyuStringRegister();
+    #endif
+    #if ENABLE_TLS
     DetectJa4HashRegister();
-
+    #endif
     DetectBypassRegister();
     DetectConfigRegister();
 
@@ -698,16 +763,27 @@ void SigTableSetup(void)
     DetectTransformFromBase64DecodeRegister();
 
     DetectFileHandlerRegister();
-
+#if ENABLE_SNMP
     ScDetectSNMPRegister();
+#endif
+#if ENABLE_DHCP
     ScDetectDHCPRegister();
+#endif
+#if ENABLE_WEBSOCKET    
     ScDetectWebsocketRegister();
+#endif
+#if ENABLE_ENIP
     ScDetectEnipRegister();
+#endif
+#if ENABLE_MQTT
     ScDetectMqttRegister();
+#endif
+#if ENABLE_RFB
     ScDetectRfbRegister();
+#endif
+#if ENABLE_SIP
     ScDetectSipRegister();
-    ScDetectTemplateRegister();
-
+#endif
     /* close keyword registration */
     DetectBufferTypeCloseRegistration();
 }

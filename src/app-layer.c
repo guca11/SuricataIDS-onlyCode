@@ -30,8 +30,9 @@
 #include "app-layer-parser.h"
 #include "app-layer-protos.h"
 #include "app-layer-expectation.h"
+#if ENABLE_FTP
 #include "app-layer-ftp.h"
-#include "app-layer-htp-range.h"
+#endif
 #include "app-layer-detect-proto.h"
 #include "app-layer-frames.h"
 #include "stream-tcp-reassemble.h"
@@ -813,12 +814,13 @@ int AppLayerHandleTCPData(ThreadVars *tv, TcpReassemblyThreadCtx *ra_ctx, Packet
                 f->alproto != f->alproto_expect) {
             AppLayerDecoderEventsSetEventRaw(&p->app_layer_events,
                                              APPLAYER_UNEXPECTED_PROTOCOL);
-
+            #if ENABLE_TLS
             if (f->alproto_expect == ALPROTO_TLS && f->alproto != ALPROTO_TLS) {
                 AppLayerDecoderEventsSetEventRaw(&p->app_layer_events,
                         APPLAYER_NO_TLS_AFTER_STARTTLS);
 
             }
+            #endif
         }
     } else {
         SCLogDebug("stream data (len %" PRIu32 " alproto "
@@ -1037,6 +1039,7 @@ int AppLayerSetup(void)
     AppLayerParserSetup();
 
     AppLayerParserRegisterProtocolParsers();
+    
     AppLayerProtoDetectPrepareState();
 
     AppLayerSetupCounters();
@@ -1109,17 +1112,15 @@ void AppLayerProfilingStoreInternal(AppLayerThreadCtx *app_tctx, Packet *p)
  */
 void AppLayerRegisterGlobalCounters(void)
 {
+    #if ENABLE_HTTP
     StatsRegisterGlobalCounter("http.memuse", HTPMemuseGlobalCounter);
     StatsRegisterGlobalCounter("http.memcap", HTPMemcapGlobalCounter);
+    #endif
+    #if ENABLE_FTP    
     StatsRegisterGlobalCounter("ftp.memuse", FTPMemuseGlobalCounter);
     StatsRegisterGlobalCounter("ftp.memcap", FTPMemcapGlobalCounter);
+    #endif
     StatsRegisterGlobalCounter("app_layer.expectations", ExpectationGetCounter);
-    StatsRegisterGlobalCounter("http.byterange.memuse", HTPByteRangeMemuseGlobalCounter);
-    StatsRegisterGlobalCounter("http.byterange.memcap", HTPByteRangeMemcapGlobalCounter);
-    StatsRegisterGlobalCounter("ippair.memuse", IPPairGetMemuse);
-    StatsRegisterGlobalCounter("ippair.memcap", IPPairGetMemuse);
-    StatsRegisterGlobalCounter("host.memuse", HostGetMemuse);
-    StatsRegisterGlobalCounter("host.memcap", HostGetMemcap);
 }
 
 static bool IsAppLayerErrorExceptionPolicyStatsValid(enum ExceptionPolicy policy)

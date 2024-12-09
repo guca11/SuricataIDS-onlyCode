@@ -56,8 +56,9 @@
 #define	LOG_UUCP	(8<<3)	/* UUCP subsystem */
 #define	LOG_CRON	(9<<3)	/* clock daemon */
 #define	LOG_AUTHPRIV	(10<<3)	/* security/authorization messages (private) */
+#if ENABLE_FTP
 #define	LOG_FTP		(11<<3)	/* ftp daemon */
-
+#endif
 	/* other codes through 15 reserved for system use */
 #define	LOG_LOCAL0	(16<<3)	/* reserved for local use */
 #define	LOG_LOCAL1	(17<<3)	/* reserved for local use */

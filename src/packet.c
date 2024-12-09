@@ -22,7 +22,6 @@
 #include "util-profiling.h"
 #include "util-validate.h"
 #include "action-globals.h"
-#include "app-layer-events.h"
 
 /** \brief issue drop action
  *

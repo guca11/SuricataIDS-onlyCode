@@ -126,7 +126,9 @@ static JsonBuilder *CreateEveHeaderFromFlow(const Flow *f)
             break;
         case IPPROTO_UDP:
         case IPPROTO_TCP:
+        #if ENABLE_SCTP
         case IPPROTO_SCTP:
+        #endif
             jb_set_uint(jb, "src_port", sp);
             break;
     }
@@ -136,7 +138,9 @@ static JsonBuilder *CreateEveHeaderFromFlow(const Flow *f)
             break;
         case IPPROTO_UDP:
         case IPPROTO_TCP:
+        #if ENABLE_SCTP
         case IPPROTO_SCTP:
+        #endif
             jb_set_uint(jb, "dest_port", dp);
             break;
     }
@@ -151,7 +155,9 @@ static JsonBuilder *CreateEveHeaderFromFlow(const Flow *f)
 
     switch (f->proto) {
         case IPPROTO_ICMP:
+        #if ENABLE_IPV6
         case IPPROTO_ICMPV6:
+        #endif
             jb_set_uint(jb, "icmp_type", f->icmp_s.type);
             jb_set_uint(jb, "icmp_code", f->icmp_s.code);
             if (f->tosrcpktcnt) {
@@ -159,9 +165,11 @@ static JsonBuilder *CreateEveHeaderFromFlow(const Flow *f)
                 jb_set_uint(jb, "response_icmp_code", f->icmp_d.code);
             }
             break;
+        #if ENABLE_ESP    
         case IPPROTO_ESP:
             jb_set_uint(jb, "spi", f->esp.spi);
             break;
+        #endif
     }
     return jb;
 }
@@ -225,7 +233,7 @@ static void EveFlowLogJSON(OutputJsonThreadCtx *aft, JsonBuilder *jb, Flow *f)
     CreateIsoTimeString(f->lastts, timebuf2, sizeof(timebuf2));
     jb_set_string(jb, "end", timebuf2);
 
-    uint64_t age = (SCTIME_SECS(f->lastts) - SCTIME_SECS(f->startts));
+    int32_t age = SCTIME_SECS(f->lastts) - SCTIME_SECS(f->startts);
     jb_set_uint(jb, "age", age);
 
     if (f->flow_end_flags & FLOW_END_FLAG_EMERGENCY)
@@ -340,7 +348,7 @@ static int JsonFlowLogger(ThreadVars *tv, void *thread_data, Flow *f)
 
     EveFlowLogJSON(thread, jb, f);
 
-    OutputJsonBuilderBuffer(tv, NULL, f, jb, thread);
+    OutputJsonBuilderBuffer(jb, thread);
     jb_free(jb);
 
     SCReturnInt(TM_ECODE_OK);

@@ -51,6 +51,7 @@ enum {
     ICMPV4_IPV4_TRUNC_PKT,   /**< truncated icmpv4 packet */
     ICMPV4_IPV4_UNKNOWN_VER, /**< unknown version in icmpv4 packet*/
 
+    #if ENABLE_IPV6
     /* ICMPv6 EVENTS */
     ICMPV6_UNKNOWN_TYPE,                /**< icmpv6 unknown type */
     ICMPV6_UNKNOWN_CODE,                /**< icmpv6 unknown code */
@@ -89,7 +90,22 @@ enum {
 
     IPV6_UNKNOWN_NEXT_HEADER, /**< unknown/unsupported next header */
     IPV6_WITH_ICMPV4,         /**< IPv6 packet with ICMPv4 header */
+    
+    /* Fragmentation reassembly events. */
+    IPV6_FRAG_PKT_TOO_LARGE,
+    IPV6_FRAG_OVERLAP,
+    IPV6_FRAG_INVALID_LENGTH,
+    /* IPv4 in IPv6 events */
+    IPV4_IN_IPV6_PKT_TOO_SMALL,
+    IPV4_IN_IPV6_WRONG_IP_VER,
 
+    /* IPv6 in IPv6 events */
+    IPV6_IN_IPV6_PKT_TOO_SMALL,
+    IPV6_IN_IPV6_WRONG_IP_VER,
+
+    IPV6_FRAG_IGNORED,
+    #endif
+    //#if ENABLE_TCP
     /* TCP EVENTS */
     TCP_PKT_TOO_SMALL,  /**< tcp packet smaller than minimum size */
     TCP_HLEN_TOO_SMALL, /**< tcp header smaller than minimum size */
@@ -98,19 +114,21 @@ enum {
     /* TCP OPTIONS */
     TCP_OPT_INVALID_LEN, /**< tcp option with invalid len */
     TCP_OPT_DUPLICATE,   /**< duplicated tcp option */
-
+    //#endif
+    //#if ENABLE_UDP
     /* UDP EVENTS */
     UDP_PKT_TOO_SMALL,  /**< udp packet smaller than minimum size */
     UDP_HLEN_TOO_SMALL, /**< udp header smaller than minimum size */
     UDP_HLEN_INVALID,   /**< invalid len of upd header */
     UDP_LEN_INVALID,    /**< packet len in header is invalid */
-
+    //#endif
     /* SLL EVENTS */
+    #if ENABLE_SLL
     SLL_PKT_TOO_SMALL, /**< sll packet smaller than minimum size */
-
+    #endif
     /* ETHERNET EVENTS */
     ETHERNET_PKT_TOO_SMALL, /**< ethernet packet smaller than minimum size */
-
+    #if ENABLE_PPP || ENABLE_PPPOE
     /* PPP EVENTS */
     PPP_PKT_TOO_SMALL,     /**< ppp packet smaller than minimum size */
     PPPVJU_PKT_TOO_SMALL,  /**< ppp vj uncompressed packet smaller than minimum size */
@@ -118,13 +136,15 @@ enum {
     PPPIPV6_PKT_TOO_SMALL, /**< ppp ipv6 packet smaller than minimum size */
     PPP_WRONG_TYPE,        /**< wrong type in ppp frame */
     PPP_UNSUP_PROTO,       /**< protocol not supported for ppp */
-
+    #endif
+    #if ENABLE_PPPOE
     /* PPPOE EVENTS */
     PPPOE_PKT_TOO_SMALL,  /**< pppoe packet smaller than minimum size */
     PPPOE_WRONG_CODE,     /**< wrong code for pppoe */
     PPPOE_MALFORMED_TAGS, /**< malformed tags in pppoe */
-
+    #endif
     /* GRE EVENTS */
+    #if ENABLE_GRE
     GRE_PKT_TOO_SMALL,              /**< gre packet smaller than minimum size */
     GRE_WRONG_VERSION,              /**< wrong version in gre header */
     GRE_VERSION0_RECUR,             /**< gre v0 recursion control */
@@ -140,82 +160,83 @@ enum {
     GRE_VERSION1_WRONG_PROTOCOL,    /**< gre v1 wrong protocol */
     GRE_VERSION1_MALFORMED_SRE_HDR, /**< gre v1 malformed source route entry header */
     GRE_VERSION1_HDR_TOO_BIG,       /**< gre v1 header too big */
-
+    #endif
     /* VLAN EVENTS */
+    #if ENABLE_VLAN
     VLAN_HEADER_TOO_SMALL, /**< vlan header smaller than minimum size */
     VLAN_UNKNOWN_TYPE,     /**< vlan unknown type */
     VLAN_HEADER_TOO_MANY_LAYERS,
-
     IEEE8021AH_HEADER_TOO_SMALL,
-
+    #endif
     /* VNTAG EVENTS */
+    #if ENABLE_VNTAG
     VNTAG_HEADER_TOO_SMALL, /**< vntag header smaller than minimum size */
     VNTAG_UNKNOWN_TYPE,     /**< vntag unknown type */
-
+    #endif
     /* RAW EVENTS */
+    #if ENABLE_RAW
     IPRAW_INVALID_IPV, /**< invalid ip version in ip raw */
-
+    #endif
     /* LINKTYPE NULL EVENTS */
     LTNULL_PKT_TOO_SMALL,    /**< pkt too small for lt:null */
     LTNULL_UNSUPPORTED_TYPE, /**< pkt has a type that the decoder doesn't support */
-
     /* SCTP EVENTS */
+    #if ENABLE_SCTP
     SCTP_PKT_TOO_SMALL, /**< sctp packet smaller than minimum size */
-
+    #endif
     /* ESP EVENTS */
+    #if ENABLE_ESP
     ESP_PKT_TOO_SMALL, /**< esp packet smaller than minimum size */
-
-    /* Fragmentation reassembly events. */
+    #endif
+   
     IPV4_FRAG_PKT_TOO_LARGE,
-    IPV6_FRAG_PKT_TOO_LARGE,
+    
     IPV4_FRAG_OVERLAP,
-    IPV6_FRAG_OVERLAP,
-    IPV6_FRAG_INVALID_LENGTH,
-
     /* Fragment ignored due to internal error */
     IPV4_FRAG_IGNORED,
-    IPV6_FRAG_IGNORED,
-
-    /* IPv4 in IPv6 events */
-    IPV4_IN_IPV6_PKT_TOO_SMALL,
-    IPV4_IN_IPV6_WRONG_IP_VER,
-
-    /* IPv6 in IPv6 events */
-    IPV6_IN_IPV6_PKT_TOO_SMALL,
-    IPV6_IN_IPV6_WRONG_IP_VER,
-
+   
     /* MPLS decode events. */
+    #if ENABLE_MPLS
     MPLS_HEADER_TOO_SMALL,
     MPLS_PKT_TOO_SMALL,
     MPLS_BAD_LABEL_ROUTER_ALERT,
     MPLS_BAD_LABEL_IMPLICIT_NULL,
     MPLS_BAD_LABEL_RESERVED,
     MPLS_UNKNOWN_PAYLOAD_TYPE,
-
+    #endif
+    #if ENABLE_VXLAN
     /* VXLAN events */
     VXLAN_UNKNOWN_PAYLOAD_TYPE,
-
+    #endif
     /* Geneve events */
+    #if ENABLE_GENEVE
     GENEVE_UNKNOWN_PAYLOAD_TYPE,
-
+    #endif
     /* ERSPAN events */
+    #if ENABLE_ERSPAN
     ERSPAN_HEADER_TOO_SMALL,
     ERSPAN_UNSUPPORTED_VERSION,
     ERSPAN_TOO_MANY_VLAN_LAYERS,
+    #endif
 
     /* Cisco Fabric Path/DCE events. */
+    #if ENABLE_DCERPC
     DCE_PKT_TOO_SMALL,
-
+    #endif
     /* Cisco HDLC events. */
+    #if ENABLE_CHDLC
     CHDLC_PKT_TOO_SMALL,
-
+    #endif
+    
     /* NSH events */
+    #if ENABLE_NSH
     NSH_HEADER_TOO_SMALL,
     NSH_UNSUPPORTED_VERSION,
     NSH_BAD_HEADER_LENGTH,
     NSH_RESERVED_TYPE,
     NSH_UNSUPPORTED_TYPE,
     NSH_UNKNOWN_PAYLOAD,
+    #endif
 
     /* generic events */
     GENERIC_TOO_MANY_LAYERS,
@@ -296,7 +317,7 @@ enum {
     STREAM_REASSEMBLY_INSERT_MEMCAP,
     STREAM_REASSEMBLY_INSERT_LIMIT,
     STREAM_REASSEMBLY_INSERT_INVALID,
-
+#if ENABLE_ARP
     /* ARP EVENTS */
     ARP_PKT_TOO_SMALL,         /**< arp packet smaller than minimum size */
     ARP_UNSUPPORTED_HARDWARE,  /**< arp hw_type is not ethernet */
@@ -305,7 +326,7 @@ enum {
     ARP_INVALID_HARDWARE_SIZE, /**< arp hw size is 6 */
     ARP_INVALID_PROTOCOL_SIZE, /**< arp proto size is not 4 */
     ARP_UNSUPPORTED_OPCODE,    /**< arp opcode is not listed */
-
+#endif
     /* should always be last! */
     DECODE_EVENT_MAX,
 };

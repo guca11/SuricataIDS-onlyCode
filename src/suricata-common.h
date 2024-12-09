@@ -491,8 +491,9 @@ typedef enum {
     LOGGER_JSON_METADATA,
     LOGGER_JSON_FRAME,
     LOGGER_JSON_STREAM,
+#if ENABLE_ARP    
     LOGGER_JSON_ARP,
-
+#endif
     /* An ID that can be used by loggers registered by plugins and/or
      * library users. */
     LOGGER_USER,

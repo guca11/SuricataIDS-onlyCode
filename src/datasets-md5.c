@@ -25,8 +25,6 @@
 #include "conf.h"
 #include "datasets.h"
 #include "datasets-md5.h"
-#include "util-hash-lookup3.h"
-
 #include "util-thash.h"
 #include "util-print.h"
 
@@ -47,10 +45,15 @@ bool Md5StrCompare(void *a, void *b)
     return (memcmp(as->md5, bs->md5, sizeof(as->md5)) == 0);
 }
 
-uint32_t Md5StrHash(uint32_t hash_seed, void *s)
+uint32_t Md5StrHash(void *s)
 {
     const Md5Type *str = s;
-    return hashword((uint32_t *)str->md5, sizeof(str->md5) / 4, hash_seed);
+    uint32_t hash = 5381;
+
+    for (int i = 0; i < (int)sizeof(str->md5); i++) {
+        hash = ((hash << 5) + hash) + str->md5[i]; /* hash * 33 + c */
+    }
+    return hash;
 }
 
 // data stays in hash

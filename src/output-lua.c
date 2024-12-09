@@ -32,7 +32,9 @@
 #include "app-layer-htp.h"
 #include "app-layer.h"
 #include "app-layer-ssl.h"
+#if ENABLE_SSH
 #include "app-layer-ssh.h"
+#endif
 #include "app-layer-parser.h"
 #include "util-privs.h"
 #include "util-buffer.h"
@@ -42,13 +44,20 @@
 #include "util-lua.h"
 #include "util-lua-common.h"
 #include "util-lua-http.h"
+#if ENABLE_DNS
 #include "util-lua-dns.h"
+#endif
+#if ENABLE_TLS
 #include "util-lua-ja3.h"
 #include "util-lua-tls.h"
+#endif
+#if ENABLE_SSH
 #include "util-lua-ssh.h"
 #include "util-lua-hassh.h"
+#endif
+#if ENABLE_SMTP
 #include "util-lua-smtp.h"
-
+#endif
 #define MODULE_NAME "LuaLog"
 
 /** \brief structure containing global config
@@ -274,6 +283,7 @@ static bool LuaPacketCondition(ThreadVars *tv, void *data, const Packet *p)
  *
  * NOTE p->flow is locked at this point
  */
+//#if ENABLE_HTTP 
 static int LuaFileLogger(ThreadVars *tv, void *thread_data, const Packet *p, const File *ff,
         void *tx, const uint64_t tx_id, uint8_t dir)
 {
@@ -305,7 +315,7 @@ static int LuaFileLogger(ThreadVars *tv, void *thread_data, const Packet *p, con
     SCMutexUnlock(&td->lua_ctx->m);
     return 0;
 }
-
+//#endif
 /** \internal
  *  \brief Flow API Logger function for Lua scripts
  *
@@ -474,18 +484,32 @@ static int LuaScriptInit(const char *filename, LogLuaScriptOptions *options) {
             continue;
 
         SCLogDebug("k='%s', v='%s'", k, v);
-
+	#if ENABLE_HTTP
         if (strcmp(k,"protocol") == 0 && strcmp(v, "http") == 0)
             options->alproto = ALPROTO_HTTP1;
-        else if (strcmp(k,"protocol") == 0 && strcmp(v, "dns") == 0)
+        else
+        #endif
+        #if ENABLE_DNS
+        if (strcmp(k,"protocol") == 0 && strcmp(v, "dns") == 0)
             options->alproto = ALPROTO_DNS;
-        else if (strcmp(k,"protocol") == 0 && strcmp(v, "tls") == 0)
+        else
+        #endif
+        #if ENABLE_TLS
+        if (strcmp(k,"protocol") == 0 && strcmp(v, "tls") == 0)
             options->alproto = ALPROTO_TLS;
-        else if (strcmp(k,"protocol") == 0 && strcmp(v, "ssh") == 0)
+        else
+        #endif
+        #if ENABLE_SSH
+        if (strcmp(k,"protocol") == 0 && strcmp(v, "ssh") == 0)
             options->alproto = ALPROTO_SSH;
-        else if (strcmp(k,"protocol") == 0 && strcmp(v, "smtp") == 0)
+        else
+        #endif
+        #if ENABLE_SMTP
+        if (strcmp(k,"protocol") == 0 && strcmp(v, "smtp") == 0)
             options->alproto = ALPROTO_SMTP;
-        else if (strcmp(k, "type") == 0 && strcmp(v, "packet") == 0)
+        else
+        #endif
+        if (strcmp(k, "type") == 0 && strcmp(v, "packet") == 0)
             options->packet = 1;
         else if (strcmp(k, "filter") == 0 && strcmp(v, "alerts") == 0)
             options->alerts = 1;
@@ -570,14 +594,23 @@ static lua_State *LuaScriptSetup(const char *filename)
     LuaRegisterFunctions(luastate);
     /* unconditionally register http function. They will only work
      * if the tx is registered in the state at runtime though. */
+    #if ENABLE_HTTP 
     LuaRegisterHttpFunctions(luastate);
+    #endif
+    #if ENABLE_DNS
     LuaRegisterDnsFunctions(luastate);
+    #endif
+    #if ENABLE_TLS
     LuaRegisterJa3Functions(luastate);
     LuaRegisterTlsFunctions(luastate);
+    #endif
+    #if ENABLE_SSH
     LuaRegisterSshFunctions(luastate);
     LuaRegisterHasshFunctions(luastate);
+    #endif
+    #if ENABLE_SMTP
     LuaRegisterSmtpFunctions(luastate);
-
+    #endif
     if (lua_pcall(luastate, 0, 0, 0) != 0) {
         SCLogError("couldn't run script 'setup' function: %s", lua_tostring(luastate, -1));
         goto error;
@@ -733,6 +766,7 @@ static OutputInitResult OutputLuaLogInit(ConfNode *conf)
         om->ThreadInit = LuaLogThreadInit;
         om->ThreadDeinit = LuaLogThreadDeinit;
 
+	#if ENABLE_HTTP
         if (opts.alproto == ALPROTO_HTTP1 && opts.streaming) {
             om->StreamingLogFunc = LuaStreamingLogger;
             om->stream_type = STREAMING_HTTP_BODIES;
@@ -745,40 +779,58 @@ static OutputInitResult OutputLuaLogInit(ConfNode *conf)
             om->ts_log_progress = -1;
             om->tc_log_progress = -1;
             AppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_HTTP1);
-        } else if (opts.alproto == ALPROTO_TLS) {
+        } else
+        #endif
+        #if ENABLE_TLS
+        if (opts.alproto == ALPROTO_TLS) {
             om->TxLogFunc = LuaTxLogger;
             om->alproto = ALPROTO_TLS;
             om->tc_log_progress = TLS_HANDSHAKE_DONE;
             om->ts_log_progress = TLS_HANDSHAKE_DONE;
             AppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_TLS);
-        } else if (opts.alproto == ALPROTO_DNS) {
+        } else
+        #endif
+        #if ENABLE_DNS
+        if (opts.alproto == ALPROTO_DNS) {
             om->TxLogFunc = LuaTxLogger;
             om->alproto = ALPROTO_DNS;
             om->ts_log_progress = -1;
             om->tc_log_progress = -1;
             AppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_DNS);
             AppLayerParserRegisterLogger(IPPROTO_UDP, ALPROTO_DNS);
-        } else if (opts.alproto == ALPROTO_SSH) {
+        } else
+        #endif
+        #if ENABLE_SSH
+        if (opts.alproto == ALPROTO_SSH) {
             om->TxLogFunc = LuaTxLogger;
             om->alproto = ALPROTO_SSH;
             om->TxLogCondition = SSHTxLogCondition;
             AppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_SSH);
-        } else if (opts.alproto == ALPROTO_SMTP) {
+        } else
+        #endif 
+        #if ENABLE_SMTP
+	if (opts.alproto == ALPROTO_SMTP) {
             om->TxLogFunc = LuaTxLogger;
             om->alproto = ALPROTO_SMTP;
             om->ts_log_progress = -1;
             om->tc_log_progress = -1;
             AppLayerParserRegisterLogger(IPPROTO_TCP, ALPROTO_SMTP);
-        } else if (opts.packet && opts.alerts) {
+        } else
+        #endif
+        if (opts.packet && opts.alerts) {
             om->PacketLogFunc = LuaPacketLoggerAlerts;
             om->PacketConditionFunc = LuaPacketConditionAlerts;
         } else if (opts.packet && opts.alerts == 0) {
             om->PacketLogFunc = LuaPacketLogger;
             om->PacketConditionFunc = LuaPacketCondition;
-        } else if (opts.file) {
+        } 
+        #if ENABLE_HTTP
+        else if (opts.file) {
             om->FileLogFunc = LuaFileLogger;
             AppLayerHtpNeedFileInspection();
-        } else if (opts.streaming && opts.tcp_data) {
+        }
+        #endif
+        else if (opts.streaming && opts.tcp_data) {
             om->StreamingLogFunc = LuaStreamingLogger;
             om->stream_type = STREAMING_TCP_DATA;
         } else if (opts.flow) {

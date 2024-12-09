@@ -406,8 +406,13 @@ static void *StatsMgmtThread(void *arg)
     SCLogDebug("stats_thread_data %p", &stats_thread_data);
 
     TmThreadsSetFlag(tv_local, THV_INIT_DONE | THV_RUNNING);
-    bool run = TmThreadsWaitForUnpause(tv_local);
-    while (run) {
+    while (1) {
+        if (TmThreadsCheckFlag(tv_local, THV_PAUSE)) {
+            TmThreadsSetFlag(tv_local, THV_PAUSED);
+            TmThreadTestThreadUnPaused(tv_local);
+            TmThreadsUnsetFlag(tv_local, THV_PAUSED);
+        }
+
         struct timeval cur_timev;
         gettimeofday(&cur_timev, NULL);
         struct timespec cond_time = FROM_TIMEVAL(cur_timev);
@@ -482,9 +487,14 @@ static void *StatsWakeupThread(void *arg)
     }
 
     TmThreadsSetFlag(tv_local, THV_INIT_DONE | THV_RUNNING);
-    bool run = TmThreadsWaitForUnpause(tv_local);
 
-    while (run) {
+    while (1) {
+        if (TmThreadsCheckFlag(tv_local, THV_PAUSE)) {
+            TmThreadsSetFlag(tv_local, THV_PAUSED);
+            TmThreadTestThreadUnPaused(tv_local);
+            TmThreadsUnsetFlag(tv_local, THV_PAUSED);
+        }
+
         struct timeval cur_timev;
         gettimeofday(&cur_timev, NULL);
         struct timespec cond_time = FROM_TIMEVAL(cur_timev);

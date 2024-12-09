@@ -27,51 +27,115 @@
 
 enum AppProtoEnum {
     ALPROTO_UNKNOWN = 0,
+#if ENABLE_HTTP   
+    ALPROTO_HTTP, 
     ALPROTO_HTTP1,
-    ALPROTO_FTP,
-    ALPROTO_SMTP,
-    ALPROTO_TLS, /* SSLv2, SSLv3 & TLSv1 */
-    ALPROTO_SSH,
-    ALPROTO_IMAP,
-    ALPROTO_JABBER,
-    ALPROTO_SMB,
-    ALPROTO_DCERPC,
-    ALPROTO_IRC,
-
-    ALPROTO_DNS,
-    ALPROTO_MODBUS,
-    ALPROTO_ENIP,
-    ALPROTO_DNP3,
-    ALPROTO_NFS,
-    ALPROTO_NTP,
-    ALPROTO_FTPDATA,
-    ALPROTO_TFTP,
-    ALPROTO_IKE,
-    ALPROTO_KRB5,
-    ALPROTO_QUIC,
-    ALPROTO_DHCP,
-    ALPROTO_SNMP,
-    ALPROTO_SIP,
-    ALPROTO_RFB,
-    ALPROTO_MQTT,
-    ALPROTO_PGSQL,
-    ALPROTO_TELNET,
-    ALPROTO_WEBSOCKET,
-    ALPROTO_LDAP,
-    ALPROTO_DOH2,
-    ALPROTO_TEMPLATE,
-    ALPROTO_RDP,
     ALPROTO_HTTP2,
+#endif
+#if ENABLE_FTP        
+    ALPROTO_FTP,
+    ALPROTO_FTPDATA,
+#endif
+#if ENABLE_SMTP
+    ALPROTO_SMTP,
+#endif
+#if ENABLE_TLS
+    ALPROTO_TLS, /* SSLv2, SSLv3 & TLSv1 */
+#endif
+#if ENABLE_SSH
+    ALPROTO_SSH,
+#endif
+#if ENABLE_IMAP
+    ALPROTO_IMAP,
+#endif
+    ALPROTO_JABBER,
+#if ENABLE_SMB
+    ALPROTO_SMB,
+#endif
+#if ENABLE_DCERPC
+    ALPROTO_DCERPC,
+#endif
+    ALPROTO_IRC,
+#if ENABLE_DNS
+    ALPROTO_DNS,
+#endif
+#if ENABLE_MODBUS
+    ALPROTO_MODBUS,
+#endif
+#if ENABLE_ENIP
+    ALPROTO_ENIP,
+#endif
+#if ENABLE_DNP3
+    ALPROTO_DNP3,
+#endif
+#if ENABLE_NFS
+    ALPROTO_NFS,
+#endif
+#if ENABLE_NTP
+    ALPROTO_NTP,
+#endif   
+#if ENABLE_TFTP
+    ALPROTO_TFTP,
+#endif
+#if ENABLE_IKE
+    ALPROTO_IKE,
+#endif
+#if ENABLE_KRB5
+    ALPROTO_KRB5,
+#endif
+#if ENABLE_QUIC
+    ALPROTO_QUIC,
+#endif
+#if ENABLE_DHCP
+    ALPROTO_DHCP,
+#endif
+#if ENABLE_SNMP    
+    ALPROTO_SNMP,
+#endif
+#if ENABLE_SIP
+    ALPROTO_SIP,
+#endif
+#if ENABLE_RFB
+    ALPROTO_RFB,
+#endif
+#if ENABLE_MQTT
+    ALPROTO_MQTT,
+#endif
+#if ENABLE_PGSQL
+    ALPROTO_PGSQL,
+#endif
+#if ENABLE_TELNET
+    ALPROTO_TELNET,
+#endif
+#if ENABLE_WEBSOCKET
+    ALPROTO_WEBSOCKET,
+#endif
+#if ENABLE_LDAP    
+    ALPROTO_LDAP,
+#endif
+#if ENABLE_DNS && ENABLE_HTTP
+    ALPROTO_DOH2,
+#endif
+    ALPROTO_TEMPLATE,
+#if ENABLE_RDP
+    ALPROTO_RDP,
+#endif
+#if ENABLE_BITTORRENT
     ALPROTO_BITTORRENT_DHT,
+#endif
+#if ENABLE_POP3
     ALPROTO_POP3,
+#endif
 
     // signature-only (ie not seen in flow)
     // HTTP for any version (ALPROTO_HTTP1 (version 1) or ALPROTO_HTTP2)
-    ALPROTO_HTTP,
 
     /* used by the probing parser when alproto detection fails
      * permanently for that particular stream */
     ALPROTO_FAILED,
+#ifdef UNITTESTS
+    ALPROTO_TEST,
+#endif /* UNITESTS */
     /* keep last */
     ALPROTO_MAX,
 };
@@ -92,20 +156,38 @@ static inline bool AppProtoEquals(AppProto sigproto, AppProto alproto)
         return true;
     }
     switch (sigproto) {
+    	#if ENABLE_DNS
         case ALPROTO_DNS:
             // a DNS signature matches on either DNS or DOH2 flows
-            return (alproto == ALPROTO_DOH2) || (alproto == ALPROTO_DNS);
+            return 
+            	#if ENABLE_HTTP
+            	(alproto == ALPROTO_DOH2) || 
+            	#endif
+            	(alproto == ALPROTO_DNS);
+        #endif
+        #if ENABLE_HTTP
         case ALPROTO_HTTP2:
             // a HTTP2 signature matches on either HTTP2 or DOH2 flows
-            return (alproto == ALPROTO_DOH2) || (alproto == ALPROTO_HTTP2);
+            return 
+            	#if ENABLE_DNS
+            	(alproto == ALPROTO_DOH2) || 
+            	#endif
+            	(alproto == ALPROTO_HTTP2);
+        #endif
+        #if ENABLE_DNS && ENABLE_HTTP    
         case ALPROTO_DOH2:
             // a DOH2 signature accepts dns, http2 or http generic keywords
             return (alproto == ALPROTO_DOH2) || (alproto == ALPROTO_HTTP2) ||
                    (alproto == ALPROTO_DNS) || (alproto == ALPROTO_HTTP);
+        #endif
+        #if ENABLE_HTTP
         case ALPROTO_HTTP:
             return (alproto == ALPROTO_HTTP1) || (alproto == ALPROTO_HTTP2);
+        #endif
+        #if ENABLE_DCERPC
         case ALPROTO_DCERPC:
             return (alproto == ALPROTO_SMB);
+        #endif
     }
     return false;
 }
@@ -114,12 +196,17 @@ static inline bool AppProtoEquals(AppProto sigproto, AppProto alproto)
 static inline AppProto AppProtoCommon(AppProto sigproto, AppProto alproto)
 {
     switch (sigproto) {
+        #if ENABLE_SMB    
         case ALPROTO_SMB:
+            #if ENABLE_DCERPC
             if (alproto == ALPROTO_DCERPC) {
                 // ok to have dcerpc keywords in smb sig
                 return ALPROTO_SMB;
             }
+            #endif
             break;
+        #endif        
+	#if ENABLE_HTTP
         case ALPROTO_HTTP:
             // we had a generic http sig, now version specific
             if (alproto == ALPROTO_HTTP1) {
@@ -139,12 +226,15 @@ static inline AppProto AppProtoCommon(AppProto sigproto, AppProto alproto)
                 return ALPROTO_HTTP2;
             }
             break;
+        #endif
+        #if ENABLE_DNS && ENABLE_HTTP
         case ALPROTO_DOH2:
             // DOH2 accepts different protocol keywords
             if (alproto == ALPROTO_HTTP || alproto == ALPROTO_HTTP2 || alproto == ALPROTO_DNS) {
                 return ALPROTO_DOH2;
             }
             break;
+        #endif
     }
     if (sigproto != alproto) {
         return ALPROTO_FAILED;

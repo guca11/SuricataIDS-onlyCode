@@ -414,9 +414,11 @@ static OutputInitResult OutputFilestoreLogInitCtx(ConfNode *conf)
     }
 
     ctx->xff_cfg = SCCalloc(1, sizeof(HttpXFFCfg));
+    #if ENABLE_HTTP
     if (ctx->xff_cfg != NULL) {
         HttpXFFGetCfg(conf, ctx->xff_cfg);
     }
+    #endif
 
     OutputCtx *output_ctx = SCCalloc(1, sizeof(OutputCtx));
     if (unlikely(output_ctx == NULL)) {

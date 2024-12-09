@@ -15,72 +15,27 @@ noinst_HEADERS = \
 	alert-fastlog.h \
 	alert-syslog.h \
 	app-layer-detect-proto.h \
-	app-layer-dnp3.h \
-	app-layer-dnp3-objects.h \
 	app-layer-events.h \
 	app-layer-expectation.h \
 	app-layer-frames.h \
-	app-layer-ftp.h \
 	app-layer.h \
-	app-layer-htp-body.h \
-	app-layer-htp-file.h \
-	app-layer-htp.h \
-	app-layer-htp-libhtp.h \
-	app-layer-htp-mem.h \
-	app-layer-htp-range.h \
-	app-layer-htp-xff.h \
-	app-layer-http2.h \
-	app-layer-ike.h \
-	app-layer-modbus.h \
-	app-layer-nfs-tcp.h \
-	app-layer-nfs-udp.h \
 	app-layer-parser.h \
 	app-layer-protos.h \
 	app-layer-register.h \
-	app-layer-smb.h \
-	app-layer-smtp.h \
-	app-layer-ssh.h \
-	app-layer-ssl.h \
-	app-layer-tftp.h \
-	app-layer-imap.h \
 	build-info.h \
 	conf.h \
 	conf-yaml-loader.h \
 	counters.h \
 	datasets.h \
 	datasets-ipv4.h \
-	datasets-ipv6.h \
 	datasets-md5.h \
 	datasets-reputation.h \
 	datasets-sha256.h \
 	datasets-string.h \
-	decode-arp.h \
-	decode-chdlc.h \
-	decode-erspan.h \
-	decode-esp.h \
-	decode-ethernet.h \
 	decode-events.h \
-	decode-geneve.h \
-	decode-gre.h \
 	decode.h \
 	decode-icmpv4.h \
-	decode-icmpv6.h \
 	decode-ipv4.h \
-	decode-ipv6.h \
-	decode-mpls.h \
-	decode-nsh.h \
-	decode-ppp.h \
-	decode-pppoe.h \
-	decode-raw.h \
-	decode-sctp.h \
-	decode-sll.h \
-	decode-tcp.h \
-	decode-template.h \
-	decode-teredo.h \
-	decode-udp.h \
-	decode-vlan.h \
-	decode-vntag.h \
-	decode-vxlan.h \
 	defrag-config.h \
 	defrag.h \
 	defrag-hash.h \
@@ -104,28 +59,16 @@ noinst_HEADERS = \
 	detect-csum.h \
 	detect-datarep.h \
 	detect-dataset.h \
-	detect-dce-iface.h \
-	detect-dce-opnum.h \
-	detect-dce-stub-data.h \
 	detect-depth.h \
 	detect-detection-filter.h \
 	detect-distance.h \
-	detect-dnp3.h \
-	detect-dns-answer-name.h \
-	detect-dns-opcode.h \
-	detect-dns-rcode.h \
-	detect-dns-rrtype.h \
-	detect-dns-query.h \
-	detect-dns-query-name.h \
 	detect-dsize.h \
 	detect-engine-address.h \
 	detect-engine-address-ipv4.h \
-	detect-engine-address-ipv6.h \
 	detect-engine-alert.h \
 	detect-engine-analyzer.h \
 	detect-engine-build.h \
 	detect-engine-content-inspection.h \
-	detect-engine-dcepayload.h \
 	detect-engine-event.h \
 	detect-engine-file.h \
 	detect-engine-frame.h \
@@ -166,84 +109,28 @@ noinst_HEADERS = \
 	detect-fragbits.h \
 	detect-fragoffset.h \
 	detect-frame.h \
-	detect-ftpbounce.h \
-	detect-ftpdata.h \
 	detect-geoip.h \
 	detect-gid.h \
 	detect.h \
 	detect-hostbits.h \
-	detect-http2.h \
-	detect-http-accept-enc.h \
-	detect-http-accept.h \
-	detect-http-accept-lang.h \
-	detect-http-client-body.h \
-	detect-http-connection.h \
-	detect-http-content-len.h \
-	detect-http-content-type.h \
-	detect-http-cookie.h \
-	detect-http-header-common.h \
-	detect-http-header.h \
-	detect-http-header-names.h \
-	detect-http-headers.h \
-	detect-http-headers-stub.h \
-	detect-http-host.h \
-	detect-http-location.h \
-	detect-http-method.h \
-	detect-http-protocol.h \
-	detect-http-raw-header.h \
-	detect-http-referer.h \
-	detect-http-request-line.h \
-	detect-http-response-line.h \
-	detect-http-server-body.h \
-	detect-http-server.h \
-	detect-http-start.h \
-	detect-http-stat-code.h \
-	detect-http-stat-msg.h \
-	detect-http-ua.h \
-	detect-http-uri.h \
 	detect-icmp-id.h \
 	detect-icmp-seq.h \
 	detect-icmpv4hdr.h \
-	detect-icmpv6hdr.h \
-	detect-icmpv6-mtu.h \
 	detect-icode.h \
 	detect-id.h \
-	detect-ike-exch-type.h \
-	detect-ike-spi.h \
-	detect-ike-vendor.h \
-	detect-ike-chosen-sa.h \
-	detect-ike-key-exchange-payload-length.h \
-	detect-ike-nonce-payload-length.h \
-	detect-ike-nonce-payload.h \
-	detect-ike-key-exchange-payload.h \
 	detect-ipaddr.h \
 	detect-ipopts.h \
 	detect-ipproto.h \
 	detect-iprep.h \
 	detect-ipv4hdr.h \
-	detect-ipv6hdr.h \
 	detect-isdataat.h \
 	detect-itype.h \
-	detect-ja4-hash.h \
-	detect-krb5-cname.h \
-	detect-krb5-errcode.h \
-	detect-krb5-msgtype.h \
-	detect-krb5-sname.h \
-	detect-krb5-ticket-encryption.h \
 	detect-l3proto.h \
 	detect-lua-extensions.h \
 	detect-lua.h \
 	detect-mark.h \
 	detect-metadata.h \
-	detect-modbus.h \
-	detect-quic-sni.h \
-	detect-quic-ua.h \
-	detect-quic-version.h \
-	detect-quic-cyu-hash.h \
-	detect-quic-cyu-string.h \
 	detect-msg.h \
-	detect-nfs-procedure.h \
-	detect-nfs-version.h \
 	detect-noalert.h \
 	detect-nocase.h \
 	detect-offset.h \
@@ -261,54 +148,25 @@ noinst_HEADERS = \
 	detect-rpc.h \
 	detect-sameip.h \
 	detect-sid.h \
-	detect-sip-method.h \
-	detect-sip-uri.h \
-	detect-smb-ntlmssp.h \
-	detect-smb-share.h \
-	detect-smb-version.h \
-	detect-ssh-hassh.h \
-	detect-ssh-hassh-server.h \
-	detect-ssh-hassh-server-string.h \
-	detect-ssh-hassh-string.h \
-	detect-ssh-proto.h \
-	detect-ssh-proto-version.h \
-	detect-ssh-software.h \
-	detect-ssh-software-version.h \
-	detect-ssl-state.h \
-	detect-ssl-version.h \
 	detect-stream_size.h \
 	detect-tag.h \
 	detect-target.h \
-	detect-tcp-ack.h \
-	detect-tcp-flags.h \
-	detect-tcphdr.h \
-	detect-tcpmss.h \
-	detect-tcp-seq.h \
-	detect-tcp-window.h \
-	detect-template2.h \
-	detect-template.h \
 	detect-threshold.h \
-	detect-tls-alpn.h \
-	detect-tls-cert-fingerprint.h \
-	detect-tls-cert-issuer.h \
-	detect-tls-cert-serial.h \
-	detect-tls-certs.h \
-	detect-tls-cert-subject.h \
-	detect-tls-cert-validity.h \
-	detect-tls-subjectaltname.h \
-	detect-tls.h \
-	detect-tls-ja3-hash.h \
-	detect-tls-ja3s-hash.h \
-	detect-tls-ja3s-string.h \
-	detect-tls-ja3-string.h \
-	detect-tls-sni.h \
-	detect-tls-version.h \
-	detect-tls-random.h \
 	detect-tos.h \
 	detect-transform-base64.h \
+	detect-transform-casechange.h \
+	detect-transform-compress-whitespace.h \
+	detect-transform-dotprefix.h \
+	detect-transform-header-lowercase.h \
+	detect-transform-md5.h \
 	detect-transform-pcrexform.h \
+	detect-transform-sha1.h \
+	detect-transform-sha256.h \
+	detect-transform-strip-pseudo-headers.h \
+	detect-transform-strip-whitespace.h \
+	detect-transform-urldecode.h \
+	detect-transform-xor.h \
 	detect-ttl.h \
-	detect-udphdr.h \
 	detect-uricontent.h \
 	detect-urilen.h \
 	detect-within.h \
@@ -317,7 +175,6 @@ noinst_HEADERS = \
 	feature.h \
 	flow-bit.h \
 	flow-bypass.h \
-	flow-callbacks.h \
 	flow.h \
 	flow-hash.h \
 	flow-manager.h \
@@ -340,12 +197,8 @@ noinst_HEADERS = \
 	ippair-storage.h \
 	ippair-timeout.h \
 	log-cf-common.h \
-	log-httplog.h \
 	log-pcap.h \
 	log-stats.h \
-	log-tcp-data.h \
-	log-tlslog.h \
-	log-tlsstore.h \
 	output-eve.h \
 	output-eve-stream.h \
 	output-eve-null.h \
@@ -356,30 +209,15 @@ noinst_HEADERS = \
 	output.h \
 	output-json-alert.h \
 	output-json-anomaly.h \
-	output-json-arp.h \
-	output-json-dcerpc.h \
-	output-json-dhcp.h \
-	output-json-dnp3.h \
-	output-json-dnp3-objects.h \
-	output-json-dns.h \
 	output-json-drop.h \
 	output-json-email-common.h \
 	output-json-file.h \
 	output-json-flow.h \
 	output-json-frame.h \
-	output-json-ftp.h \
 	output-json.h \
-	output-json-http.h \
-	output-json-ike.h \
 	output-json-metadata.h \
-	output-json-mqtt.h \
 	output-json-netflow.h \
-	output-json-nfs.h \
-	output-json-pgsql.h \
-	output-json-smb.h \
-	output-json-smtp.h \
 	output-json-stats.h \
-	output-json-tls.h \
 	output-eve-syslog.h \
 	output-lua.h \
 	output-packet.h \
@@ -399,6 +237,7 @@ noinst_HEADERS = \
 	runmode-erf-dag.h \
 	runmode-erf-file.h \
 	runmode-ipfw.h \
+	runmode-napatech.h \
 	runmode-netmap.h \
 	runmode-nflog.h \
 	runmode-nfq.h \
@@ -416,6 +255,7 @@ noinst_HEADERS = \
 	source-erf-dag.h \
 	source-erf-file.h \
 	source-ipfw.h \
+	source-napatech.h \
 	source-netmap.h \
 	source-nflog.h \
 	source-nfq.h \
@@ -427,19 +267,9 @@ noinst_HEADERS = \
 	source-windivert.h \
 	source-windivert-prototypes.h \
 	stream.h \
-	stream-tcp.h \
-	stream-tcp-cache.h \
-	stream-tcp-inline.h \
-	stream-tcp-list.h \
-	stream-tcp-private.h \
-	stream-tcp-reassemble.h \
-	stream-tcp-sack.h \
-	stream-tcp-util.h \
 	suricata-common.h \
 	suricata.h \
 	suricata-plugin.h \
-	thread-callbacks.h \
-	thread-storage.h \
 	threads-debug.h \
 	threads.h \
 	threads-profile.h \
@@ -500,23 +330,12 @@ noinst_HEADERS = \
 	util-hyperscan.h \
 	util-ioctl.h \
 	util-ip.h \
-	util-ja3.h \
-	util-ja4.h \
 	util-landlock.h \
 	util-logopenfile.h \
 	util-log-redis.h \
 	util-lua-common.h \
-	util-lua-dnp3.h \
-	util-lua-dnp3-objects.h \
-	util-lua-dns.h \
 	util-lua.h \
-	util-lua-hassh.h \
-	util-lua-http.h \
-	util-lua-ja3.h \
 	util-lua-sandbox.h \
-	util-lua-smtp.h \
-	util-lua-ssh.h \
-	util-lua-tls.h \
 	util-macset.h \
 	util-magic.h \
 	util-memcmp.h \
@@ -528,6 +347,7 @@ noinst_HEADERS = \
 	util-mpm-ac-ks.h \
 	util-mpm.h \
 	util-mpm-hs.h \
+	util-napatech.h \
 	util-optimize.h \
 	util-pages.h \
 	util-path.h \
@@ -541,9 +361,7 @@ noinst_HEADERS = \
 	util-profiling.h \
 	util-profiling-locks.h \
 	util-proto-name.h \
-	util-radix-tree-common.h \
-	util-radix4-tree.h \
-	util-radix6-tree.h \
+	util-radix-tree.h \
 	util-random.h \
 	util-reference-config.h \
 	util-rohash.h \
@@ -575,76 +393,347 @@ noinst_HEADERS = \
 	win32-syscall.h \
 	win32-syslog.h
 
+if ENABLE_ESP
+noinst_HEADERS += decode-esp.h
+endif
+
+if ENABLE_MQTT
+noinst_HEADERS += output-json-mqtt.h
+endif
+
+if ENABLE_RAW
+noinst_HEADERS += decode-raw.h 
+endif	
+
+if ENABLE_SMTP
+noinst_HEADERS += app-layer-smtp.h 
+noinst_HEADERS += output-json-smtp.h 
+noinst_HEADERS += util-lua-smtp.h
+endif
+	
+if ENABLE_IMAP
+noinst_HEADERS += app-layer-imap.h
+endif	
+
+if ENABLE_KRB5
+noinst_HEADERS += detect-krb5-cname.h
+noinst_HEADERS += detect-krb5-errcode.h
+noinst_HEADERS += detect-krb5-msgtype.h
+noinst_HEADERS += detect-krb5-sname.h
+noinst_HEADERS += detect-krb5-ticket-encryption.h
+endif
+
+if ENABLE_SMB
+noinst_HEADERS += app-layer-smb.h
+noinst_HEADERS += detect-smb-ntlmssp.h
+noinst_HEADERS += detect-smb-share.h
+noinst_HEADERS += detect-smb-version.h
+noinst_HEADERS += output-json-smb.h
+endif
+
+if ENABLE_FTP
+noinst_HEADERS += app-layer-ftp.h
+noinst_HEADERS += detect-ftpbounce.h
+noinst_HEADERS += detect-ftpdata.h
+noinst_HEADERS += output-json-ftp.h
+endif
+
+if ENABLE_SSH
+noinst_HEADERS += app-layer-ssh.h 
+noinst_HEADERS += detect-ssh-hassh.h 
+noinst_HEADERS += detect-ssh-hassh-server.h 
+noinst_HEADERS += detect-ssh-hassh-server-string.h 
+noinst_HEADERS += detect-ssh-hassh-string.h 
+noinst_HEADERS += detect-ssh-proto.h 
+noinst_HEADERS += detect-ssh-proto-version.h 
+noinst_HEADERS += detect-ssh-software.h 
+noinst_HEADERS += detect-ssh-software-version.h 
+noinst_HEADERS += util-lua-ssh.h 
+noinst_HEADERS += util-lua-hassh.h 
+endif
+
+if ENABLE_ARP
+noinst_HEADERS += decode-arp.h 
+noinst_HEADERS += output-json-arp.h 
+endif
+
+if ENABLE_PPPOE
+noinst_HEADERS += decode-pppoe.h 
+endif
+
+if ENABLE_DHCP
+noinst_HEADERS += output-json-dhcp.h
+endif
+
+if ENABLE_DNS
+noinst_HEADERS += detect-dns-answer-name.h
+noinst_HEADERS += detect-dns-opcode.h
+noinst_HEADERS += detect-dns-rcode.h
+noinst_HEADERS += detect-dns-rrtype.h
+noinst_HEADERS += detect-dns-query.h
+noinst_HEADERS += detect-dns-query-name.h
+noinst_HEADERS += output-json-dns.h
+noinst_HEADERS += util-lua-dns.h
+endif
+
+if ENABLE_TLS
+noinst_HEADERS += detect-tls-alpn.h 
+noinst_HEADERS += detect-tls-cert-fingerprint.h 
+noinst_HEADERS += detect-tls-cert-issuer.h 
+noinst_HEADERS += detect-tls-cert-serial.h 
+noinst_HEADERS += detect-tls-certs.h 
+noinst_HEADERS += detect-tls-cert-subject.h 
+noinst_HEADERS += detect-tls-cert-validity.h 
+noinst_HEADERS += detect-tls-subjectaltname.h 
+noinst_HEADERS += detect-tls.h 
+noinst_HEADERS += detect-tls-ja3-hash.h 
+noinst_HEADERS += detect-tls-ja3s-hash.h 
+noinst_HEADERS += detect-tls-ja3s-string.h 
+noinst_HEADERS += detect-tls-ja3-string.h 
+noinst_HEADERS += detect-tls-sni.h 
+noinst_HEADERS += detect-tls-version.h 
+noinst_HEADERS += detect-tls-random.h 
+noinst_HEADERS += log-tlslog.h 
+noinst_HEADERS += log-tlsstore.h 
+noinst_HEADERS += output-json-tls.h 
+noinst_HEADERS += util-lua-tls.h 
+noinst_HEADERS += app-layer-ssl.h 
+noinst_HEADERS += detect-ssl-state.h 
+noinst_HEADERS += detect-ssl-version.h 
+noinst_HEADERS += util-ja3.h
+noinst_HEADERS += util-lua-ja3.h
+noinst_HEADERS += detect-ja4-hash.h
+noinst_HEADERS += util-ja4.h
+endif
+
+if ENABLE_HTTP
+noinst_HEADERS += app-layer-htp-body.h 
+noinst_HEADERS += app-layer-htp-file.h 
+noinst_HEADERS += app-layer-htp.h 
+noinst_HEADERS += app-layer-htp-libhtp.h 
+noinst_HEADERS += app-layer-htp-mem.h 
+noinst_HEADERS += app-layer-htp-range.h 
+noinst_HEADERS += app-layer-htp-xff.h 
+noinst_HEADERS += app-layer-http2.h
+noinst_HEADERS += detect-http2.h 
+noinst_HEADERS += detect-http-accept-enc.h 
+noinst_HEADERS += detect-http-accept.h 
+noinst_HEADERS += detect-http-accept-lang.h 
+noinst_HEADERS += detect-http-client-body.h
+noinst_HEADERS += detect-http-connection.h 
+noinst_HEADERS += detect-http-content-len.h 
+noinst_HEADERS += detect-http-content-type.h 
+noinst_HEADERS += detect-http-cookie.h 
+noinst_HEADERS += detect-http-header-common.h 
+noinst_HEADERS += detect-http-header.h 
+noinst_HEADERS += detect-http-header-names.h 
+noinst_HEADERS += detect-http-headers.h 
+noinst_HEADERS += detect-http-headers-stub.h 
+noinst_HEADERS += detect-http-host.h 
+noinst_HEADERS += detect-http-location.h 
+noinst_HEADERS += detect-http-method.h 
+noinst_HEADERS += detect-http-protocol.h 
+noinst_HEADERS += detect-http-raw-header.h 
+noinst_HEADERS += detect-http-referer.h 
+noinst_HEADERS += detect-http-request-line.h 
+noinst_HEADERS += detect-http-response-line.h 
+noinst_HEADERS += detect-http-server-body.h 
+noinst_HEADERS += detect-http-server.h 
+noinst_HEADERS += detect-http-start.h 
+noinst_HEADERS += detect-http-stat-code.h 
+noinst_HEADERS += detect-http-stat-msg.h 
+noinst_HEADERS += detect-http-ua.h 
+noinst_HEADERS += detect-http-uri.h 
+noinst_HEADERS += log-httplog.h 
+noinst_HEADERS += output-json-http.h 
+noinst_HEADERS += util-lua-http.h 
+endif
+
+#	ETHERNET
+noinst_HEADERS += decode-ethernet.h
+
+#if ENABLE_UDP
+noinst_HEADERS += detect-udphdr.h
+#endif
+noinst_HEADERS += decode-udp.h
+
+#if ENABLE_TCP
+noinst_HEADERS += detect-tcp-ack.h
+noinst_HEADERS += detect-tcphdr.h
+noinst_HEADERS += detect-tcpmss.h 
+noinst_HEADERS += detect-tcp-seq.h 
+noinst_HEADERS += detect-tcp-window.h 
+noinst_HEADERS += log-tcp-data.h 
+#endif
+noinst_HEADERS += decode-tcp.h
+noinst_HEADERS += detect-tcp-flags.h
+noinst_HEADERS += stream-tcp.h 
+noinst_HEADERS += stream-tcp-cache.h 
+noinst_HEADERS += stream-tcp-inline.h 
+noinst_HEADERS += stream-tcp-list.h 
+noinst_HEADERS += stream-tcp-private.h 
+noinst_HEADERS += stream-tcp-reassemble.h 
+noinst_HEADERS += stream-tcp-sack.h 
+noinst_HEADERS += stream-tcp-util.h 
+
+if ENABLE_IPV6
+noinst_HEADERS += datasets-ipv6.h 
+noinst_HEADERS += decode-ipv6.h 
+noinst_HEADERS += detect-ipv6hdr.h 
+noinst_HEADERS += decode-icmpv6.h 
+noinst_HEADERS += detect-icmpv6hdr.h 
+noinst_HEADERS += detect-icmpv6-mtu.h 
+noinst_HEADERS += detect-engine-address-ipv6.h 
+endif
+
+if ENABLE_IKE
+noinst_HEADERS += app-layer-ike.h 
+noinst_HEADERS += detect-ike-exch-type.h 
+noinst_HEADERS += detect-ike-spi.h 
+noinst_HEADERS += detect-ike-vendor.h 
+noinst_HEADERS += detect-ike-chosen-sa.h 
+noinst_HEADERS += detect-ike-key-exchange-payload-length.h 
+noinst_HEADERS += detect-ike-nonce-payload-length.h 
+noinst_HEADERS += detect-ike-nonce-payload.h 
+noinst_HEADERS += detect-ike-key-exchange-payload.h 
+noinst_HEADERS += output-json-ike.h 
+endif
+
+if ENABLE_SCTP
+noinst_HEADERS += decode-sctp.h
+endif
+
+if ENABLE_GRE
+noinst_HEADERS += decode-gre.h
+endif
+
+if ENABLE_PPP
+noinst_HEADERS += decode-ppp.h
+endif
+
+if ENABLE_SLL
+noinst_HEADERS += decode-sll.h
+endif
+
+if ENABLE_VXLAN
+noinst_HEADERS += decode-vxlan.h
+endif
+
+if ENABLE_ERSPAN
+noinst_HEADERS += decode-erspan.h 
+endif
+
+if ENABLE_MPLS
+noinst_HEADERS += decode-mpls.h 
+endif
+
+if ENABLE_GENEVE
+noinst_HEADERS += decode-geneve.h 
+endif
+
+if ENABLE_DCERPC
+noinst_HEADERS += output-json-dcerpc.h
+noinst_HEADERS += detect-dce-iface.h 
+noinst_HEADERS += detect-dce-opnum.h 
+noinst_HEADERS += detect-dce-stub-data.h 
+noinst_HEADERS += detect-engine-dcepayload.h
+endif 
+
+if ENABLE_MODBUS
+noinst_HEADERS += app-layer-modbus.h 
+noinst_HEADERS += detect-modbus.h 
+endif
+
+if ENABLE_DNP3
+noinst_HEADERS += app-layer-dnp3.h 
+noinst_HEADERS += app-layer-dnp3-objects.h 
+noinst_HEADERS += detect-dnp3.h 
+noinst_HEADERS += output-json-dnp3.h 
+noinst_HEADERS += output-json-dnp3-objects.h 
+noinst_HEADERS += util-lua-dnp3.h 
+noinst_HEADERS += util-lua-dnp3-objects.h 
+endif
+
+if ENABLE_NFS
+noinst_HEADERS += app-layer-nfs-tcp.h 
+noinst_HEADERS += app-layer-nfs-udp.h 
+noinst_HEADERS += detect-nfs-procedure.h 
+noinst_HEADERS += detect-nfs-version.h 
+noinst_HEADERS += output-json-nfs.h 
+endif
+
+if ENABLE_TFTP
+noinst_HEADERS += app-layer-tftp.h
+endif
+
+if ENABLE_SIP
+noinst_HEADERS += detect-sip-method.h
+noinst_HEADERS += detect-sip-uri.h
+endif
+
+if ENABLE_QUIC
+noinst_HEADERS += detect-quic-sni.h 
+noinst_HEADERS += detect-quic-ua.h 
+noinst_HEADERS += detect-quic-version.h 
+noinst_HEADERS += detect-quic-cyu-hash.h 
+noinst_HEADERS += detect-quic-cyu-string.h
+endif
+
+if ENABLE_PGSQL
+noinst_HEADERS += output-json-pgsql.h
+endif
+
+if ENABLE_VLAN
+noinst_HEADERS += decode-vlan.h
+endif
+
+if ENABLE_CHDLC
+noinst_HEADERS += decode-chdlc.h
+endif
+
+if ENABLE_NSH
+noinst_HEADERS += decode-nsh.h
+endif
+
+if ENABLE_VNTAG
+noinst_HEADERS += decode-vntag.h
+endif
+
+if ENABLE_TEREDO
+noinst_HEADERS += decode-teredo.h
+endif
+
+#	TEMPLATE
+#	decode-template.h 
+#	detect-template2.h 
+#	detect-template.h 
+#	detect-template-rust-buffer.h 
+
 libsuricata_c_a_SOURCES = \
 	alert-debuglog.c \
 	alert-fastlog.c \
 	alert-syslog.c \
 	app-layer.c \
 	app-layer-detect-proto.c \
-	app-layer-dnp3.c \
-	app-layer-dnp3-objects.c \
 	app-layer-events.c \
 	app-layer-expectation.c \
-	app-layer-ftp.c \
 	app-layer-frames.c \
-	app-layer-htp-body.c \
-	app-layer-htp.c \
-	app-layer-htp-file.c \
-	app-layer-htp-libhtp.c \
-	app-layer-htp-mem.c \
-	app-layer-htp-range.c \
-	app-layer-htp-xff.c \
-	app-layer-http2.c \
-	app-layer-ike.c \
-	app-layer-modbus.c \
-	app-layer-nfs-tcp.c \
-	app-layer-nfs-udp.c \
 	app-layer-parser.c \
 	app-layer-protos.c \
 	app-layer-register.c \
-	app-layer-smb.c \
-	app-layer-smtp.c \
-	app-layer-ssh.c \
-	app-layer-ssl.c \
-	app-layer-tftp.c \
-	app-layer-imap.c \
 	conf.c \
 	conf-yaml-loader.c \
 	counters.c \
 	datasets.c \
 	datasets-ipv4.c \
-	datasets-ipv6.c \
 	datasets-md5.c \
 	datasets-sha256.c \
 	datasets-string.c \
 	decode.c \
-	decode-arp.c \
-	decode-chdlc.c \
-	decode-erspan.c \
-	decode-esp.c \
-	decode-ethernet.c \
 	decode-events.c \
-	decode-geneve.c \
-	decode-gre.c \
 	decode-icmpv4.c \
-	decode-icmpv6.c \
 	decode-ipv4.c \
-	decode-ipv6.c \
-	decode-mpls.c \
-	decode-nsh.c \
 	decode-null.c \
-	decode-ppp.c \
-	decode-pppoe.c \
-	decode-raw.c \
-	decode-sctp.c \
-	decode-sll.c \
-	decode-tcp.c \
-	decode-template.c \
-	decode-teredo.c \
-	decode-udp.c \
-	decode-vlan.c \
-	decode-vntag.c \
-	decode-vxlan.c \
 	defrag.c \
 	defrag-config.c \
 	defrag-hash.c \
@@ -669,29 +758,17 @@ libsuricata_c_a_SOURCES = \
 	detect-csum.c \
 	detect-datarep.c \
 	detect-dataset.c \
-	detect-dce-iface.c \
-	detect-dce-opnum.c \
-	detect-dce-stub-data.c \
 	detect-depth.c \
 	detect-detection-filter.c \
 	detect-distance.c \
-	detect-dnp3.c \
-	detect-dns-answer-name.c \
-	detect-dns-opcode.c \
-	detect-dns-rcode.c \
-	detect-dns-rrtype.c \
-	detect-dns-query.c \
-	detect-dns-query-name.c \
 	detect-dsize.c \
 	detect-engine-address.c \
 	detect-engine-address-ipv4.c \
-	detect-engine-address-ipv6.c \
 	detect-engine-alert.c \
 	detect-engine-analyzer.c \
 	detect-engine-build.c \
 	detect-engine.c \
 	detect-engine-content-inspection.c \
-	detect-engine-dcepayload.c \
 	detect-engine-event.c \
 	detect-engine-file.c \
 	detect-engine-frame.c \
@@ -731,82 +808,27 @@ libsuricata_c_a_SOURCES = \
 	detect-fragbits.c \
 	detect-fragoffset.c \
 	detect-frame.c \
-	detect-ftpbounce.c \
-	detect-ftpdata.c \
 	detect-geoip.c \
 	detect-gid.c \
 	detect-hostbits.c \
-	detect-http2.c \
-	detect-http-accept.c \
-	detect-http-accept-enc.c \
-	detect-http-accept-lang.c \
-	detect-http-client-body.c \
-	detect-http-connection.c \
-	detect-http-content-len.c \
-	detect-http-content-type.c \
-	detect-http-cookie.c \
-	detect-http-header.c \
-	detect-http-header-common.c \
-	detect-http-header-names.c \
-	detect-http-headers.c \
-	detect-http-host.c \
-	detect-http-location.c \
-	detect-http-method.c \
-	detect-http-protocol.c \
-	detect-http-raw-header.c \
-	detect-http-referer.c \
-	detect-http-request-line.c \
-	detect-http-response-line.c \
-	detect-http-server-body.c \
-	detect-http-server.c \
-	detect-http-start.c \
-	detect-http-stat-code.c \
-	detect-http-stat-msg.c \
-	detect-http-ua.c \
-	detect-http-uri.c \
 	detect-icmp-id.c \
 	detect-icmp-seq.c \
 	detect-icmpv4hdr.c \
-	detect-icmpv6hdr.c \
-	detect-icmpv6-mtu.c \
 	detect-icode.c \
 	detect-id.c \
-	detect-ike-exch-type.c \
-	detect-ike-spi.c \
-	detect-ike-vendor.c \
-	detect-ike-chosen-sa.c \
-	detect-ike-key-exchange-payload-length.c \
-	detect-ike-nonce-payload-length.c \
-	detect-ike-nonce-payload.c \
-	detect-ike-key-exchange-payload.c \
 	detect-ipaddr.c \
 	detect-ipopts.c \
 	detect-ipproto.c \
 	detect-iprep.c \
 	detect-ipv4hdr.c \
-	detect-ipv6hdr.c \
 	detect-isdataat.c \
 	detect-itype.c \
-	detect-ja4-hash.c \
-	detect-krb5-cname.c \
-	detect-krb5-errcode.c \
-	detect-krb5-msgtype.c \
-	detect-krb5-sname.c \
-	detect-krb5-ticket-encryption.c \
 	detect-l3proto.c \
 	detect-lua.c \
 	detect-lua-extensions.c \
 	detect-mark.c \
 	detect-metadata.c \
-	detect-modbus.c \
-	detect-quic-sni.c \
-	detect-quic-ua.c \
-	detect-quic-version.c \
-	detect-quic-cyu-hash.c \
-	detect-quic-cyu-string.c \
 	detect-msg.c \
-	detect-nfs-procedure.c \
-	detect-nfs-version.c \
 	detect-noalert.c \
 	detect-nocase.c \
 	detect-offset.c \
@@ -824,54 +846,25 @@ libsuricata_c_a_SOURCES = \
 	detect-rpc.c \
 	detect-sameip.c \
 	detect-sid.c \
-	detect-sip-method.c \
-	detect-sip-uri.c \
-	detect-smb-ntlmssp.c \
-	detect-smb-share.c \
-	detect-smb-version.c \
-	detect-ssh-hassh.c \
-	detect-ssh-hassh-server.c \
-	detect-ssh-hassh-server-string.c \
-	detect-ssh-hassh-string.c \
-	detect-ssh-proto.c \
-	detect-ssh-proto-version.c \
-	detect-ssh-software.c \
-	detect-ssh-software-version.c \
-	detect-ssl-state.c \
-	detect-ssl-version.c \
 	detect-stream_size.c \
 	detect-tag.c \
 	detect-target.c \
-	detect-tcp-ack.c \
-	detect-tcp-flags.c \
-	detect-tcphdr.c \
-	detect-tcpmss.c \
-	detect-tcp-seq.c \
-	detect-tcp-window.c \
-	detect-template2.c \
-	detect-template.c \
 	detect-threshold.c \
-	detect-tls.c \
-	detect-tls-alpn.c \
-	detect-tls-cert-fingerprint.c \
-	detect-tls-cert-issuer.c \
-	detect-tls-certs.c \
-	detect-tls-cert-serial.c \
-	detect-tls-cert-subject.c \
-	detect-tls-cert-validity.c \
-	detect-tls-subjectaltname.c \
-	detect-tls-ja3-hash.c \
-	detect-tls-ja3s-hash.c \
-	detect-tls-ja3s-string.c \
-	detect-tls-ja3-string.c \
-	detect-tls-sni.c \
-	detect-tls-version.c \
-	detect-tls-random.c \
 	detect-tos.c \
 	detect-transform-base64.c \
+	detect-transform-casechange.c \
+	detect-transform-compress-whitespace.c \
+	detect-transform-dotprefix.c \
+	detect-transform-header-lowercase.c \
+	detect-transform-md5.c \
 	detect-transform-pcrexform.c \
+	detect-transform-sha1.c \
+	detect-transform-sha256.c \
+	detect-transform-strip-pseudo-headers.c \
+	detect-transform-strip-whitespace.c \
+	detect-transform-urldecode.c \
+	detect-transform-xor.c \
 	detect-ttl.c \
-	detect-udphdr.c \
 	detect-uricontent.c \
 	detect-urilen.c \
 	detect-within.c \
@@ -880,7 +873,6 @@ libsuricata_c_a_SOURCES = \
 	feature.c \
 	flow-bit.c \
 	flow-bypass.c \
-	flow-callbacks.c \
 	flow.c \
 	flow-hash.c \
 	flow-manager.c \
@@ -902,12 +894,8 @@ libsuricata_c_a_SOURCES = \
 	ippair-storage.c \
 	ippair-timeout.c \
 	log-cf-common.c \
-	log-httplog.c \
 	log-pcap.c \
 	log-stats.c \
-	log-tcp-data.c \
-	log-tlslog.c \
-	log-tlsstore.c \
 	output.c \
 	output-eve-stream.c \
 	output-file.c \
@@ -916,31 +904,16 @@ libsuricata_c_a_SOURCES = \
 	output-flow.c \
 	output-json-alert.c \
 	output-json-anomaly.c \
-	output-json-arp.c \
 	output-json.c \
 	output-json-common.c \
-	output-json-dcerpc.c \
-	output-json-dhcp.c \
-	output-json-dnp3.c \
-	output-json-dnp3-objects.c \
-	output-json-dns.c \
 	output-json-drop.c \
 	output-json-email-common.c \
 	output-json-file.c \
 	output-json-flow.c \
 	output-json-frame.c \
-	output-json-ftp.c \
-	output-json-http.c \
-	output-json-ike.c \
 	output-json-metadata.c \
-	output-json-mqtt.c \
 	output-json-netflow.c \
-	output-json-nfs.c \
-	output-json-pgsql.c \
-	output-json-smb.c \
-	output-json-smtp.c \
 	output-json-stats.c \
-	output-json-tls.c \
 	output-eve.c \
 	output-eve-syslog.c \
 	output-eve-null.c \
@@ -961,6 +934,7 @@ libsuricata_c_a_SOURCES = \
 	runmode-erf-dag.c \
 	runmode-erf-file.c \
 	runmode-ipfw.c \
+	runmode-napatech.c \
 	runmode-netmap.c \
 	runmode-nflog.c \
 	runmode-nfq.c \
@@ -977,6 +951,7 @@ libsuricata_c_a_SOURCES = \
 	source-erf-dag.c \
 	source-erf-file.c \
 	source-ipfw.c \
+	source-napatech.c \
 	source-netmap.c \
 	source-nflog.c \
 	source-nfq.c \
@@ -986,16 +961,7 @@ libsuricata_c_a_SOURCES = \
 	source-pcap-file-helper.c \
 	source-windivert.c \
 	stream.c \
-	stream-tcp.c \
-	stream-tcp-cache.c \
-	stream-tcp-inline.c \
-	stream-tcp-list.c \
-	stream-tcp-reassemble.c \
-	stream-tcp-sack.c \
-	stream-tcp-util.c \
 	suricata.c \
-	thread-callbacks.c \
-	thread-storage.c \
 	threads.c \
 	tm-modules.c \
 	tmqh-flow.c \
@@ -1047,22 +1013,12 @@ libsuricata_c_a_SOURCES = \
 	util-hyperscan.c \
 	util-ioctl.c \
 	util-ip.c \
-	util-ja3.c \
 	util-landlock.c \
 	util-logopenfile.c \
 	util-log-redis.c \
 	util-lua.c \
 	util-lua-common.c \
-	util-lua-dnp3.c \
-	util-lua-dnp3-objects.c \
-	util-lua-dns.c \
-	util-lua-hassh.c \
-	util-lua-http.c \
-	util-lua-ja3.c \
 	util-lua-sandbox.c \
-	util-lua-smtp.c \
-	util-lua-ssh.c \
-	util-lua-tls.c \
 	util-macset.c \
 	util-magic.c \
 	util-mem.c \
@@ -1074,6 +1030,7 @@ libsuricata_c_a_SOURCES = \
 	util-mpm-ac-ks-small.c \
 	util-mpm.c \
 	util-mpm-hs.c \
+	util-napatech.c \
 	util-pages.c \
 	util-path.c \
 	util-pidfile.c \
@@ -1090,8 +1047,7 @@ libsuricata_c_a_SOURCES = \
 	util-profiling-rulegroups.c \
 	util-profiling-rules.c \
 	util-proto-name.c \
-	util-radix4-tree.c \
-	util-radix6-tree.c \
+	util-radix-tree.c \
 	util-random.c \
 	util-reference-config.c \
 	util-rohash.c \
@@ -1123,6 +1079,321 @@ libsuricata_c_a_SOURCES = \
 	win32-misc.c \
 	win32-service.c \
 	win32-syscall.c
+	
+if ENABLE_ESP
+libsuricata_c_a_SOURCES += decode-esp.c
+endif
+	
+if ENABLE_MQTT
+libsuricata_c_a_SOURCES += output-json-mqtt.c
+endif	
+
+if ENABLE_RAW
+libsuricata_c_a_SOURCES += decode-raw.c
+endif
+
+if ENABLE_SMTP	
+libsuricata_c_a_SOURCES += app-layer-smtp.c
+libsuricata_c_a_SOURCES += output-json-smtp.c 
+libsuricata_c_a_SOURCES += util-lua-smtp.c
+endif
+
+if ENABLE_IMAP
+libsuricata_c_a_SOURCES += app-layer-imap.c
+endif	
+	
+if ENABLE_KRB5
+libsuricata_c_a_SOURCES += detect-krb5-cname.c
+libsuricata_c_a_SOURCES += detect-krb5-errcode.c
+libsuricata_c_a_SOURCES += detect-krb5-msgtype.c
+libsuricata_c_a_SOURCES += detect-krb5-sname.c
+libsuricata_c_a_SOURCES += detect-krb5-ticket-encryption.c
+endif
+	
+if ENABLE_SMB
+libsuricata_c_a_SOURCES += app-layer-smb.c
+libsuricata_c_a_SOURCES += detect-smb-ntlmssp.c
+libsuricata_c_a_SOURCES += detect-smb-share.c
+libsuricata_c_a_SOURCES += detect-smb-version.c
+libsuricata_c_a_SOURCES += output-json-smb.c
+endif
+
+if ENABLE_FTP
+libsuricata_c_a_SOURCES += app-layer-ftp.c
+libsuricata_c_a_SOURCES += detect-ftpbounce.c
+libsuricata_c_a_SOURCES += detect-ftpdata.c
+libsuricata_c_a_SOURCES += output-json-ftp.c
+endif
+
+if ENABLE_SSH
+libsuricata_c_a_SOURCES += app-layer-ssh.c
+libsuricata_c_a_SOURCES += detect-ssh-hassh.c
+libsuricata_c_a_SOURCES += detect-ssh-hassh-server.c
+libsuricata_c_a_SOURCES += detect-ssh-hassh-server-string.c 
+libsuricata_c_a_SOURCES += detect-ssh-hassh-string.c 
+libsuricata_c_a_SOURCES += detect-ssh-proto.c
+libsuricata_c_a_SOURCES += detect-ssh-proto-version.c 
+libsuricata_c_a_SOURCES += detect-ssh-software.c
+libsuricata_c_a_SOURCES += detect-ssh-software-version.c 
+libsuricata_c_a_SOURCES += util-lua-ssh.c
+libsuricata_c_a_SOURCES += util-lua-hassh.c
+endif
+
+if ENABLE_ARP
+libsuricata_c_a_SOURCES += decode-arp.c
+libsuricata_c_a_SOURCES += output-json-arp.c
+endif
+
+if ENABLE_PPPOE
+libsuricata_c_a_SOURCES += decode-pppoe.c
+endif
+
+if ENABLE_DHCP
+libsuricata_c_a_SOURCES += output-json-dhcp.c
+endif
+
+if ENABLE_DNS
+libsuricata_c_a_SOURCES += detect-dns-answer-name.c
+libsuricata_c_a_SOURCES += detect-dns-opcode.c
+libsuricata_c_a_SOURCES += detect-dns-rcode.c
+libsuricata_c_a_SOURCES += detect-dns-rrtype.c
+libsuricata_c_a_SOURCES += detect-dns-query.c
+libsuricata_c_a_SOURCES += detect-dns-query-name.c
+libsuricata_c_a_SOURCES += output-json-dns.c
+libsuricata_c_a_SOURCES += util-lua-dns.c
+endif
+
+if ENABLE_TLS
+libsuricata_c_a_SOURCES += detect-tls-alpn.c
+libsuricata_c_a_SOURCES += detect-tls-cert-fingerprint.c
+libsuricata_c_a_SOURCES += detect-tls-cert-issuer.c 
+libsuricata_c_a_SOURCES += detect-tls-cert-serial.c
+libsuricata_c_a_SOURCES += detect-tls-certs.c
+libsuricata_c_a_SOURCES += detect-tls-cert-subject.c 
+libsuricata_c_a_SOURCES += detect-tls-cert-validity.c 
+libsuricata_c_a_SOURCES += detect-tls-subjectaltname.c 
+libsuricata_c_a_SOURCES += detect-tls.c
+libsuricata_c_a_SOURCES += detect-tls-ja3-hash.c 
+libsuricata_c_a_SOURCES += detect-tls-ja3s-hash.c
+libsuricata_c_a_SOURCES += detect-tls-ja3s-string.c
+libsuricata_c_a_SOURCES += detect-tls-ja3-string.c 
+libsuricata_c_a_SOURCES += detect-tls-sni.c 
+libsuricata_c_a_SOURCES += detect-tls-version.c 
+libsuricata_c_a_SOURCES += detect-tls-random.c
+libsuricata_c_a_SOURCES += log-tlslog.c
+libsuricata_c_a_SOURCES += log-tlsstore.c
+libsuricata_c_a_SOURCES += output-json-tls.c
+libsuricata_c_a_SOURCES += util-lua-tls.c
+libsuricata_c_a_SOURCES += app-layer-ssl.c
+libsuricata_c_a_SOURCES += detect-ssl-state.c
+libsuricata_c_a_SOURCES += detect-ssl-version.c
+libsuricata_c_a_SOURCES += util-ja3.c
+libsuricata_c_a_SOURCES += util-lua-ja3.c
+libsuricata_c_a_SOURCES += detect-ja4-hash.c
+endif
+
+
+if ENABLE_HTTP
+libsuricata_c_a_SOURCES += app-layer-htp-body.c 
+libsuricata_c_a_SOURCES += app-layer-htp-file.c 
+libsuricata_c_a_SOURCES += app-layer-htp.c
+libsuricata_c_a_SOURCES += app-layer-htp-libhtp.c 
+libsuricata_c_a_SOURCES += app-layer-htp-mem.c
+libsuricata_c_a_SOURCES += app-layer-htp-range.c 
+libsuricata_c_a_SOURCES += app-layer-htp-xff.c 
+libsuricata_c_a_SOURCES += app-layer-http2.c
+libsuricata_c_a_SOURCES += detect-http2.c
+libsuricata_c_a_SOURCES += detect-http-accept-enc.c 
+libsuricata_c_a_SOURCES += detect-http-accept.c
+libsuricata_c_a_SOURCES += detect-http-accept-lang.c 
+libsuricata_c_a_SOURCES += detect-http-client-body.c
+libsuricata_c_a_SOURCES += detect-http-connection.c 
+libsuricata_c_a_SOURCES += detect-http-content-len.c 
+libsuricata_c_a_SOURCES += detect-http-content-type.c 
+libsuricata_c_a_SOURCES += detect-http-cookie.c 
+libsuricata_c_a_SOURCES += detect-http-header-common.c 
+libsuricata_c_a_SOURCES += detect-http-header.c 
+libsuricata_c_a_SOURCES += detect-http-header-names.c 
+libsuricata_c_a_SOURCES += detect-http-headers.c 
+libsuricata_c_a_SOURCES += detect-http-host.c
+libsuricata_c_a_SOURCES += detect-http-location.c 
+libsuricata_c_a_SOURCES += detect-http-method.c
+libsuricata_c_a_SOURCES += detect-http-protocol.c
+libsuricata_c_a_SOURCES += detect-http-raw-header.c 
+libsuricata_c_a_SOURCES += detect-http-referer.c
+libsuricata_c_a_SOURCES += detect-http-request-line.c
+libsuricata_c_a_SOURCES += detect-http-response-line.c 
+libsuricata_c_a_SOURCES += detect-http-server-body.c 
+libsuricata_c_a_SOURCES += detect-http-server.c 
+libsuricata_c_a_SOURCES += detect-http-start.c
+libsuricata_c_a_SOURCES += detect-http-stat-code.c 
+libsuricata_c_a_SOURCES += detect-http-stat-msg.c 
+libsuricata_c_a_SOURCES += detect-http-ua.c
+libsuricata_c_a_SOURCES += detect-http-uri.c 
+libsuricata_c_a_SOURCES += log-httplog.c
+libsuricata_c_a_SOURCES += output-json-http.c
+libsuricata_c_a_SOURCES += util-lua-http.c
+endif
+
+#	ETHERNET
+libsuricata_c_a_SOURCES += decode-ethernet.c
+
+libsuricata_c_a_SOURCES += decode-udp.c
+#if ENABLE_UDP
+libsuricata_c_a_SOURCES += detect-udphdr.c
+#endif
+
+#if ENABLE_TCP
+libsuricata_c_a_SOURCES += detect-tcp-ack.c
+libsuricata_c_a_SOURCES += detect-tcphdr.c
+libsuricata_c_a_SOURCES += detect-tcpmss.c
+libsuricata_c_a_SOURCES += detect-tcp-seq.c
+libsuricata_c_a_SOURCES += detect-tcp-window.c 
+libsuricata_c_a_SOURCES += log-tcp-data.c 
+#endif
+libsuricata_c_a_SOURCES += decode-tcp.c
+libsuricata_c_a_SOURCES += detect-tcp-flags.c
+libsuricata_c_a_SOURCES += stream-tcp.c
+libsuricata_c_a_SOURCES += stream-tcp-cache.c
+libsuricata_c_a_SOURCES += stream-tcp-inline.c 
+libsuricata_c_a_SOURCES += stream-tcp-list.c
+libsuricata_c_a_SOURCES += stream-tcp-reassemble.c 
+libsuricata_c_a_SOURCES += stream-tcp-sack.c 
+libsuricata_c_a_SOURCES += stream-tcp-util.c
+
+if ENABLE_IPV6
+libsuricata_c_a_SOURCES += datasets-ipv6.c 
+libsuricata_c_a_SOURCES += decode-ipv6.c 
+libsuricata_c_a_SOURCES += detect-ipv6hdr.c
+libsuricata_c_a_SOURCES += decode-icmpv6.c 
+libsuricata_c_a_SOURCES += detect-icmpv6hdr.c 
+libsuricata_c_a_SOURCES += detect-icmpv6-mtu.c
+libsuricata_c_a_SOURCES += detect-engine-address-ipv6.c
+endif
+
+if ENABLE_IKE
+libsuricata_c_a_SOURCES += app-layer-ike.c 
+libsuricata_c_a_SOURCES += detect-ike-exch-type.c 
+libsuricata_c_a_SOURCES += detect-ike-spi.c 
+libsuricata_c_a_SOURCES += detect-ike-vendor.c 
+libsuricata_c_a_SOURCES += detect-ike-chosen-sa.c 
+libsuricata_c_a_SOURCES += detect-ike-key-exchange-payload-length.c 
+libsuricata_c_a_SOURCES += detect-ike-nonce-payload-length.c 
+libsuricata_c_a_SOURCES += detect-ike-nonce-payload.c 
+libsuricata_c_a_SOURCES += detect-ike-key-exchange-payload.c 
+libsuricata_c_a_SOURCES += output-json-ike.c 
+endif
+
+if ENABLE_SCTP
+libsuricata_c_a_SOURCES += decode-sctp.c 
+endif
+
+if ENABLE_GRE
+libsuricata_c_a_SOURCES += decode-gre.c 
+endif
+
+if ENABLE_PPP
+libsuricata_c_a_SOURCES += decode-ppp.c
+endif
+
+if ENABLE_SLL
+libsuricata_c_a_SOURCES += decode-sll.c
+endif
+
+if ENABLE_VXLAN
+libsuricata_c_a_SOURCES += decode-vxlan.c
+endif
+
+if ENABLE_ERSPAN
+libsuricata_c_a_SOURCES += decode-erspan.c 
+endif
+
+if ENABLE_MPLS
+libsuricata_c_a_SOURCES += decode-mpls.c 
+endif
+
+if ENABLE_GENEVE
+libsuricata_c_a_SOURCES += decode-geneve.c 
+endif
+
+if ENABLE_DCERPC
+libsuricata_c_a_SOURCES += output-json-dcerpc.c
+libsuricata_c_a_SOURCES += detect-dce-iface.c 
+libsuricata_c_a_SOURCES += detect-dce-opnum.c
+libsuricata_c_a_SOURCES += detect-dce-stub-data.c 
+libsuricata_c_a_SOURCES += detect-engine-dcepayload.c
+endif
+
+if ENABLE_MODBUS
+libsuricata_c_a_SOURCES += app-layer-modbus.c
+libsuricata_c_a_SOURCES += detect-modbus.c
+endif
+
+if ENABLE_DNP3
+libsuricata_c_a_SOURCES += app-layer-dnp3.c 
+libsuricata_c_a_SOURCES += app-layer-dnp3-objects.c 
+libsuricata_c_a_SOURCES += detect-dnp3.c 
+libsuricata_c_a_SOURCES += output-json-dnp3.c 
+libsuricata_c_a_SOURCES += output-json-dnp3-objects.c 
+libsuricata_c_a_SOURCES += util-lua-dnp3.c 
+libsuricata_c_a_SOURCES += util-lua-dnp3-objects.c 
+endif
+
+if ENABLE_NFS
+libsuricata_c_a_SOURCES += app-layer-nfs-tcp.c 
+libsuricata_c_a_SOURCES += app-layer-nfs-udp.c 
+libsuricata_c_a_SOURCES += detect-nfs-procedure.c 
+libsuricata_c_a_SOURCES += detect-nfs-version.c 
+libsuricata_c_a_SOURCES += output-json-nfs.c 
+endif
+
+if ENABLE_TFTP
+libsuricata_c_a_SOURCES += app-layer-tftp.c
+endif
+
+if ENABLE_SIP
+libsuricata_c_a_SOURCES += detect-sip-method.c
+libsuricata_c_a_SOURCES += detect-sip-uri.c
+endif
+
+if ENABLE_QUIC
+libsuricata_c_a_SOURCES += detect-quic-sni.c 
+libsuricata_c_a_SOURCES += detect-quic-ua.c 
+libsuricata_c_a_SOURCES += detect-quic-version.c 
+libsuricata_c_a_SOURCES += detect-quic-cyu-hash.c 
+libsuricata_c_a_SOURCES += detect-quic-cyu-string.c
+endif
+
+if ENABLE_PGSQL
+libsuricata_c_a_SOURCES += output-json-pgsql.c
+endif
+
+if ENABLE_VLAN
+libsuricata_c_a_SOURCES += decode-vlan.c 
+endif
+
+if ENABLE_CHDLC
+libsuricata_c_a_SOURCES += decode-chdlc.c
+endif
+
+if ENABLE_NSH
+libsuricata_c_a_SOURCES += decode-nsh.c
+endif
+
+if ENABLE_VNTAG
+libsuricata_c_a_SOURCES += decode-vntag.c
+endif
+
+if ENABLE_TEREDO
+libsuricata_c_a_SOURCES += decode-teredo.c
+endif
+
+#	TEMPLATE
+#	decode-template.c 
+#	detect-template2.c 
+#	detect-template.c
+#	detect-template-rust-buffer.c
+
 
 EXTRA_DIST = \
 	tests/stream-tcp-inline.c \
@@ -1138,6 +1409,7 @@ EXTRA_DIST = \
 	tests/detect-icmpv6hdr.c \
 	tests/detect-template.c \
 	tests/detect-transform-pcrexform.c \
+	tests/detect-transform-xor.c \
 	tests/detect-ttl.c \
 	tests/source-pcap.c \
 	tests/app-layer-htp-file.c \
@@ -1160,6 +1432,7 @@ EXTRA_DIST = \
 	tests/detect-http-user-agent.c \
 	tests/detect-ssl-state.c \
 	tests/detect-ssl-version.c \
+	tests/detect-template-buffer.c \
 	tests/detect-tls-cert-fingerprint.c \
 	tests/detect-tls-cert-issuer.c \
 	tests/detect-tls-cert-serial.c \
@@ -1177,12 +1450,6 @@ install-headers:
 	for header in $(noinst_HEADERS); do \
 		$(INSTALL_DATA) $$header "$(DESTDIR)${includedir}/suricata"; \
 	done
-	if test -e ../rust/dist/rust-bindings.h; then \
-		$(INSTALL_DATA) ../rust/dist/rust-bindings.h "$(DESTDIR)${includedir}/suricata"; \
-	fi
-	if test -e ../rust/gen/rust-bindings.h; then \
-		$(INSTALL_DATA) ../rust/gen/rust-bindings.h "$(DESTDIR)${includedir}/suricata"; \
-	fi
 
 # Until we can remove autoconf.h from our headers, we need to to
 # provide this for library/plugin users.

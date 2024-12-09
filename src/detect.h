@@ -37,8 +37,7 @@
 #include "util-spm.h"
 #include "util-hash.h"
 #include "util-hashlist.h"
-#include "util-radix4-tree.h"
-#include "util-radix6-tree.h"
+#include "util-radix-tree.h"
 #include "util-file.h"
 #include "reputation.h"
 
@@ -53,8 +52,9 @@
 // tx_id value to use when there is no transaction
 #define PACKET_ALERT_NOTX UINT64_MAX
 
-/* forward declaration for sigorder logic in detect-engine-sigorder.[ch] */
+/* forward declarations for the structures from detect-engine-sigorder.h */
 struct SCSigOrderFunc_;
+struct SCSigSignatureWrapper_;
 
 /* Forward declarations for structures from Rust. */
 typedef struct SCDetectRequiresStatus SCDetectRequiresStatus;
@@ -432,8 +432,6 @@ typedef struct DetectEngineAppInspectionEngine_ {
     uint8_t id;     /**< per sig id used in state keeping */
     bool mpm;
     bool stream;
-    /** will match on a NULL buffer (so an absent buffer) */
-    bool match_on_null;
     uint16_t sm_list;
     uint16_t sm_list_base; /**< base buffer being transformed */
     int16_t progress;
@@ -768,8 +766,8 @@ typedef struct SCFPSupportSMList_ {
 /** \brief IP only rules matching ctx. */
 typedef struct DetectEngineIPOnlyCtx_ {
     /* Lookup trees */
-    SCRadix4Tree tree_ipv4src, tree_ipv4dst;
-    SCRadix6Tree tree_ipv6src, tree_ipv6dst;
+    SCRadixTree *tree_ipv4src, *tree_ipv4dst;
+    SCRadixTree *tree_ipv6src, *tree_ipv6dst;
 
     /* Used to build the radix trees */
     IPOnlyCIDRItem *ip_src, *ip_dst;
@@ -976,8 +974,8 @@ typedef struct DetectEngineCtx_ {
 
     HashListTable *dport_hash_table;
 
-    DetectPort *tcp_priorityports;
-    DetectPort *udp_priorityports;
+    DetectPort *tcp_whitelist;
+    DetectPort *udp_whitelist;
 
     /** table for storing the string representation with the parsers result */
     HashListTable *address_table;
@@ -1595,6 +1593,11 @@ void *DetectGetInnerTx(void *tx_ptr, AppProto alproto, AppProto engine_alproto, 
 
 void RuleMatchCandidateTxArrayInit(DetectEngineThreadCtx *det_ctx, uint32_t size);
 void RuleMatchCandidateTxArrayFree(DetectEngineThreadCtx *det_ctx);
+
+void AlertQueueInit(DetectEngineThreadCtx *det_ctx);
+void AlertQueueFree(DetectEngineThreadCtx *det_ctx);
+void AlertQueueAppend(DetectEngineThreadCtx *det_ctx, const Signature *s, Packet *p, uint64_t tx_id,
+        uint8_t alert_flags);
 
 int DetectFlowbitsAnalyze(DetectEngineCtx *de_ctx);
 

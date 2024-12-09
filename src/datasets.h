@@ -33,7 +33,9 @@ enum DatasetTypes {
     DATASET_TYPE_MD5,
     DATASET_TYPE_SHA256,
     DATASET_TYPE_IPV4,
+    #if ENABLE_IPV6
     DATASET_TYPE_IPV6,
+    #endif
 };
 
 #define DATASET_NAME_MAX_LEN 63

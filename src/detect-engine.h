@@ -31,8 +31,7 @@ void InspectionBufferInit(InspectionBuffer *buffer, uint32_t initial_size);
 void InspectionBufferSetup(DetectEngineThreadCtx *det_ctx, const int list_id,
         InspectionBuffer *buffer, const uint8_t *data, const uint32_t data_len);
 void InspectionBufferFree(InspectionBuffer *buffer);
-void *InspectionBufferCheckAndExpand(InspectionBuffer *buffer, uint32_t min_size);
-void InspectionBufferTruncate(InspectionBuffer *buffer, uint32_t buf_len);
+void InspectionBufferCheckAndExpand(InspectionBuffer *buffer, uint32_t min_size);
 void InspectionBufferCopy(InspectionBuffer *buffer, uint8_t *buf, uint32_t buf_len);
 void InspectionBufferApplyTransforms(InspectionBuffer *buffer,
         const DetectEngineTransforms *transforms);
@@ -75,6 +74,7 @@ bool DetectEngineBufferTypeSupportsMultiInstanceGetById(
         const DetectEngineCtx *de_ctx, const int id);
 bool DetectEngineBufferTypeSupportsFramesGetById(const DetectEngineCtx *de_ctx, const int id);
 const char *DetectEngineBufferTypeGetDescriptionById(const DetectEngineCtx *de_ctx, const int id);
+const DetectBufferType *DetectEngineBufferTypeGetById(const DetectEngineCtx *de_ctx, const int id);
 int DetectEngineBufferTypeGetByIdTransforms(
         DetectEngineCtx *de_ctx, const int id, TransformData *transforms, int transform_cnt);
 void DetectEngineBufferRunSetupCallback(const DetectEngineCtx *de_ctx, const int id, Signature *s);
@@ -191,6 +191,8 @@ void DetectEngineSetParseMetadata(void);
 void DetectEngineUnsetParseMetadata(void);
 int DetectEngineMustParseMetadata(void);
 
+SigMatch *DetectBufferGetFirstSigMatch(const Signature *s, const uint32_t buf_id);
+SigMatch *DetectBufferGetLastSigMatch(const Signature *s, const uint32_t buf_id);
 bool DetectBufferIsPresent(const Signature *s, const uint32_t buf_id);
 
 int WARN_UNUSED DetectBufferSetActiveList(DetectEngineCtx *de_ctx, Signature *s, const int list);

@@ -77,11 +77,12 @@ int DecodeNull(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
             DecodeIPV4(
                     tv, dtv, p, GET_PKT_DATA(p) + HDR_SIZE, (uint16_t)(GET_PKT_LEN(p) - HDR_SIZE));
             break;
+        #if ENABLE_IPV6    
         case AF_INET6_BSD:
         case AF_INET6_FREEBSD:
         case AF_INET6_DARWIN:
         case AF_INET6_LINUX:
-        case AF_INET6_SOLARIS:
+        case AF_INET6_SOLARIS: 
         case AF_INET6_WINSOCK:
             SCLogDebug("IPV6 Packet");
             if (GET_PKT_LEN(p) - HDR_SIZE > USHRT_MAX) {
@@ -90,6 +91,7 @@ int DecodeNull(ThreadVars *tv, DecodeThreadVars *dtv, Packet *p,
             DecodeIPV6(
                     tv, dtv, p, GET_PKT_DATA(p) + HDR_SIZE, (uint16_t)(GET_PKT_LEN(p) - HDR_SIZE));
             break;
+        #endif    
         default:
             SCLogDebug("Unknown Null packet type version %" PRIu32 "", type);
             ENGINE_SET_EVENT(p, LTNULL_UNSUPPORTED_TYPE);
