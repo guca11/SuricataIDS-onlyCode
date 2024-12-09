@@ -1588,6 +1588,10 @@ use of libhtp.
        #compression-bomb-limit: 1 Mb
        # Maximum time spent decompressing a single transaction in usec
        #decompression-time-limit: 100000
+       # Maximum number of live transactions per flow
+       #max-tx: 512
+       # Maximum used number of HTTP1 headers in one request or response
+       #headers-limit: 1024
 
 Other parameters are customizable from Suricata.
 ::
@@ -1681,6 +1685,38 @@ the limits are exceeded, and an event will be raised.
 
 `max-write-queue-size` and `max-write-queue-cnt` are as the READ variants,
 but then for WRITEs.
+
+Cache limits
+^^^^^^^^^^^^
+
+The SMB parser uses several per flow caches to track data between different records
+and transactions. These caches have a size ceiling. When the size limit is reached,
+new additions will automatically evict the oldest entries.
+
+::
+
+    smb:
+      max-guid-cache-size: 1024
+      max-rec-offset-cache-size: 128
+      max-tree-cache-size: 512
+      max-dcerpc-frag-cache-size: 128
+      max-session-cache-size: 512
+
+The `max-guid-cache-size` setting controls the size of the hash that maps the GUID to
+filenames. These are added through CREATE commands and removed by CLOSE commands.
+
+`max-rec-offset-cache-size` controls the size of the hash that maps the READ offset
+from READ commands to the READ responses.
+
+The `max-tree-cache-size` option contols the size of the SMB session to SMB tree hash.
+
+`max-dcerpc-frag-cache-size` controls the size of the hash that tracks partial DCERPC
+over SMB records. These are buffered in this hash to only parse the DCERPC record when
+it is fully reassembled.
+
+The `max-session-cache-size` setting controls the size of a generic hash table that maps
+SMB session to filenames, GUIDs and share names.
+
 
 Configure HTTP2
 ~~~~~~~~~~~~~~~

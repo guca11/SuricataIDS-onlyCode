@@ -340,6 +340,9 @@
                 },
                 "type": {
                     "type": "string"
+                },
+                "code": {
+                    "type": "integer"
                 }
             },
             "additionalProperties": false
@@ -2010,6 +2013,10 @@
                 },
                 "status": {
                     "type": "integer"
+                },
+                "status_string": {
+                    "description": "status string when it is not a valid integer (like 2XX)",
+                    "type": "string"
                 },
                 "true_client_ip": {
                     "type": "string"
@@ -6393,6 +6400,42 @@
                         },
                         "memuse": {
                             "type": "integer"
+                        },
+                        "byterange": {
+                            "type": "object",
+                            "properties": {
+                                "memcap": {
+                                    "type": "integer"
+                                },
+                                "memuse": {
+                                    "type": "integer"
+                                }
+                            },
+                            "additionalProperties": false
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "host": {
+                    "type": "object",
+                    "properties": {
+                        "memcap": {
+                            "type": "integer"
+                        },
+                        "memuse": {
+                            "type": "integer"
+                        }
+                    },
+                    "additionalProperties": false
+                },
+                "ippair": {
+                    "type": "object",
+                    "properties": {
+                        "memcap": {
+                            "type": "integer"
+                        },
+                        "memuse": {
+                            "type": "integer"
                         }
                     },
                     "additionalProperties": false
@@ -6586,9 +6629,29 @@
         "tls": {
             "type": "object",
             "properties": {
+                "certificate": {
+                    "type": "string"
+                },
+                "chain": {
+                    "type": "array",
+                    "minItems": 1,
+                    "items": {
+                        "type": "string"
+                    }
+                },
                 "client": {
                     "type": "object",
                     "properties": {
+                        "certificate": {
+                            "type": "string"
+                        },
+                        "chain": {
+                            "type": "array",
+                            "minItems": 1,
+                            "items": {
+                                "type": "string"
+                            }
+                        },
                         "fingerprint": {
                             "type": "string"
                         },

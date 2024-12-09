@@ -96,7 +96,7 @@ dist_rule_DATA += decoder-events-sll.rules
 endif
 
 if ENABLE_RFB
-dist_rule_DATA += rfb-events.rules .rules 
+dist_rule_DATA += rfb-events.rules
 endif
 
 if ENABLE_QUIC

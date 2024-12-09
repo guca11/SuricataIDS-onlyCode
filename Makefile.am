@@ -10,6 +10,7 @@ EXTRA_DIST = ChangeLog COPYING LICENSE suricata.yaml.in \
 	     scripts/generate-images.sh \
 	     scripts/docs-almalinux9-minimal-build.sh \
 	     scripts/docs-ubuntu-debian-minimal-build.sh \
+       scripts/evedoc.py \
 	     examples/plugins
 SUBDIRS = $(HTP_DIR) rust src plugins qa rules doc contrib etc python ebpf \
           $(SURICATA_UPDATE_DIR)
@@ -17,10 +18,9 @@ DIST_SUBDIRS = $(SUBDIRS) examples/lib/simple
 
 CLEANFILES = stamp-h[0-9]*
 
-
 install-data-am:
 	@echo "Run 'make install-conf' if you want to install initial configuration files. Or 'make install-full' to install configuration and rules";
-	
+
 install-full:
 	$(MAKE) install
 	$(MAKE) install-conf
@@ -28,7 +28,7 @@ install-full:
 
 install-conf:
 	install -d "$(DESTDIR)$(e_sysconfdir)"
-	install -m 600 "$(top_srcdir)/suricata.yaml" "$(DESTDIR)$(e_sysconfdir)"
+	@test -e "$(DESTDIR)$(e_sysconfdir)/suricata.yaml" || install -m 600 "$(top_srcdir)/suricata.yaml" "$(DESTDIR)$(e_sysconfdir)"
 	@test -e "$(DESTDIR)$(e_sysconfdir)/classification.config" || install -m 600 "$(top_srcdir)/etc/classification.config" "$(DESTDIR)$(e_sysconfdir)"
 	@test -e "$(DESTDIR)$(e_sysconfdir)/reference.config" || install -m 600 "$(top_srcdir)/etc/reference.config" "$(DESTDIR)$(e_sysconfdir)"
 	@test -e "$(DESTDIR)$(e_sysconfdir)/threshold.config" || install -m 600 "$(top_srcdir)/threshold.config" "$(DESTDIR)$(e_sysconfdir)"

@@ -77,6 +77,11 @@ Major changes
     - sip.to
     - sip.content_type
     - sip.content_length
+- Napatech support has been moved to a capture plugin. See :doc:`Napatech plugin
+  <upgrade/8.0-napatech-plugin>`.
+- Unknown requirements in the ``requires`` keyword will now be treated
+  as unmet requirements, causing the rule to not be loaded. See
+  :ref:`keyword_requires`.
 
 Removals
 ~~~~~~~~
