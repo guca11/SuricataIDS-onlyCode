@@ -315,7 +315,7 @@ outputs:
         - smb:
             enabled: @ENABLE_SMB_STRING@
         - tftp:
-            enabled: @ENABLE_TFPT_STRING@
+            enabled: @ENABLE_TFTP_STRING@
         - ike:
             enabled: @ENABLE_IKE_STRING@
         - dcerpc:
@@ -1029,7 +1029,7 @@ app-layer:
     tcp-pkt:
       enabled: yes
     tftp:
-      enabled: @ENABLE_TFPT_STRING@
+      enabled: @ENABLE_TFTP_STRING@
     dns:
       enabled: @ENABLE_DNS_STRING@
       tcp:
