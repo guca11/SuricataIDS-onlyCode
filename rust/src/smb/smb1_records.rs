@@ -817,7 +817,7 @@ pub struct SmbRecord<'a> {
     pub data: &'a[u8],
 }
 
-impl SmbRecord<'_> {
+impl<'a> SmbRecord<'a> {
     pub fn has_unicode_support(&self) -> bool {
         self.flags2 & 0x8000_u16 != 0
     }

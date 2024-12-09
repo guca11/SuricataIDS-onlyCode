@@ -33,7 +33,7 @@ pub enum Filter {
     ExtensibleMatch(MatchingRuleAssertion),
 }
 
-impl From<ldap_parser::filter::Filter<'_>> for Filter {
+impl<'a> From<ldap_parser::filter::Filter<'a>> for Filter {
     fn from(f: ldap_parser::filter::Filter) -> Self {
         match f {
             ldap_parser::filter::Filter::And(val) => {
@@ -123,7 +123,7 @@ pub struct PartialAttribute {
     pub attr_vals: Vec<AttributeValue>,
 }
 
-impl From<&ldap_parser::filter::PartialAttribute<'_>> for PartialAttribute {
+impl<'a> From<&ldap_parser::filter::PartialAttribute<'a>> for PartialAttribute {
     fn from(value: &ldap_parser::filter::PartialAttribute) -> Self {
         let attr_type = LdapString(value.attr_type.0.to_string());
         let attr_vals: Vec<AttributeValue> = value
@@ -145,7 +145,7 @@ pub struct Attribute {
     pub attr_vals: Vec<AttributeValue>,
 }
 
-impl From<&ldap_parser::filter::Attribute<'_>> for Attribute {
+impl<'a> From<&ldap_parser::filter::Attribute<'a>> for Attribute {
     fn from(value: &ldap_parser::filter::Attribute) -> Self {
         let attr_type = LdapString(value.attr_type.0.to_string());
         let attr_vals: Vec<AttributeValue> = value
@@ -166,7 +166,7 @@ pub struct AttributeValueAssertion {
     pub attribute_desc: LdapString,
     pub assertion_value: Vec<u8>,
 }
-impl From<&ldap_parser::filter::AttributeValueAssertion<'_>> for AttributeValueAssertion {
+impl<'a> From<&ldap_parser::filter::AttributeValueAssertion<'a>> for AttributeValueAssertion {
     fn from(value: &ldap_parser::filter::AttributeValueAssertion) -> Self {
         let attribute_desc = LdapString(value.attribute_desc.0.to_string());
         let assertion_value = value.assertion_value.to_vec();
@@ -203,7 +203,7 @@ pub enum Substring {
     Any(AssertionValue),
     Final(AssertionValue),
 }
-impl From<ldap_parser::filter::Substring<'_>> for Substring {
+impl<'a> From<ldap_parser::filter::Substring<'a>> for Substring {
     fn from(value: ldap_parser::filter::Substring) -> Self {
         match value {
             ldap_parser::filter::Substring::Initial(val) => {

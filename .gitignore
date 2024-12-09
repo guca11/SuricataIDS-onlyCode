@@ -6,7 +6,7 @@
 *.[ch]e
 *.log
 *.rule
-
+*.rules
 *.pcap
 *.pcapng
 /*.yaml

@@ -82,7 +82,7 @@ pub struct SNMPTransaction<'a> {
     tx_data: applayer::AppLayerTxData,
 }
 
-impl Transaction for SNMPTransaction<'_> {
+impl<'a> Transaction for SNMPTransaction<'a> {
     fn id(&self) -> u64 {
         self.id
     }

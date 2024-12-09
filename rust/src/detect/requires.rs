@@ -57,12 +57,6 @@ enum RequiresError {
 
     /// Passed in requirements not a valid UTF-8 string.
     Utf8Error,
-
-    /// An unknown requirement was provided.
-    UnknownRequirement(String),
-
-    /// Suricata does not have support for a required keyword.
-    MissingKeyword(String),
 }
 
 impl RequiresError {
@@ -76,8 +70,6 @@ impl RequiresError {
             Self::BadRequires => "Failed to parse requires expression\0",
             Self::MultipleVersions => "Version may only be specified once\0",
             Self::Utf8Error => "Requires expression is not valid UTF-8\0",
-            Self::UnknownRequirement(_) => "Unknown requirements\0",
-            Self::MissingKeyword(_) => "Suricata missing a required keyword\0",
         };
         msg.as_ptr() as *const c_char
     }
@@ -170,20 +162,13 @@ struct RuleRequireVersion {
 
 #[derive(Debug, Default, Eq, PartialEq)]
 struct Requires {
-    /// Features required to be enabled.
     pub features: Vec<String>,
-
-    /// Rule keywords required to exist.
-    pub keywords: Vec<String>,
 
     /// The version expression.
     ///
     /// - All of the inner most must evaluate to true.
     /// - To pass, any of the outer must be true.
     pub version: Vec<Vec<RuleRequireVersion>>,
-
-    /// Unknown parameters to requires.
-    pub unknown: Vec<String>,
 }
 
 fn parse_op(input: &str) -> IResult<&str, VersionCompareOp> {
@@ -253,14 +238,10 @@ fn parse_requires(mut input: &str) -> Result<Requires, RequiresError> {
                     parse_version_expression(value).map_err(|_| RequiresError::BadRequires)?;
                 requires.version = versions;
             }
-            "keyword" => {
-                requires.keywords.push(value.trim().to_string());
-            }
             _ => {
                 // Unknown keyword, allow by warn in case we extend
                 // this in the future.
                 SCLogWarning!("Unknown requires keyword: {}", keyword);
-                requires.unknown.push(format!("{} {}", keyword, value));
             }
         }
 
@@ -310,12 +291,6 @@ fn check_version(
 fn check_requires(
     requires: &Requires, suricata_version: &SuricataVersion,
 ) -> Result<(), RequiresError> {
-    if !requires.unknown.is_empty() {
-        return Err(RequiresError::UnknownRequirement(
-            requires.unknown.join(","),
-        ));
-    }
-
     if !requires.version.is_empty() {
         let mut errs = VecDeque::new();
         let mut ok = 0;
@@ -341,12 +316,6 @@ fn check_requires(
     for feature in &requires.features {
         if !crate::feature::requires(feature) {
             return Err(RequiresError::MissingFeature(feature.to_string()));
-        }
-    }
-
-    for keyword in &requires.keywords {
-        if !crate::feature::has_keyword(keyword) {
-            return Err(RequiresError::MissingKeyword(keyword.to_string()));
         }
     }
 
@@ -617,7 +586,6 @@ mod test {
             requires,
             Requires {
                 features: vec![],
-                keywords: vec![],
                 version: vec![vec![RuleRequireVersion {
                     op: VersionCompareOp::Gte,
                     version: SuricataVersion {
@@ -626,7 +594,6 @@ mod test {
                         patch: 0,
                     }
                 }]],
-                unknown: vec![],
             }
         );
 
@@ -635,7 +602,6 @@ mod test {
             requires,
             Requires {
                 features: vec![],
-                keywords: vec![],
                 version: vec![vec![RuleRequireVersion {
                     op: VersionCompareOp::Gte,
                     version: SuricataVersion {
@@ -644,7 +610,6 @@ mod test {
                         patch: 0,
                     }
                 }]],
-                unknown: vec![],
             }
         );
 
@@ -653,7 +618,6 @@ mod test {
             requires,
             Requires {
                 features: vec!["output::file-store".to_string()],
-                keywords: vec![],
                 version: vec![vec![RuleRequireVersion {
                     op: VersionCompareOp::Gte,
                     version: SuricataVersion {
@@ -662,7 +626,6 @@ mod test {
                         patch: 2,
                     }
                 }]],
-                unknown: vec![],
             }
         );
 
@@ -671,7 +634,6 @@ mod test {
             requires,
             Requires {
                 features: vec!["geoip".to_string()],
-                keywords: vec![],
                 version: vec![vec![
                     RuleRequireVersion {
                         op: VersionCompareOp::Gte,
@@ -690,7 +652,6 @@ mod test {
                         }
                     }
                 ]],
-                unknown: vec![],
             }
         );
     }
@@ -787,12 +748,11 @@ mod test {
         assert!(check_requires(&requires, &SuricataVersion::new(9, 0, 0)).is_err());
 
         // Unknown keyword.
-        let requires = parse_requires("feature true_lua, foo bar, version >= 7.0.3").unwrap();
+        let requires = parse_requires("feature lua, foo bar, version >= 7.0.3").unwrap();
         assert_eq!(
             requires,
             Requires {
-                features: vec!["true_lua".to_string()],
-                keywords: vec![],
+                features: vec!["lua".to_string()],
                 version: vec![vec![RuleRequireVersion {
                     op: VersionCompareOp::Gte,
                     version: SuricataVersion {
@@ -801,14 +761,8 @@ mod test {
                         patch: 3,
                     }
                 }]],
-                unknown: vec!["foo bar".to_string()],
             }
         );
-
-        // This should not pass the requires check as it contains an
-        // unknown requires keyword.
-        //check_requires(&requires, &SuricataVersion::new(8, 0, 0)).unwrap();
-        assert!(check_requires(&requires, &SuricataVersion::new(8, 0, 0)).is_err());
     }
 
     #[test]
@@ -847,14 +801,5 @@ mod test {
                 },],
             ]
         );
-    }
-
-    #[test]
-    fn test_requires_keyword() {
-        let requires = parse_requires("keyword true_bar").unwrap();
-        assert!(check_requires(&requires, &SuricataVersion::new(8, 0, 0)).is_ok());
-
-        let requires = parse_requires("keyword bar").unwrap();
-        assert!(check_requires(&requires, &SuricataVersion::new(8, 0, 0)).is_err());
     }
 }

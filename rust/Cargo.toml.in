@@ -22,6 +22,33 @@ debug = []
 debug-validate = []
 ja3 = []
 ja4 = []
+bittorrent_dht = []
+dhcp = []
+dns = []
+ftp = []
+http2 = []
+krb = []
+ldap = []
+smtp = []
+mqtt = []
+ntp = []
+rdp = []
+smb = []
+snmp = []
+ssh = []
+telnet = []
+websocket = []
+dcerpc = []
+enip = []
+ike = []
+modbus = []
+nfs = []
+pgsql = []
+quic = []
+rfb = []
+sip = []
+tftp = []
+
 
 [dependencies]
 nom7 = { version="7.0", package="nom" }
@@ -32,7 +59,7 @@ crc = "~1.8.1"
 lzma-rs = { version = "~0.2.0", features = ["stream"] }
 memchr = "~2.4.1"
 num = "~0.2.1"
-num-derive = "~0.4.2"
+num-derive = "~0.2.5"
 num-traits = "~0.2.14"
 widestring = "~0.4.3"
 flate2 = "~1.0.19"
@@ -40,7 +67,6 @@ brotli = "~3.4.0"
 hkdf = "~0.12.3"
 aes = "~0.7.5"
 aes-gcm = "~0.9.4"
-lru = "~0.12.5"
 
 der-parser = { version = "~9.0.0", default-features = false }
 kerberos-parser = { version = "~0.8.0", default-features = false }
@@ -63,13 +89,19 @@ base64 = "~0.22.1"
 bendy = { version = "~0.3.3", default-features = false }
 asn1-rs = { version = "~0.6.1" }
 ldap-parser = { version = "~0.4.0" }
-hex = "~0.4.3"
 
 time = "~0.3.36"
 
-suricata-derive = { path = "./derive", version = "@PACKAGE_VERSION@" }
+# pinned until oss-fuzz supports newer rust nightly cf https://github.com/google/oss-fuzz/pull/12365
+serde = { version = "=1.0.197" }
+serde_derive = { version = "1.0.197" }
 
-suricata-lua-sys = { version = "0.1.0-alpha.5" }
+suricata-derive = { path = "./derive", version = "@PACKAGE_VERSION@" }
+#if you plan to build an image for aarch64 
+#suricata-lua-sys = { git = "https://github.com/guca11/suricata-lua-sys-aarch64", rev = "b5dc88e4a32cc9f8e279d0da6e3fcd9acdb90177" }
+#if you need to build an image for x86
+suricata-lua-sys = { version = "0.1.0-alpha.1" }
 
 [dev-dependencies]
 test-case = "~3.3.1"
+hex = "~0.4.3"

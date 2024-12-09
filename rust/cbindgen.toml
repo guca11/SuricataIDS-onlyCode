@@ -83,7 +83,6 @@ include = [
     "QuicTransaction",
     "FtpEvent",
     "SCSigTableElmt",
-    "SCTransformTableElmt",
 ]
 
 # A list of items to not include in the generated bindings

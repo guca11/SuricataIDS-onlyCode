@@ -168,10 +168,15 @@ pub type AppLayerDecoderEventsFreeEventsFunc =
 pub enum StreamingBufferConfig {}
 
 // Opaque flow type (defined in C)
+
+#[cfg(feature = "http2")]
 pub enum HttpRangeContainerBlock {}
 
+#[cfg(feature = "http2")]
 pub type SCHttpRangeFreeBlock = extern "C" fn (
         c: *mut HttpRangeContainerBlock);
+        
+#[cfg(feature = "http2")]
 pub type SCHTPFileCloseHandleRange = extern "C" fn (
         sbcfg: &StreamingBufferConfig,
         fc: *mut FileContainer,
@@ -221,8 +226,9 @@ pub struct SuricataContext {
     AppLayerDecoderEventsSetEventRaw: AppLayerDecoderEventsSetEventRawFunc,
     AppLayerDecoderEventsFreeEvents: AppLayerDecoderEventsFreeEventsFunc,
     pub AppLayerParserTriggerRawStreamReassembly: AppLayerParserTriggerRawStreamReassemblyFunc,
-
+    #[cfg(feature = "http2")]
     pub HttpRangeFreeBlock: SCHttpRangeFreeBlock,
+    #[cfg(feature = "http2")]
     pub HTPFileCloseHandleRange: SCHTPFileCloseHandleRange,
 
     pub FileOpenFile: SCFileOpenFileWithId,
