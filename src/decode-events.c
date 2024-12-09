@@ -453,14 +453,14 @@ const struct DecodeEvents_ DEvents[] = {
     #endif
     #if ENABLE_VNTAG
     /* VNTAG EVENTS */
-    /*{
+    {
             "decoder.vntag.header_too_small",
             VNTAG_HEADER_TOO_SMALL,
     },
     {
             "decoder.vntag.unknown_type",
             VNTAG_UNKNOWN_TYPE,
-    },*/
+    },
     #endif
     /* RAW EVENTS */
     #if ENABLE_RAW
@@ -538,10 +538,10 @@ const struct DecodeEvents_ DEvents[] = {
     #endif
     #if ENABLE_VXLAN
     /* VXLAN events */
-    /*{
+    {
             "decoder.vxlan.unknown_payload_type",
             VXLAN_UNKNOWN_PAYLOAD_TYPE,
-    },*/
+    },
     #endif
     /* Geneve events */
     #if ENABLE_GENEVE
