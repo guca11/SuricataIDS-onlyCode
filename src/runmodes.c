@@ -35,7 +35,6 @@
 #include "runmode-erf-dag.h"
 #include "runmode-erf-file.h"
 #include "runmode-ipfw.h"
-#include "runmode-napatech.h"
 #include "runmode-netmap.h"
 #include "runmode-nflog.h"
 #include "runmode-nfq.h"
@@ -133,8 +132,6 @@ static const char *RunModeTranslateModeToName(int runmode)
             return "ERF_FILE";
         case RUNMODE_DAG:
             return "ERF_DAG";
-        case RUNMODE_NAPATECH:
-            return "NAPATECH";
         case RUNMODE_UNITTEST:
             return "UNITTEST";
         case RUNMODE_AFP_DEV:
@@ -226,7 +223,6 @@ void RunModeRegisterRunModes(void)
     RunModeIpsIPFWRegister();
     RunModeErfFileRegister();
     RunModeErfDagRegister();
-    RunModeNapatechRegister();
     RunModeIdsAFPRegister();
     RunModeIdsAFXDPRegister();
     RunModeIdsNetmapRegister();
@@ -320,9 +316,6 @@ static const char *RunModeGetConfOrDefault(int capture_mode, const char *capture
                 break;
             case RUNMODE_DAG:
                 custom_mode = RunModeErfDagGetDefaultMode();
-                break;
-            case RUNMODE_NAPATECH:
-                custom_mode = RunModeNapatechGetDefaultMode();
                 break;
             case RUNMODE_AFP_DEV:
                 custom_mode = RunModeAFPGetDefaultMode();
@@ -761,10 +754,9 @@ void RunModeInitializeOutputs(void)
 
     ConfNode *output, *output_config;
     const char *enabled;
-    #if ENABLE_TLS
     char tls_log_enabled = 0;
     char tls_store_present = 0;
-    #endif
+
     // ALPROTO_MAX is set to its final value
     LoggerId logger_bits[ALPROTO_MAX] = { 0 };
     TAILQ_FOREACH(output, &outputs->head, next) {
@@ -774,11 +766,11 @@ void RunModeInitializeOutputs(void)
             /* Shouldn't happen. */
             FatalError("Failed to lookup configuration child node: %s", output->val);
         }
-#if ENABLE_TLS
+
         if (strcmp(output->val, "tls-store") == 0) {
             tls_store_present = 1;
         }
-#endif
+
         enabled = ConfNodeLookupChildValue(output_config, "enabled");
         if (enabled == NULL || !ConfValIsTrue(enabled)) {
             continue;
@@ -799,18 +791,13 @@ void RunModeInitializeOutputs(void)
         } else if (strncmp(output->val, "unified2-", sizeof("unified2-") - 1) == 0) {
             SCLogWarning("Unified2 is no longer supported.");
             continue;
-        } 
-        #if ENABLE_DNS
-        else if (strcmp(output->val, "dns-log") == 0) {
+        } else if (strcmp(output->val, "dns-log") == 0) {
             SCLogWarning("dns-log is not longer available as of Suricata 5.0");
             continue;
-        }
-        #endif
-        #if ENABLE_TLS 
-        else if (strcmp(output->val, "tls-log") == 0) {
+        } else if (strcmp(output->val, "tls-log") == 0) {
             tls_log_enabled = 1;
         }
-	#endif
+
         OutputModule *module;
         int count = 0;
         TAILQ_FOREACH(module, &output_modules, entries) {
@@ -861,7 +848,6 @@ void RunModeInitializeOutputs(void)
     }
 
     /* Backward compatibility code */
-    #if ENABLE_TLS
     if (!tls_store_present && tls_log_enabled) {
         /* old YAML with no "tls-store" in outputs. "tls-log" value needs
          * to be started using 'tls-log' config as own config */
@@ -895,7 +881,7 @@ void RunModeInitializeOutputs(void)
             }
         }
     }
-    #endif
+
     /* register the logger bits to the app-layer */
     AppProto a;
     for (a = 0; a < ALPROTO_MAX; a++) {

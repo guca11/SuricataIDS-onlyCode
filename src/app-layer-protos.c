@@ -32,115 +32,49 @@ typedef struct AppProtoStringTuple {
 
 const AppProtoStringTuple AppProtoStrings[ALPROTO_MAX] = {
     { ALPROTO_UNKNOWN, "unknown" },
-#if ENABLE_HTTP
-    { ALPROTO_HTTP, "http" },
     { ALPROTO_HTTP1, "http1" },
-    { ALPROTO_HTTP2, "http2" },    
-#endif
-#if ENABLE_FTP    
     { ALPROTO_FTP, "ftp" },
-    { ALPROTO_FTPDATA, "ftp-data" },
-#endif
-#if ENABLE_SMTP
     { ALPROTO_SMTP, "smtp" },
-#endif
-#if ENABLE_TLS
     { ALPROTO_TLS, "tls" },
-#endif
-#if ENABLE_SSH    
     { ALPROTO_SSH, "ssh" },
-#endif
-#if ENABLE_IMAP
     { ALPROTO_IMAP, "imap" },
-#endif
     { ALPROTO_JABBER, "jabber" },
-#if ENABLE_SMB    
     { ALPROTO_SMB, "smb" },
-#endif
-#if ENABLE_DCERPC
     { ALPROTO_DCERPC, "dcerpc" },
-#endif
     { ALPROTO_IRC, "irc" },
-#if ENABLE_DNS    
     { ALPROTO_DNS, "dns" },
-#endif
-#if ENABLE_MODBUS
     { ALPROTO_MODBUS, "modbus" },
-#endif
-#if ENABLE_ENIP
     { ALPROTO_ENIP, "enip" },
-#endif
-#if ENABLE_DNP3
     { ALPROTO_DNP3, "dnp3" },
-#endif
-#if ENABLE_NFS
     { ALPROTO_NFS, "nfs" },
-#endif
-#if ENABLE_NTP
     { ALPROTO_NTP, "ntp" },
-#endif
-#if ENABLE_TFTP
+    { ALPROTO_FTPDATA, "ftp-data" },
     { ALPROTO_TFTP, "tftp" },
-#endif
-#if ENABLE_IKE
     { ALPROTO_IKE, "ike" },
-#endif
-#if ENABLE_KRB5
     { ALPROTO_KRB5, "krb5" },
-#endif
-#if ENABLE_QUIC
     { ALPROTO_QUIC, "quic" },
-#endif
-#if ENABLE_DHCP
     { ALPROTO_DHCP, "dhcp" },
-#endif
-#if ENABLE_SNMP    
     { ALPROTO_SNMP, "snmp" },
-#endif
-#if ENABLE_SIP
     { ALPROTO_SIP, "sip" },
-#endif
-#if ENABLE_RFB
     { ALPROTO_RFB, "rfb" },
-#endif
-#if ENABLE_MQTT
     { ALPROTO_MQTT, "mqtt" },
-#endif
-#if ENABLE_PGSQL
     { ALPROTO_PGSQL, "pgsql" },
-#endif
-#if ENABLE_TELNET
     { ALPROTO_TELNET, "telnet" },
-#endif
-#if ENABLE_WEBSOCKET
     { ALPROTO_WEBSOCKET, "websocket" },
-#endif
-#if ENABLE_LDAP    
     { ALPROTO_LDAP, "ldap" },
-#endif
-#if ENABLE_DNS && ENABLE_HTTP
     { ALPROTO_DOH2, "doh2" },
-#endif
     { ALPROTO_TEMPLATE, "template" },
-#if ENABLE_RDP
     { ALPROTO_RDP, "rdp" },
-#endif
-#if ENABLE_BITTORRENT    
+    { ALPROTO_HTTP2, "http2" },
     { ALPROTO_BITTORRENT_DHT, "bittorrent-dht" },
-#endif
-#if ENABLE_POP3
     { ALPROTO_POP3, "pop3" },
-#endif
+    { ALPROTO_HTTP, "http" },
     { ALPROTO_FAILED, "failed" },
-#ifdef UNITTESTS
-    { ALPROTO_TEST, "test" },
-#endif
 };
 
 const char *AppProtoToString(AppProto alproto)
 {
     const char *proto_name = NULL;
-    #if ENABLE_HTTP
     switch (alproto) {
         // special cases
         case ALPROTO_HTTP1:
@@ -155,12 +89,6 @@ const char *AppProtoToString(AppProto alproto)
                 proto_name = AppProtoStrings[alproto].str;
             }
     }
-    #else
-    if (alproto < ARRAY_SIZE(AppProtoStrings)) {
-    	BUG_ON(AppProtoStrings[alproto].alproto != alproto);
-        proto_name = AppProtoStrings[alproto].str;
-    }
-    #endif
     return proto_name;
 }
 

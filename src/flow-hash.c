@@ -38,6 +38,7 @@
 #include "flow-storage.h"
 #include "flow-timeout.h"
 #include "flow-spare-pool.h"
+#include "flow-callbacks.h"
 #include "app-layer-parser.h"
 
 #include "util-time.h"
@@ -505,7 +506,6 @@ static inline int FlowCompareICMPv4(Flow *f, const Packet *p)
  *  \retval 1 match
  *  \retval 0 no match
  */
-#if ENABLE_ESP
 static inline int FlowCompareESP(Flow *f, const Packet *p)
 {
     const uint32_t *f_src = f->src.address.address_un_data32;
@@ -518,7 +518,7 @@ static inline int FlowCompareESP(Flow *f, const Packet *p)
            f->esp.spi == ESP_GET_SPI(PacketGetESP(p)) &&
            (f->livedev == p->livedev || g_livedev_mask == 0);
 }
-#endif
+
 void FlowSetupPacket(Packet *p)
 {
     p->flags |= PKT_WANTS_FLOW;
@@ -529,12 +529,9 @@ static inline int FlowCompare(Flow *f, const Packet *p)
 {
     if (p->proto == IPPROTO_ICMP) {
         return FlowCompareICMPv4(f, p);
-    }
-    #if ENABLE_ESP
-    else if (PacketIsESP(p)) {
+    } else if (PacketIsESP(p)) {
         return FlowCompareESP(f, p);
     }
-    #endif
     return CmpFlowPacket(f, p);
 }
 
@@ -785,7 +782,7 @@ static Flow *TcpReuseReplace(ThreadVars *tv, FlowLookupStruct *fls, FlowBucket *
     fb->head = f;
 
     /* initialize and return */
-    FlowInit(f, p);
+    FlowInit(tv, f, p);
     f->flow_hash = hash;
     f->fb = fb;
     FlowUpdateState(f, FLOW_STATE_NEW);
@@ -890,7 +887,7 @@ Flow *FlowGetFlowFromHash(ThreadVars *tv, FlowLookupStruct *fls, Packet *p, Flow
         fb->head = f;
 
         /* got one, now lock, initialize and return */
-        FlowInit(f, p);
+        FlowInit(tv, f, p);
         f->flow_hash = hash;
         f->fb = fb;
         FlowUpdateState(f, FLOW_STATE_NEW);
@@ -955,7 +952,7 @@ flow_removed:
             fb->head = f;
 
             /* initialize and return */
-            FlowInit(f, p);
+            FlowInit(tv, f, p);
             f->flow_hash = hash;
             f->fb = fb;
             FlowUpdateState(f, FLOW_STATE_NEW);
@@ -1246,6 +1243,7 @@ static Flow *FlowGetUsedFlow(ThreadVars *tv, DecodeThreadVars *dtv, const SCTime
         }
 #endif
 
+        SCFlowRunFinishCallbacks(tv, f);
         FlowClearMemory(f, f->protomap);
 
         /* leave locked */

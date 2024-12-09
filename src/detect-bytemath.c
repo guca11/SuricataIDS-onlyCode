@@ -323,10 +323,9 @@ static int DetectByteMathSetup(DetectEngineCtx *de_ctx, Signature *s, const char
         } else {
             sm_list = DETECT_SM_LIST_PMATCH;
         }
-        #if ENABLE_DCERPC
+
         if (DetectSignatureSetAppProto(s, ALPROTO_DCERPC) < 0)
             goto error;
-        #endif
 
     } else if (data->flags & DETECT_BYTEMATH_FLAG_RELATIVE) {
         prev_pm = DetectGetLastSMFromLists(s, DETECT_CONTENT, DETECT_PCRE,
@@ -346,10 +345,8 @@ static int DetectByteMathSetup(DetectEngineCtx *de_ctx, Signature *s, const char
     }
 
     if (data->endian == EndianDCE) {
-        #if ENABLE_DCERPC
         if (DetectSignatureSetAppProto(s, ALPROTO_DCERPC) != 0)
             goto error;
-        #endif
 
         if ((data->flags & DETECT_BYTEMATH_FLAG_STRING) || (data->base == BaseDec) ||
                 (data->base == BaseHex) || (data->base == BaseOct)) {

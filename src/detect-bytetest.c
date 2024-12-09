@@ -609,10 +609,9 @@ static int DetectBytetestSetup(DetectEngineCtx *de_ctx, Signature *s, const char
         } else {
             sm_list = DETECT_SM_LIST_PMATCH;
         }
-        #if ENABLE_DCERPC
+
         if (DetectSignatureSetAppProto(s, ALPROTO_DCERPC) != 0)
             goto error;
-        #endif
 
     } else if (data->flags & DETECT_BYTETEST_RELATIVE) {
         prev_pm = DetectGetLastSMFromLists(s,

@@ -46,14 +46,10 @@
 #include "detect-metadata.h"
 #include "app-layer-parser.h"
 #include "app-layer-frames.h"
-#if ENABLE_DNP3
 #include "app-layer-dnp3.h"
-#endif
 #include "app-layer-htp.h"
 #include "app-layer-htp-xff.h"
-#if ENABLE_FTP
 #include "app-layer-ftp.h"
-#endif
 #include "util-classification-config.h"
 #include "stream-tcp.h"
 
@@ -206,7 +202,7 @@ static void FrameAddPayloadTCP(Flow *f, const TcpSession *ssn, const TcpStream *
         jb_set_base64(jb, "payload", cbd.payload->buffer, cbd.payload->offset);
         uint8_t printable_buf[cbd.payload->offset + 1];
         uint32_t offset = 0;
-        PrintStringsToBuffer(printable_buf, &offset, sizeof(printable_buf), cbd.payload->buffer,
+        PrintStringsToBuffer(printable_buf, &offset, cbd.payload->offset + 1, cbd.payload->buffer,
                 cbd.payload->offset);
         jb_set_string(jb, "payload_printable", (char *)printable_buf);
         jb_set_bool(jb, "complete", complete);
@@ -221,12 +217,12 @@ static void FrameAddPayloadUDP(JsonBuilder *js, const Packet *p, const Frame *fr
 
     uint32_t frame_len;
     if (frame->len == -1) {
-        frame_len = p->payload_len - frame->offset;
+        frame_len = (uint32_t)(p->payload_len - frame->offset);
     } else {
         frame_len = (uint32_t)frame->len;
     }
     if (frame->offset + frame_len > p->payload_len) {
-        frame_len = p->payload_len - frame->offset;
+        frame_len = (uint32_t)(p->payload_len - frame->offset);
         JB_SET_FALSE(js, "complete");
     } else {
         JB_SET_TRUE(js, "complete");
@@ -291,8 +287,8 @@ void FrameJsonLogOneFrame(const uint8_t ipproto, const Frame *frame, Flow *f,
     jb_close(jb);
 }
 
-static int FrameJsonUdp(
-        JsonFrameLogThread *aft, const Packet *p, Flow *f, FramesContainer *frames_container)
+static int FrameJsonUdp(ThreadVars *tv, JsonFrameLogThread *aft, const Packet *p, Flow *f,
+        FramesContainer *frames_container)
 {
     FrameJsonOutputCtx *json_output_ctx = aft->json_output_ctx;
 
@@ -319,7 +315,7 @@ static int FrameJsonUdp(
 
         jb_set_string(jb, "app_proto", AppProtoToString(f->alproto));
         FrameJsonLogOneFrame(IPPROTO_UDP, frame, p->flow, NULL, p, jb, aft->payload_buffer);
-        OutputJsonBuilderBuffer(jb, aft->ctx);
+        OutputJsonBuilderBuffer(tv, p, p->flow, jb, aft->ctx);
         jb_free(jb);
         frame->flags |= FRAME_FLAG_LOGGED;
     }
@@ -337,7 +333,7 @@ static int FrameJson(ThreadVars *tv, JsonFrameLogThread *aft, const Packet *p)
         return TM_ECODE_OK;
 
     if (p->proto == IPPROTO_UDP) {
-        return FrameJsonUdp(aft, p, p->flow, frames_container);
+        return FrameJsonUdp(tv, aft, p, p->flow, frames_container);
     }
 
     BUG_ON(p->proto != IPPROTO_TCP);
@@ -391,7 +387,7 @@ static int FrameJson(ThreadVars *tv, JsonFrameLogThread *aft, const Packet *p)
 
             jb_set_string(jb, "app_proto", AppProtoToString(p->flow->alproto));
             FrameJsonLogOneFrame(IPPROTO_TCP, frame, p->flow, stream, p, jb, aft->payload_buffer);
-            OutputJsonBuilderBuffer(jb, aft->ctx);
+            OutputJsonBuilderBuffer(tv, p, p->flow, jb, aft->ctx);
             jb_free(jb);
             frame->flags |= FRAME_FLAG_LOGGED;
         } else if (frame != NULL) {

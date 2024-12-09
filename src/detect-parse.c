@@ -35,6 +35,7 @@
 
 #include "detect-content.h"
 #include "detect-bsize.h"
+#include "detect-isdataat.h"
 #include "detect-pcre.h"
 #include "detect-uricontent.h"
 #include "detect-reference.h"
@@ -86,20 +87,10 @@ void DetectFileRegisterFileProtocols(DetectFileHandlerTableElmt *reg)
         int to_server_progress;
     } DetectFileHandlerProtocol_t;
     static DetectFileHandlerProtocol_t al_protocols[] = {
-#if ENABLE_NFS    
         { .al_proto = ALPROTO_NFS, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
-#endif
-#if ENABLE_SMTP
-        { .al_proto = ALPROTO_SMTP, .direction = SIG_FLAG_TOSERVER },
-#endif
-#if ENABLE_SMB
         { .al_proto = ALPROTO_SMB, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
-#endif
-#if ENABLE_FTP
         { .al_proto = ALPROTO_FTP, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
         { .al_proto = ALPROTO_FTPDATA, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
-#endif
-#if ENABLE_HTTP
         { .al_proto = ALPROTO_HTTP1,
                 .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT,
                 .to_client_progress = HTP_RESPONSE_BODY,
@@ -107,8 +98,8 @@ void DetectFileRegisterFileProtocols(DetectFileHandlerTableElmt *reg)
         { .al_proto = ALPROTO_HTTP2,
                 .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT,
                 .to_client_progress = HTTP2StateDataServer,
-                .to_server_progress = HTTP2StateDataClient }
-#endif
+                .to_server_progress = HTTP2StateDataClient },
+        { .al_proto = ALPROTO_SMTP, .direction = SIG_FLAG_TOSERVER }
     };
 
     for (size_t i = 0; i < ARRAY_SIZE(al_protocols); i++) {
@@ -901,19 +892,7 @@ static int SigParseOptions(DetectEngineCtx *de_ctx, Signature *s, char *optstr, 
     if ((requires && !requires_only) || (!requires && requires_only)) {
         goto finish;
     }
-    #if !ENABLE_TLS
-    if(strcmp(optname, "tls.cert_issuer") == 0)
-    	return -3;
-    #endif	
-    #if !ENABLE_IPV6
-    if(strcmp(optname,"ipv6.hdr") == 0 || strcmp(optname,"icmpv6.hdr") == 0)
-        return -3;
-    #endif
-    #if !ENABLE_FTP
-    if(strcmp(optname,"ftpbounce") == 0)
-        return -3;
-    #endif
-    
+
     /* Call option parsing */
     st = SigTableGet(optname);
     if (st == NULL || st->Setup == NULL) {
@@ -1993,6 +1972,9 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
         if (!DetectBsizeValidateContentCallback(s, b)) {
             SCReturnInt(0);
         }
+        if (!DetectAbsentValidateContentCallback(s, b)) {
+            SCReturnInt(0);
+        }
     }
 
     int ts_excl = 0;
@@ -2083,17 +2065,12 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
         }
     }
     DetectLuaPostSetup(s);
-#if ENABLE_TLS
+
     if ((s->init_data->init_flags & SIG_FLAG_INIT_JA) && s->alproto != ALPROTO_UNKNOWN &&
-            s->alproto != ALPROTO_TLS 
-            #if ENABLE_QUIC
-            && s->alproto != ALPROTO_QUIC
-            #endif
-            ) {
+            s->alproto != ALPROTO_TLS && s->alproto != ALPROTO_QUIC) {
         SCLogError("Cannot have ja3/ja4 with protocol %s.", AppProtoToString(s->alproto));
         SCReturnInt(0);
     }
-#endif
     if ((s->flags & SIG_FLAG_FILESTORE) || s->file_flags != 0 ||
         (s->init_data->init_flags & SIG_FLAG_INIT_FILEDATA)) {
         if (s->alproto != ALPROTO_UNKNOWN &&
@@ -2104,7 +2081,6 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
                     AppProtoToString(s->alproto));
             SCReturnInt(0);
         }
-        #if ENABLE_HTTP
         if (s->alproto == ALPROTO_HTTP2 && (s->file_flags & FILE_SIG_NEED_FILENAME)) {
             SCLogError("protocol HTTP2 doesn't support file name matching");
             SCReturnInt(0);
@@ -2113,7 +2089,6 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
         if (s->alproto == ALPROTO_HTTP1 || s->alproto == ALPROTO_HTTP) {
             AppLayerHtpNeedFileInspection();
         }
-        #endif
     }
 
     SCReturnInt(1);

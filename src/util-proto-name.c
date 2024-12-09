@@ -86,7 +86,7 @@ const char *known_proto[256] = {
     "IPv6-Frag",   /* 0x2C: 44 - Fragment Header for IPv6	RFC 8200 */
     "IDRP",        /* 0x2D: 45 - Inter-Domain Routing Protocol */
     "RSVP",        /* 0x2E: 46 - Resource Reservation Protocol	RFC 2205 */
-//    "GRE",         /* 0x2F: 47 - Generic Routing Encapsulation	RFC 2784, RFC 2890 */
+    "GRE",         /* 0x2F: 47 - Generic Routing Encapsulation	RFC 2784, RFC 2890 */
     "DSR",         /* 0x30: 48 - Dynamic Source Routing Protocol	RFC 4728 */
     "BNA",         /* 0x31: 49 - Burroughs Network Architecture */
     "ESP",         /* 0x32: 50 - Encapsulating Security Payload	RFC 4303 */
@@ -243,7 +243,7 @@ const char *proto_aliases[256] = {
     "ipv6-frag",  /* 0x2C: 44 - Fragment Header for IPv6	RFC 8200 */
     "idrp",       /* 0x2D: 45 - Inter-Domain Routing Protocol */
     "rsvp",       /* 0x2E: 46 - Resource Reservation Protocol	RFC 2205 */
-//    "gre",        /* 0x2F: 47 - Generic Routing Encapsulation	RFC 2784, RFC 2890 */
+    "gre",        /* 0x2F: 47 - Generic Routing Encapsulation	RFC 2784, RFC 2890 */
     NULL,         /* 0x30: 48 - Dynamic Source Routing Protocol	RFC 4728 */
     NULL,         /* 0x31: 49 - Burroughs Network Architecture */
     "esp",        /* 0x32: 50 - Encapsulating Security Payload	RFC 4303 */

@@ -43,9 +43,7 @@
 #include "detect-metadata.h"
 #include "app-layer-parser.h"
 #include "app-layer-htp-xff.h"
-#if ENABLE_FTP
 #include "app-layer-ftp.h"
-#endif
 #include "app-layer-frames.h"
 #include "log-pcap.h"
 
@@ -54,20 +52,12 @@
 #include "output-json-alert.h"
 #include "output-json-http.h"
 #include "rust.h"
-#if ENABLE_SMTP
 #include "output-json-smtp.h"
-#endif
 #include "output-json-email-common.h"
-#if ENABLE_NFS
 #include "output-json-nfs.h"
-#endif
-#if ENABLE_SMB
 #include "output-json-smb.h"
-#endif
 #include "output-json-flow.h"
-#if ENABLE_IKE
 #include "output-json-ike.h"
-#endif
 #include "output-json-frame.h"
 
 #include "util-print.h"
@@ -133,9 +123,7 @@ static void AlertJsonSourceTarget(const Packet *p, const PacketAlert *pa,
                 break;
             case IPPROTO_UDP:
             case IPPROTO_TCP:
-            #if ENABLE_SCTP
             case IPPROTO_SCTP:
-            #endif
                 jb_set_uint(js, "port", addr->sp);
                 break;
         }
@@ -147,9 +135,7 @@ static void AlertJsonSourceTarget(const Packet *p, const PacketAlert *pa,
                 break;
             case IPPROTO_UDP:
             case IPPROTO_TCP:
-            #if ENABLE_SCTP
             case IPPROTO_SCTP:
-            #endif
                 jb_set_uint(js, "port", addr->dp);
                 break;
         }
@@ -165,9 +151,7 @@ static void AlertJsonSourceTarget(const Packet *p, const PacketAlert *pa,
                 break;
             case IPPROTO_UDP:
             case IPPROTO_TCP:
-            #if ENABLE_SCTP
             case IPPROTO_SCTP:
-            #endif
                 jb_set_uint(js, "port", addr->dp);
                 break;
         }
@@ -339,7 +323,6 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
                 jb_get_mark(jb, &mark);
                 switch (proto) {
                     // first check some protocols need special options for alerts logging
-                    #if ENABLE_WEBSOCKET
                     case ALPROTO_WEBSOCKET:
                         if (option_flags &
                                 (LOG_JSON_WEBSOCKET_PAYLOAD | LOG_JSON_WEBSOCKET_PAYLOAD_BASE64)) {
@@ -351,9 +334,6 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
                             // nothing more to log or do
                             return;
                         }
-                    #endif
-                    default:
-                    	break;
                 }
                 if (!al->LogTx(tx, jb)) {
                     jb_restore_mark(jb, &mark);
@@ -363,7 +343,6 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
         return;
     }
     switch (proto) {
-        #if ENABLE_HTTP
         case ALPROTO_HTTP1:
             // TODO: Could result in an empty http object being logged.
             jb_open_object(jb, "http");
@@ -376,9 +355,7 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
                 }
             }
             jb_close(jb);
-         break;
-        #endif 
-        #if ENABLE_SMTP
+            break;
         case ALPROTO_SMTP:
             jb_get_mark(jb, &mark);
             jb_open_object(jb, "smtp");
@@ -395,8 +372,6 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
                 jb_restore_mark(jb, &mark);
             }
             break;
-        #endif
-        #if ENABLE_NFS
         case ALPROTO_NFS:
             /* rpc */
             jb_get_mark(jb, &mark);
@@ -415,8 +390,6 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
                 jb_restore_mark(jb, &mark);
             }
             break;
-        #endif
-#if ENABLE_SMB             
         case ALPROTO_SMB:
             jb_get_mark(jb, &mark);
             jb_open_object(jb, "smb");
@@ -426,16 +399,12 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
                 jb_restore_mark(jb, &mark);
             }
             break;
-#endif            
-        #if ENABLE_IKE
         case ALPROTO_IKE:
             jb_get_mark(jb, &mark);
             if (!EveIKEAddMetadata(p->flow, tx_id, jb)) {
                 jb_restore_mark(jb, &mark);
             }
             break;
-        #endif
-        #if ENABLE_DCERPC
         case ALPROTO_DCERPC: {
             void *state = FlowGetAppState(p->flow);
             if (state) {
@@ -457,7 +426,6 @@ static void AlertAddAppLayer(const Packet *p, JsonBuilder *jb,
             }
             break;
         }
-        #endif
         default:
             break;
     }
@@ -633,8 +601,8 @@ static bool AlertJsonStreamData(const AlertJsonOutputCtx *json_output_ctx, JsonA
         if (json_output_ctx->flags & LOG_JSON_PAYLOAD) {
             uint8_t printable_buf[cbd.payload->offset + 1];
             uint32_t offset = 0;
-            PrintStringsToBuffer(printable_buf, &offset, sizeof(printable_buf), cbd.payload->buffer,
-                    cbd.payload->offset);
+            PrintStringsToBuffer(printable_buf, &offset, cbd.payload->offset + 1,
+                    cbd.payload->buffer, cbd.payload->offset);
             jb_set_string(jb, "payload_printable", (char *)printable_buf);
         }
         return true;
@@ -666,7 +634,6 @@ static int AlertJson(ThreadVars *tv, JsonAlertLogThread *aft, const Packet *p)
         char xff_buffer[XFF_MAXLEN];
         xff_buffer[0] = 0;
         if ((xff_cfg != NULL) && !(xff_cfg->flags & XFF_DISABLED) && p->flow != NULL) {
-            #if ENABLE_HTTP
             if (FlowGetAppProtocol(p->flow) == ALPROTO_HTTP1) {
                 if (pa->flags & PACKET_ALERT_FLAG_TX) {
                     have_xff_ip = HttpXFFGetIPFromTx(p->flow, pa->tx_id, xff_cfg,
@@ -676,7 +643,7 @@ static int AlertJson(ThreadVars *tv, JsonAlertLogThread *aft, const Packet *p)
                             XFF_MAXLEN);
                 }
             }
-	    #endif
+
             if (have_xff_ip && xff_cfg->flags & XFF_OVERWRITE) {
                 if (p->flowflags & FLOW_PKT_TOCLIENT) {
                     strlcpy(addr.dst_ip, xff_buffer, JSON_ADDR_LEN);
@@ -790,7 +757,7 @@ static int AlertJson(ThreadVars *tv, JsonAlertLogThread *aft, const Packet *p)
             EveAddVerdict(jb, p);
         }
 
-        OutputJsonBuilderBuffer(jb, aft->ctx);
+        OutputJsonBuilderBuffer(tv, p, p->flow, jb, aft->ctx);
         jb_free(jb);
     }
 
@@ -800,7 +767,7 @@ static int AlertJson(ThreadVars *tv, JsonAlertLogThread *aft, const Packet *p)
                 CreateEveHeader(p, LOG_DIR_PACKET, "packet", NULL, json_output_ctx->eve_ctx);
         if (unlikely(packetjs != NULL)) {
             EvePacket(p, packetjs, 0);
-            OutputJsonBuilderBuffer(packetjs, aft->ctx);
+            OutputJsonBuilderBuffer(tv, p, p->flow, packetjs, aft->ctx);
             jb_free(packetjs);
         }
     }
@@ -811,12 +778,9 @@ static int AlertJson(ThreadVars *tv, JsonAlertLogThread *aft, const Packet *p)
 static int AlertJsonDecoderEvent(ThreadVars *tv, JsonAlertLogThread *aft, const Packet *p)
 {
     AlertJsonOutputCtx *json_output_ctx = aft->json_output_ctx;
-    char timebuf[64];
 
     if (p->alerts.cnt == 0)
         return TM_ECODE_OK;
-
-    CreateIsoTimeString(p->ts, timebuf, sizeof(timebuf));
 
     for (int i = 0; i < p->alerts.cnt; i++) {
         const PacketAlert *pa = &p->alerts.alerts[i];
@@ -824,17 +788,32 @@ static int AlertJsonDecoderEvent(ThreadVars *tv, JsonAlertLogThread *aft, const 
             continue;
         }
 
-        JsonBuilder *jb = jb_new_object();
-        if (unlikely(jb == NULL)) {
+        JsonBuilder *jb =
+                CreateEveHeader(p, LOG_DIR_PACKET, "alert", NULL, json_output_ctx->eve_ctx);
+        if (unlikely(jb == NULL))
             return TM_ECODE_OK;
-        }
-
-        /* just the timestamp, no tuple */
-        jb_set_string(jb, "timestamp", timebuf);
 
         AlertJsonHeader(p, pa, jb, json_output_ctx->flags, NULL, NULL);
 
-        OutputJsonBuilderBuffer(jb, aft->ctx);
+        if (PacketIsTunnel(p)) {
+            AlertJsonTunnel(p, jb);
+        }
+
+        /* base64-encoded full packet */
+        if (json_output_ctx->flags & LOG_JSON_PACKET) {
+            EvePacket(p, jb, 0);
+        }
+
+        char *pcap_filename = PcapLogGetFilename();
+        if (pcap_filename != NULL) {
+            jb_set_string(jb, "capture_file", pcap_filename);
+        }
+
+        if (json_output_ctx->flags & LOG_JSON_VERDICT) {
+            EveAddVerdict(jb, p);
+        }
+
+        OutputJsonBuilderBuffer(tv, p, p->flow, jb, aft->ctx);
         jb_free(jb);
     }
 
@@ -844,6 +823,7 @@ static int AlertJsonDecoderEvent(ThreadVars *tv, JsonAlertLogThread *aft, const 
 static int JsonAlertLogger(ThreadVars *tv, void *thread_data, const Packet *p)
 {
     JsonAlertLogThread *aft = thread_data;
+
     if (PacketIsIPv4(p) || PacketIsIPv6(p)) {
         return AlertJson(tv, aft, p);
     } else if (p->alerts.cnt > 0) {
@@ -973,32 +953,14 @@ static void JsonAlertLogSetupMetadata(AlertJsonOutputCtx *json_output_ctx,
         SetFlag(conf, "payload-printable", LOG_JSON_PAYLOAD, &flags);
         SetFlag(conf, "http-body-printable", LOG_JSON_HTTP_BODY, &flags);
         SetFlag(conf, "http-body", LOG_JSON_HTTP_BODY_BASE64, &flags);
-#if ENABLE_WEBSOCKET        
         SetFlag(conf, "websocket-payload-printable", LOG_JSON_WEBSOCKET_PAYLOAD, &flags);
         SetFlag(conf, "websocket-payload", LOG_JSON_WEBSOCKET_PAYLOAD_BASE64, &flags);
-#endif
         SetFlag(conf, "verdict", LOG_JSON_VERDICT, &flags);
         SetFlag(conf, "payload-length", LOG_JSON_PAYLOAD_LENGTH, &flags);
 
         /* Check for obsolete flags and warn that they have no effect. */
-        static const char *deprecated_flags[] = { 
-         "http",
-         #if ENABLE_TLS
-         "tls",
-         #endif
-         #if ENABLE_SSH 
-         "ssh",
-         #endif
-         #if ENABLE_SMTP
-         "smtp", 
-         #endif
-         #if ENABLE_DNP3
-         "dnp3",
-         #endif
-         "app-layer",
-         "flow", 
-         NULL };
-         
+        static const char *deprecated_flags[] = { "http", "tls", "ssh", "smtp", "dnp3", "app-layer",
+            "flow", NULL };
         for (int i = 0; deprecated_flags[i] != NULL; i++) {
             if (ConfNodeLookupChildValue(conf, deprecated_flags[i]) != NULL) {
                 SCLogWarning("Found deprecated eve-log.alert flag \"%s\", this flag has no effect",
@@ -1038,7 +1000,7 @@ static void JsonAlertLogSetupMetadata(AlertJsonOutputCtx *json_output_ctx,
     json_output_ctx->payload_buffer_size = payload_buffer_size;
     json_output_ctx->flags |= flags;
 }
-#if ENABLE_HTTP
+
 static HttpXFFCfg *JsonAlertLogGetXffCfg(ConfNode *conf)
 {
     HttpXFFCfg *xff_cfg = NULL;
@@ -1050,7 +1012,6 @@ static HttpXFFCfg *JsonAlertLogGetXffCfg(ConfNode *conf)
     }
     return xff_cfg;
 }
-#endif
 
 /**
  * \brief Create a new LogFileCtx for "fast" output style.
@@ -1076,15 +1037,10 @@ static OutputInitResult JsonAlertLogInitCtxSub(ConfNode *conf, OutputCtx *parent
     json_output_ctx->eve_ctx = ajt;
 
     JsonAlertLogSetupMetadata(json_output_ctx, conf);
-    #if ENABLE_HTTP
     json_output_ctx->xff_cfg = JsonAlertLogGetXffCfg(conf);
     if (json_output_ctx->xff_cfg == NULL) {
         json_output_ctx->parent_xff_cfg = ajt->xff_cfg;
     }
-    #else
-    json_output_ctx->parent_xff_cfg = ajt->xff_cfg;
-    #endif
-
 
     output_ctx->data = json_output_ctx;
     output_ctx->DeInit = JsonAlertLogDeInitCtxSub;

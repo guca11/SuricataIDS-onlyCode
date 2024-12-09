@@ -115,9 +115,7 @@ static void CloseFile(const Packet *p, Flow *f, File *file, void *txv)
 
     AppLayerTxData *txd = AppLayerParserGetTxData(f->proto, f->alproto, txv);
     if (txd) {
-#if ENABLE_SMB    
         BUG_ON(f->alproto == ALPROTO_SMB && txd->files_logged != 0);
-#endif        
         txd->files_stored++;
     }
     file->flags |= FILE_STORED;

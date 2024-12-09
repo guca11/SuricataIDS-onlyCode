@@ -1422,11 +1422,7 @@ AppProto AppLayerProtoDetectGetProto(AppLayerProtoDetectThreadCtx *tctx, Flow *f
 
             /* HACK: if detected protocol is dcerpc/udp, we run PP as well
              * to avoid misdetecting DNS as DCERPC. */
-            if (!(ipproto == IPPROTO_UDP 
-            #if ENABLE_DCERPC
-            && alproto == ALPROTO_DCERPC
-            #endif
-            ))
+            if (!(ipproto == IPPROTO_UDP && alproto == ALPROTO_DCERPC))
                 goto end;
 
             pm_alproto = alproto;
@@ -1845,12 +1841,9 @@ bool AppLayerRequestProtocolChange(Flow *f, uint16_t dp, AppProto expect_proto)
  */
 bool AppLayerRequestProtocolTLSUpgrade(Flow *f)
 {
-   #if ENABLE_TLS
-   return AppLayerRequestProtocolChange(f, 443, ALPROTO_TLS);
-   #else
-   return false;
-   #endif
+    return AppLayerRequestProtocolChange(f, 443, ALPROTO_TLS);
 }
+
 /** \brief Forces a flow app-layer protocol change.
  *         Happens for instance when a HTTP2 flow is seen as DOH2
  *
@@ -2045,31 +2038,18 @@ void AppLayerProtoDetectSupportedIpprotos(AppProto alproto, uint8_t *ipprotos)
     SCEnter();
 
     // Custom case for only signature-only protocol so far
-    #if ENABLE_HTTP
     if (alproto == ALPROTO_HTTP) {
         AppLayerProtoDetectSupportedIpprotos(ALPROTO_HTTP1, ipprotos);
         AppLayerProtoDetectSupportedIpprotos(ALPROTO_HTTP2, ipprotos);
-    } else  
-    #if ENABLE_DNS
-    if (alproto == ALPROTO_DOH2) {
+    } else if (alproto == ALPROTO_DOH2) {
         // DOH2 is not detected, just HTTP2
         AppLayerProtoDetectSupportedIpprotos(ALPROTO_HTTP2, ipprotos);
-    } else
-    #endif
-    {
-    #endif
+    } else {
         AppLayerProtoDetectPMGetIpprotos(alproto, ipprotos);
         AppLayerProtoDetectPPGetIpprotos(alproto, ipprotos);
         AppLayerProtoDetectPEGetIpprotos(alproto, ipprotos);
-    #if ENABLE_HTTP
     }
-    #endif
-    /*#else
-        AppLayerProtoDetectPMGetIpprotos(alproto, ipprotos);
-        AppLayerProtoDetectPPGetIpprotos(alproto, ipprotos);
-        AppLayerProtoDetectPEGetIpprotos(alproto, ipprotos);
-    #endif*/
-    
+
     SCReturn;
 }
 
@@ -2103,7 +2083,6 @@ const char *AppLayerProtoDetectGetProtoName(AppProto alproto)
     // Special case for http (any version) :
     // returns "http" if both versions are enabled
     // and returns "http1" or "http2" if only one version is enabled
-    #if ENABLE_HTTP
     if (alproto == ALPROTO_HTTP) {
         if (alpd_ctx.alproto_names[ALPROTO_HTTP1]) {
             if (alpd_ctx.alproto_names[ALPROTO_HTTP2]) {
@@ -2113,7 +2092,6 @@ const char *AppLayerProtoDetectGetProtoName(AppProto alproto)
         } // else
         return alpd_ctx.alproto_names[ALPROTO_HTTP2];
     }
-    #endif
     return alpd_ctx.alproto_names[alproto];
 }
 
@@ -3681,12 +3659,12 @@ void AppLayerProtoDetectUnittestsRegister(void)
     UtRegisterTest("AppLayerProtoDetectTest07", AppLayerProtoDetectTest07);
     UtRegisterTest("AppLayerProtoDetectTest08", AppLayerProtoDetectTest08);
     UtRegisterTest("AppLayerProtoDetectTest09", AppLayerProtoDetectTest09);
-    //UtRegisterTest("AppLayerProtoDetectTest10", AppLayerProtoDetectTest10);
+    UtRegisterTest("AppLayerProtoDetectTest10", AppLayerProtoDetectTest10);
     UtRegisterTest("AppLayerProtoDetectTest11", AppLayerProtoDetectTest11);
     UtRegisterTest("AppLayerProtoDetectTest12", AppLayerProtoDetectTest12);
     UtRegisterTest("AppLayerProtoDetectTest13", AppLayerProtoDetectTest13);
     UtRegisterTest("AppLayerProtoDetectTest14", AppLayerProtoDetectTest14);
-    //UtRegisterTest("AppLayerProtoDetectTest15", AppLayerProtoDetectTest15);
+    UtRegisterTest("AppLayerProtoDetectTest15", AppLayerProtoDetectTest15);
     UtRegisterTest("AppLayerProtoDetectTest16", AppLayerProtoDetectTest16);
     UtRegisterTest("AppLayerProtoDetectTest17", AppLayerProtoDetectTest17);
     UtRegisterTest("AppLayerProtoDetectTest18", AppLayerProtoDetectTest18);

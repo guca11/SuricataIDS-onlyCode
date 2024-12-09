@@ -29,9 +29,7 @@
 #include "util-file.h"
 
 // hack for include orders cf SCSha256
-#if ENABLE_HTTP
 typedef struct HttpRangeContainerBlock HttpRangeContainerBlock;
-#endif
 
 struct AppLayerParser;
 
@@ -43,12 +41,10 @@ typedef struct SuricataContext_ {
             uint8_t);
     void (*AppLayerDecoderEventsFreeEvents)(AppLayerDecoderEvents **);
     void (*AppLayerParserTriggerRawStreamReassembly)(Flow *, int direction);
-    
-    #if ENABLE_HTTP
+
     void (*HttpRangeFreeBlock)(HttpRangeContainerBlock *);
     bool (*HTPFileCloseHandleRange)(const StreamingBufferConfig *sbcfg, FileContainer *,
             const uint16_t, HttpRangeContainerBlock *, const uint8_t *, uint32_t);
-    #endif
 
     int (*FileOpenFileWithId)(FileContainer *, const StreamingBufferConfig *,
         uint32_t track_id, const uint8_t *name, uint16_t name_len,

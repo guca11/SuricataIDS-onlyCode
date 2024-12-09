@@ -106,7 +106,6 @@ const struct DecodeEvents_ DEvents[] = {
     },
 
     /* ICMPv6 EVENTS */
-    #if ENABLE_IPV6
     {
             "decoder.icmpv6.unknown_type",
             ICMPV6_UNKNOWN_TYPE,
@@ -233,42 +232,7 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.ipv6.icmpv4",
             IPV6_WITH_ICMPV4,
     },
-     /* IPv4 in IPv6 events */
-     {
-            "decoder.ipv6.frag_pkt_too_large",
-            IPV6_FRAG_PKT_TOO_LARGE,
-    },
-    {
-            "decoder.ipv6.frag_overlap",
-            IPV6_FRAG_OVERLAP,
-    },
-    {
-            "decoder.ipv6.frag_invalid_length",
-            IPV6_FRAG_INVALID_LENGTH,
-    },
-    {
-            "decoder.ipv6.ipv4_in_ipv6_too_small",
-            IPV4_IN_IPV6_PKT_TOO_SMALL,
-    },
-    {
-            "decoder.ipv6.ipv4_in_ipv6_wrong_version",
-            IPV4_IN_IPV6_WRONG_IP_VER,
-    },
-    /* IPv6 in IPv6 events */
-    {
-            "decoder.ipv6.ipv6_in_ipv6_too_small",
-            IPV6_IN_IPV6_PKT_TOO_SMALL,
-    },
-    {
-            "decoder.ipv6.ipv6_in_ipv6_wrong_version",
-            IPV6_IN_IPV6_WRONG_IP_VER,
-    },
-    {
-            "decoder.ipv6.frag_ignored",
-            IPV6_FRAG_IGNORED,
-    },
-    #endif
-    //#if ENABLE_TCP
+
     /* TCP EVENTS */
     {
             "decoder.tcp.pkt_too_small",
@@ -294,8 +258,6 @@ const struct DecodeEvents_ DEvents[] = {
     },
 
     /* UDP EVENTS */
-    //#endif
-    //#if ENABLE_UDP
     {
             "decoder.udp.pkt_too_small",
             UDP_PKT_TOO_SMALL,
@@ -312,21 +274,19 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.udp.len_invalid",
             UDP_LEN_INVALID,
     },
-    //#endif
+
     /* SLL EVENTS */
-    #if ENABLE_SLL
     {
             "decoder.sll.pkt_too_small",
             SLL_PKT_TOO_SMALL,
     },
-    #endif
 
     /* ETHERNET EVENTS */
     {
             "decoder.ethernet.pkt_too_small",
             ETHERNET_PKT_TOO_SMALL,
     },
-    #if ENABLE_PPP || ENABLE_PPPOE
+
     /* PPP EVENTS */
     {
             "decoder.ppp.pkt_too_small",
@@ -352,9 +312,8 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.ppp.unsup_proto",
             PPP_UNSUP_PROTO,
     }, /** unsupported but valid protocol */
-    #endif
+
     /* PPPOE EVENTS */
-    #if ENABLE_PPPOE
     {
             "decoder.pppoe.pkt_too_small",
             PPPOE_PKT_TOO_SMALL,
@@ -367,9 +326,8 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.pppoe.malformed_tags",
             PPPOE_MALFORMED_TAGS,
     },
-#endif
+
     /* GRE EVENTS */
-    #if ENABLE_GRE
     {
             "decoder.gre.pkt_too_small",
             GRE_PKT_TOO_SMALL,
@@ -430,10 +388,8 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.gre.version1_hdr_too_big",
             GRE_VERSION1_HDR_TOO_BIG,
     },
-    #endif
 
     /* VLAN EVENTS */
-    #if ENABLE_VLAN
     {
             "decoder.vlan.header_too_small",
             VLAN_HEADER_TOO_SMALL,
@@ -450,25 +406,22 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.ieee8021ah.header_too_small",
             IEEE8021AH_HEADER_TOO_SMALL,
     },
-    #endif
-    #if ENABLE_VNTAG
+
     /* VNTAG EVENTS */
-    /*{
+    {
             "decoder.vntag.header_too_small",
             VNTAG_HEADER_TOO_SMALL,
     },
     {
             "decoder.vntag.unknown_type",
             VNTAG_UNKNOWN_TYPE,
-    },*/
-    #endif
+    },
+
     /* RAW EVENTS */
-    #if ENABLE_RAW
     {
             "decoder.ipraw.invalid_ip_version",
             IPRAW_INVALID_IPV,
     },
-    #endif
 
     /* LINKTYPE NULL EVENTS */
     {
@@ -479,20 +432,18 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.ltnull.unsupported_type",
             LTNULL_UNSUPPORTED_TYPE,
     },
+
     /* SCTP EVENTS */
-    #if ENABLE_SCTP
     {
             "decoder.sctp.pkt_too_small",
             SCTP_PKT_TOO_SMALL,
     },
-    #endif
+
     /* ESP EVENTS */
-    #if ENABLE_ESP
     {
             "decoder.esp.pkt_too_small",
             ESP_PKT_TOO_SMALL,
     },
-    #endif
 
     /* Fragmentation reassembly events. */
     {
@@ -500,17 +451,51 @@ const struct DecodeEvents_ DEvents[] = {
             IPV4_FRAG_PKT_TOO_LARGE,
     },
     {
+            "decoder.ipv6.frag_pkt_too_large",
+            IPV6_FRAG_PKT_TOO_LARGE,
+    },
+    {
             "decoder.ipv4.frag_overlap",
             IPV4_FRAG_OVERLAP,
+    },
+    {
+            "decoder.ipv6.frag_overlap",
+            IPV6_FRAG_OVERLAP,
+    },
+    {
+            "decoder.ipv6.frag_invalid_length",
+            IPV6_FRAG_INVALID_LENGTH,
     },
     /* Fragment ignored due to internal error */
     {
             "decoder.ipv4.frag_ignored",
             IPV4_FRAG_IGNORED,
     },
+    {
+            "decoder.ipv6.frag_ignored",
+            IPV6_FRAG_IGNORED,
+    },
+
+    /* IPv4 in IPv6 events */
+    {
+            "decoder.ipv6.ipv4_in_ipv6_too_small",
+            IPV4_IN_IPV6_PKT_TOO_SMALL,
+    },
+    {
+            "decoder.ipv6.ipv4_in_ipv6_wrong_version",
+            IPV4_IN_IPV6_WRONG_IP_VER,
+    },
+    /* IPv6 in IPv6 events */
+    {
+            "decoder.ipv6.ipv6_in_ipv6_too_small",
+            IPV6_IN_IPV6_PKT_TOO_SMALL,
+    },
+    {
+            "decoder.ipv6.ipv6_in_ipv6_wrong_version",
+            IPV6_IN_IPV6_WRONG_IP_VER,
+    },
 
     /* MPLS events */
-    #if ENABLE_MPLS
     {
             "decoder.mpls.header_too_small",
             MPLS_HEADER_TOO_SMALL,
@@ -535,24 +520,20 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.mpls.unknown_payload_type",
             MPLS_UNKNOWN_PAYLOAD_TYPE,
     },
-    #endif
-    #if ENABLE_VXLAN
+
     /* VXLAN events */
-    /*{
+    {
             "decoder.vxlan.unknown_payload_type",
             VXLAN_UNKNOWN_PAYLOAD_TYPE,
-    },*/
-    #endif
+    },
+
     /* Geneve events */
-    #if ENABLE_GENEVE
     {
             "decoder.geneve.unknown_payload_type",
             GENEVE_UNKNOWN_PAYLOAD_TYPE,
     },
-    #endif
 
     /* ERSPAN events */
-    #if ENABLE_ERSPAN
     {
             "decoder.erspan.header_too_small",
             ERSPAN_HEADER_TOO_SMALL,
@@ -565,26 +546,20 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.erspan.too_many_vlan_layers",
             ERSPAN_TOO_MANY_VLAN_LAYERS,
     },
-    #endif
 
     /* Cisco Fabric Path/DCE events. */
-    #if ENABLE_DCERPC
     {
             "decoder.dce.pkt_too_small",
             DCE_PKT_TOO_SMALL,
     },
-    #endif
 
     /* Cisco HDLC events. */
-    #if ENABLE_CHDLC
     {
             "decoder.chdlc.pkt_too_small",
             CHDLC_PKT_TOO_SMALL,
     },
-    #endif
 
     /* NSH events */
-    #if ENABLE_NSH
     {
             "decoder.nsh.header_too_small",
             NSH_HEADER_TOO_SMALL,
@@ -609,7 +584,6 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.nsh.unknown_payload",
             NSH_UNKNOWN_PAYLOAD,
     },
-    #endif
     {
             "decoder.too_many_layers",
             GENERIC_TOO_MANY_LAYERS,
@@ -898,7 +872,7 @@ const struct DecodeEvents_ DEvents[] = {
             "stream.reassembly_insert_invalid",
             STREAM_REASSEMBLY_INSERT_INVALID,
     },
-#if ENABLE_ARP
+
     /* ARP EVENTS */
     {
             "decoder.arp.pkt_too_small",
@@ -928,6 +902,6 @@ const struct DecodeEvents_ DEvents[] = {
             "decoder.arp.unsupported_opcode",
             ARP_UNSUPPORTED_OPCODE,
     },
-#endif
+
     { NULL, 0 },
 };

@@ -136,19 +136,15 @@ static DetectAppLayerProtocolData *DetectAppLayerProtocolParse(const char *arg, 
     } else {
         alproto_name = (char *)arg;
     }
-    #if ENABLE_TLS
     if (strcmp(alproto_name, "failed") == 0) {
-    #else
-    if (strcmp(alproto_name, "failed") == 0 || strcmp(alproto_name,"tls") == 0) {
-    #endif
         alproto = ALPROTO_FAILED;
     } else {
         alproto = AppLayerGetProtoByName(alproto_name);
         if (alproto == ALPROTO_UNKNOWN) {
-            	SCLogError("app-layer-protocol "
+            SCLogError("app-layer-protocol "
                        "keyword supplied with unknown protocol \"%s\"",
                     alproto_name);
-            	return NULL;
+            return NULL;
         }
     }
     uint8_t mode = DETECT_ALPROTO_DIRECTION;

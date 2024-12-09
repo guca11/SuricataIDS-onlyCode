@@ -62,23 +62,13 @@
 #include "util-lua.h"
 #include "util-lua-common.h"
 #include "util-lua-http.h"
-#if ENABLE_DNS
 #include "util-lua-dns.h"
-#endif
-#if ENABLE_TLS
 #include "util-lua-ja3.h"
 #include "util-lua-tls.h"
-#endif
-#if ENABLE_SSH
 #include "util-lua-ssh.h"
 #include "util-lua-hassh.h"
-#endif
-#if ENABLE_SMTP
 #include "util-lua-smtp.h"
-#endif
-#if ENABLE_DNP3
 #include "util-lua-dnp3.h"
-#endif
 #include "detect-lua-extensions.h"
 
 static const char luaext_key_ld[] = "suricata:luadata";
@@ -589,25 +579,13 @@ int LuaRegisterExtensions(lua_State *lua_state)
     lua_setglobal(lua_state, "SCByteVarGet");
 
     LuaRegisterFunctions(lua_state);
-    #if ENABLE_HTTP
     LuaRegisterHttpFunctions(lua_state);
-    #endif
-    #if ENABLE_DNS    
     LuaRegisterDnsFunctions(lua_state);
-#endif
-#if ENABLE_TLS
     LuaRegisterJa3Functions(lua_state);
     LuaRegisterTlsFunctions(lua_state);
-#endif
-    #if ENABLE_SSH
     LuaRegisterSshFunctions(lua_state);
     LuaRegisterHasshFunctions(lua_state);
-    #endif
-    #if ENABLE_SMTP
     LuaRegisterSmtpFunctions(lua_state);
-    #endif
-    #if ENABLE_DNP3
     LuaRegisterDNP3Functions(lua_state);
-    #endif
     return 0;
 }

@@ -176,8 +176,7 @@ static TmEcode AlertDebugLogger(ThreadVars *tv, const Packet *p, void *thread_da
     if (PacketIsIPv4(p)) {
         PrintInet(AF_INET, (const void *)GET_IPV4_SRC_ADDR_PTR(p), srcip, sizeof(srcip));
         PrintInet(AF_INET, (const void *)GET_IPV4_DST_ADDR_PTR(p), dstip, sizeof(dstip));
-    }
-     else {
+    } else {
         DEBUG_VALIDATE_BUG_ON(!(PacketIsIPv6(p)));
         PrintInet(AF_INET6, (const void *)GET_IPV6_SRC_ADDR(p), srcip, sizeof(srcip));
         PrintInet(AF_INET6, (const void *)GET_IPV6_DST_ADDR(p), dstip, sizeof(dstip));
@@ -475,7 +474,7 @@ static bool AlertDebugLogCondition(ThreadVars *tv, void *thread_data, const Pack
 
 static int AlertDebugLogLogger(ThreadVars *tv, void *thread_data, const Packet *p)
 {
-    if (PacketIsIPv4(p) || PacketIsIPv6(p) ) {
+    if (PacketIsIPv4(p) || PacketIsIPv6(p)) {
         return AlertDebugLogger(tv, p, thread_data);
     } else if (p->events.cnt > 0) {
         return AlertDebugLogDecoderEvent(tv, p, thread_data);

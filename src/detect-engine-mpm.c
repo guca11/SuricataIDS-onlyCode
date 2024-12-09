@@ -108,13 +108,10 @@ static void RegisterInternal(const char *name, int direction, int priority,
     }
 
     // every HTTP2 can be accessed from DOH2
-    #if ENABLE_DNS && ENABLE_HTTP
     if (alproto == ALPROTO_HTTP2 || alproto == ALPROTO_DNS) {
         RegisterInternal(name, direction, priority, PrefilterRegister, GetData, GetMultiData,
                 ALPROTO_DOH2, tx_min_progress);
     }
-    #endif
-    
     DetectBufferMpmRegistry *am = SCCalloc(1, sizeof(*am));
     BUG_ON(am == NULL);
     am->name = name;
@@ -1128,6 +1125,9 @@ void RetrieveFPForSig(const DetectEngineCtx *de_ctx, Signature *s)
         }
 
         for (SigMatch *sm = s->init_data->buffers[x].head; sm != NULL; sm = sm->next) {
+            // a buffer with absent keyword cannot be used as fast_pattern
+            if (sm->type == DETECT_ABSENT)
+                break;
             if (sm->type != DETECT_CONTENT)
                 continue;
 

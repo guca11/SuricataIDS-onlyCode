@@ -135,10 +135,10 @@ int DetectUricontentSetup(DetectEngineCtx *de_ctx, Signature *s, const char *con
 
     if (DetectContentSetup(de_ctx, s, contentstr) < 0)
         goto error;
-    #if ENABLE_HTTP
+
     if (DetectHttpUriSetup(de_ctx, s, NULL) < 0)
         goto error;
-    #endif
+
     SCReturnInt(0);
 error:
     SCReturnInt(-1);

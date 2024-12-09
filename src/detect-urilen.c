@@ -102,11 +102,10 @@ static int DetectUrilenSetup (DetectEngineCtx *de_ctx, Signature *s, const char 
 {
     SCEnter();
     DetectUrilenData *urilend = NULL;
-    
-    #if ENABLE_HTTP
+
     if (DetectSignatureSetAppProto(s, ALPROTO_HTTP) != 0)
         return -1;
-    #endif
+
     urilend = DetectUrilenParse(urilenstr);
     if (urilend == NULL)
         goto error;

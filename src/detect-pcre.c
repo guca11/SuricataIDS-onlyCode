@@ -301,7 +301,7 @@ int DetectPcrePayloadMatch(DetectEngineThreadCtx *det_ctx, const Signature *s,
     }
     SCReturnInt(ret);
 }
-//#if ENABLE_HTTP
+
 static int DetectPcreSetList(int list, int set)
 {
     if (list != DETECT_SM_LIST_NOTSET) {
@@ -310,7 +310,7 @@ static int DetectPcreSetList(int list, int set)
     }
     return set;
 }
-//#endif
+
 static int DetectPcreHasUpperCase(const char *re)
 {
     size_t len = strlen(re);
@@ -487,7 +487,7 @@ static DetectPcreData *DetectPcreParse (DetectEngineCtx *de_ctx,
                     break;
 
                 /* buffer selection */
-		#if ENABLE_HTTP
+
                 case 'U': { /* snort's option */
                     if (pd->flags & DETECT_PCRE_RAWBYTES) {
                         SCLogError("regex modifier 'U' inconsistent with 'B'");
@@ -602,7 +602,6 @@ static DetectPcreData *DetectPcreParse (DetectEngineCtx *de_ctx,
                     *alproto = ALPROTO_HTTP1;
                     break;
                 }
-                #endif
                 default:
                     SCLogError("unknown regex modifier '%c'", *op);
                     goto error;

@@ -142,7 +142,7 @@ static int Streamer(void *cbdata, Flow *f, const uint8_t *data, uint32_t data_le
  *    - For each body chunk
  *      - Invoke Streamer
  */
-#if ENABLE_HTTP
+
 static int HttpBodyIterator(Flow *f, int close, void *cbdata, uint8_t iflags)
 {
     SCLogDebug("called with %p, %d, %p, %02x", f, close, cbdata, iflags);
@@ -240,7 +240,7 @@ static int HttpBodyIterator(Flow *f, int close, void *cbdata, uint8_t iflags)
     }
     return 0;
 }
-#endif
+
 struct StreamLogData {
     uint8_t flags;
     void *streamer_cbdata;
@@ -275,7 +275,8 @@ static int TcpDataLogger (Flow *f, TcpSession *ssn, TcpStream *stream,
             progress, &progress, eof);
 
     if (progress > STREAM_LOG_PROGRESS(stream)) {
-        uint32_t slide = progress - STREAM_LOG_PROGRESS(stream);
+        DEBUG_VALIDATE_BUG_ON(progress - STREAM_LOG_PROGRESS(stream) > UINT32_MAX);
+        uint32_t slide = (uint32_t)(progress - STREAM_LOG_PROGRESS(stream));
         stream->log_progress_rel += slide;
     }
 
@@ -339,7 +340,6 @@ static TmEcode OutputStreamingLog(ThreadVars *tv, Packet *p, void *thread_data)
             TcpDataLogger(f, ssn, stream, close, flags, (void *)&streamer_cbdata);
         }
     }
-    #if ENABLE_HTTP
     if (op_thread_data->loggers & (1<<STREAMING_HTTP_BODIES)) {
         if (f->alproto == ALPROTO_HTTP1 && f->alstate != NULL) {
             int close = 0;
@@ -353,7 +353,6 @@ static TmEcode OutputStreamingLog(ThreadVars *tv, Packet *p, void *thread_data)
             HttpBodyIterator(f, close, (void *)&streamer_cbdata, flags);
         }
     }
-    #endif
 
     return TM_ECODE_OK;
 }

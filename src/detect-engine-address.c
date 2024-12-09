@@ -485,14 +485,13 @@ static int DetectAddressParseString(DetectAddress *dd, const char *str)
             dd->ip.addr_data32[0] = in.s_addr;
             dd->ip2.addr_data32[0] = in.s_addr;
         }
-    } 
-    else {
+    } else {
         /* IPv6 Address */
-        dd->ip.family = AF_INET6;
-        
-        #if ENABLE_IPV6
         struct in6_addr in6, mask6;
         uint32_t ip6addr[4], netmask[4];
+
+        dd->ip.family = AF_INET6;
+
         if ((mask = strchr(ip, '/')) != NULL)  {
             ip[mask - ip] = '\0';
             mask++;
@@ -544,8 +543,9 @@ static int DetectAddressParseString(DetectAddress *dd, const char *str)
             memcpy(&dd->ip.address, &in6.s6_addr, sizeof(dd->ip.address));
             memcpy(&dd->ip2.address, &in6.s6_addr, sizeof(dd->ip2.address));
         }
-        #endif
+
     }
+
     BUG_ON(dd->ip.family == 0);
 
     return 0;
@@ -1505,11 +1505,10 @@ int DetectAddressCut(DetectEngineCtx *de_ctx, DetectAddress *a,
                      DetectAddress *b, DetectAddress **c)
 {
     if (a->ip.family == AF_INET)
-        return DetectAddressCutIPv4(de_ctx, a, b, c);   
-    #if ENABLE_IPV6    
+        return DetectAddressCutIPv4(de_ctx, a, b, c);
     else if (a->ip.family == AF_INET6)
         return DetectAddressCutIPv6(de_ctx, a, b, c);
-    #endif
+
     return -1;
 }
 
@@ -1547,11 +1546,10 @@ int DetectAddressCut(DetectEngineCtx *de_ctx, DetectAddress *a,
 int DetectAddressCutNot(DetectAddress *a, DetectAddress **b)
 {
     if (a->ip.family == AF_INET)
-        return DetectAddressCutNotIPv4(a, b); 
-    #if ENABLE_IPV6      
+        return DetectAddressCutNotIPv4(a, b);
     else if (a->ip.family == AF_INET6)
         return DetectAddressCutNotIPv6(a, b);
-    #endif
+
     return -1;
 }
 
@@ -1568,10 +1566,9 @@ int DetectAddressCmp(DetectAddress *a, DetectAddress *b)
 
     if (a->ip.family == AF_INET)
         return DetectAddressCmpIPv4(a, b);
-    #if ENABLE_IPV6
     else if (a->ip.family == AF_INET6)
         return DetectAddressCmpIPv6(a, b);
-    #endif
+
     return ADDRESS_ER;
 }
 
@@ -1692,6 +1689,7 @@ int DetectAddressMatchIPv6(const DetectMatchAddressIPv6 *addrs,
 
     SCReturnInt(0);
 }
+
 /**
  * \brief Check if a particular address(ipv4 or ipv6) matches the address
  *        range in the DetectAddress instance.
@@ -1729,8 +1727,7 @@ static int DetectAddressMatch(DetectAddress *dd, Address *a)
                 SCReturnInt(0);
             }
 
-            break; 
-        #if ENABLE_IPV6    
+            break;
         case AF_INET6:
             if (AddressIPv6Ge(a, &dd->ip) == 1 &&
                 AddressIPv6Le(a, &dd->ip2) == 1)
@@ -1741,7 +1738,6 @@ static int DetectAddressMatch(DetectAddress *dd, Address *a)
             }
 
             break;
-        #endif    
         default:
             SCLogDebug("What other address type can we have :-/");
             break;
@@ -1813,8 +1809,7 @@ DetectAddress *DetectAddressLookupInHead(const DetectAddressHead *gh, Address *a
     if (a->family == AF_INET) {
         SCLogDebug("IPv4");
         g = gh->ipv4_head;
-    }
-    else if (a->family == AF_INET6) {
+    } else if (a->family == AF_INET6) {
         SCLogDebug("IPv6");
         g = gh->ipv6_head;
     }

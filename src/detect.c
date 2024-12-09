@@ -621,17 +621,14 @@ static inline bool DetectRunInspectRuleHeader(const Packet *p, const Flow *f, co
         SCLogDebug("ip version didn't match");
         return false;
     }
+
     if (DetectProtoContainsProto(&s->proto, PacketGetIPProto(p)) == 0) {
         SCLogDebug("proto didn't match");
         return false;
     }
 
     /* check the source & dst port in the sig */
-    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP 
-    #if ENABLE_SCTP
-    || p->proto == IPPROTO_SCTP
-    #endif
-    ) {
+    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP || p->proto == IPPROTO_SCTP) {
         if (!(sflags & SIG_FLAG_DP_ANY)) {
             if (p->flags & PKT_IS_FRAGMENT)
                 return false;
@@ -660,8 +657,7 @@ static inline bool DetectRunInspectRuleHeader(const Packet *p, const Flow *f, co
         if (PacketIsIPv4(p)) {
             if (DetectAddressMatchIPv4(s->addr_dst_match4, s->addr_dst_match4_cnt, &p->dst) == 0)
                 return false;
-        } 
-        else if (PacketIsIPv6(p)) {
+        } else if (PacketIsIPv6(p)) {
             if (DetectAddressMatchIPv6(s->addr_dst_match6, s->addr_dst_match6_cnt, &p->dst) == 0)
                 return false;
         }
@@ -671,8 +667,7 @@ static inline bool DetectRunInspectRuleHeader(const Packet *p, const Flow *f, co
         if (PacketIsIPv4(p)) {
             if (DetectAddressMatchIPv4(s->addr_src_match4, s->addr_src_match4_cnt, &p->src) == 0)
                 return false;
-        } 
-        else if (PacketIsIPv6(p)) {
+        } else if (PacketIsIPv6(p)) {
             if (DetectAddressMatchIPv6(s->addr_src_match6, s->addr_src_match6_cnt, &p->src) == 0)
                 return false;
         }
@@ -922,11 +917,9 @@ static DetectRunScratchpad DetectRunSetup(
         /* Retrieve the app layer state and protocol and the tcp reassembled
          * stream chunks. */
         if ((p->proto == IPPROTO_TCP && (p->flags & PKT_STREAM_EST)) ||
-                (p->proto == IPPROTO_UDP) 
-                #if ENABLE_SCTP
-                || (p->proto == IPPROTO_SCTP && (p->flowflags & FLOW_PKT_ESTABLISHED))
-                #endif
-        ){
+                (p->proto == IPPROTO_UDP) ||
+                (p->proto == IPPROTO_SCTP && (p->flowflags & FLOW_PKT_ESTABLISHED)))
+        {
             /* update flow flags with knowledge on disruptions */
             flow_flags = FlowGetDisruptionFlags(pflow, flow_flags);
             alproto = FlowGetAppProtocol(pflow);
@@ -1073,7 +1066,6 @@ DetectRunTxSortHelper(const void *a, const void *b)
 // Get inner transaction for engine
 void *DetectGetInnerTx(void *tx_ptr, AppProto alproto, AppProto engine_alproto, uint8_t flow_flags)
 {
-#if ENABLE_DNS && ENABLE_HTTP
     if (unlikely(alproto == ALPROTO_DOH2)) {
         if (engine_alproto == ALPROTO_DNS) {
             // need to get the dns tx pointer
@@ -1082,9 +1074,7 @@ void *DetectGetInnerTx(void *tx_ptr, AppProto alproto, AppProto engine_alproto, 
             // incompatible engine->alproto with flow alproto
             tx_ptr = NULL;
         }
-    } else 
-#endif    
-    if (engine_alproto != alproto) {
+    } else if (engine_alproto != alproto) {
         // incompatible engine->alproto with flow alproto
         tx_ptr = NULL;
     }

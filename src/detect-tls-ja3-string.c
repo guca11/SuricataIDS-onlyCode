@@ -97,13 +97,11 @@ void DetectTlsJa3StringRegister(void)
     DetectAppLayerMpmRegister("ja3.string", SIG_FLAG_TOSERVER, 2, PrefilterGenericMpmRegister,
             GetData, ALPROTO_TLS, 0);
 
-    #if ENABLE_QUIC
     DetectAppLayerMpmRegister("ja3.string", SIG_FLAG_TOSERVER, 2, PrefilterGenericMpmRegister,
             Ja3DetectGetString, ALPROTO_QUIC, 1);
 
     DetectAppLayerInspectEngineRegister("ja3.string", ALPROTO_QUIC, SIG_FLAG_TOSERVER, 1,
             DetectEngineInspectBufferGeneric, Ja3DetectGetString);
-    #endif
 
     DetectBufferTypeSetDescriptionByName("ja3.string", "TLS JA3 string");
 
@@ -127,11 +125,7 @@ static int DetectTlsJa3StringSetup(DetectEngineCtx *de_ctx, Signature *s, const 
     if (DetectBufferSetActiveList(de_ctx, s, g_tls_ja3_str_buffer_id) < 0)
         return -1;
 
-    if (s->alproto != ALPROTO_UNKNOWN && s->alproto != ALPROTO_TLS 
-    #if ENABLE_QUIC
-    && s->alproto != ALPROTO_QUIC
-    #endif
-    ) {
+    if (s->alproto != ALPROTO_UNKNOWN && s->alproto != ALPROTO_TLS && s->alproto != ALPROTO_QUIC) {
         SCLogError("rule contains conflicting protocols.");
         return -1;
     }
