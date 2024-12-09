@@ -687,7 +687,6 @@
     if test "$with_libhs_includes" != "no"; then
         CPPFLAGS="${CPPFLAGS} -I${with_libhs_includes}"
     fi
-    AS_UNSET(ac_cv_header_hs_h)
     AC_CHECK_HEADER(hs.h,HYPERSCAN="yes",HYPERSCAN="no")
     if test "$HYPERSCAN" = "yes"; then
         if test "$with_libhs_libraries" != "no"; then
@@ -1181,6 +1180,9 @@
         AC_MSG_RESULT(no)
     fi
 
+echo "$LDFLAGS"
+echo "$STAGING_DIR"
+
   # libpcap
     AC_ARG_WITH(libpcap_includes,
             [  --with-libpcap-includes=DIR  libpcap include directory],
@@ -1623,7 +1625,6 @@
         AC_CHECK_LIB([htp], [htp_config_set_compression_bomb_limit],AC_DEFINE_UNQUOTED([HAVE_HTP_CONFIG_SET_COMPRESSION_BOMB_LIMIT],[1],[Found htp_config_set_compression_bomb_limit function in libhtp]) ,,[-lhtp])
         AC_CHECK_LIB([htp], [htp_config_set_compression_time_limit],AC_DEFINE_UNQUOTED([HAVE_HTP_CONFIG_SET_COMPRESSION_TIME_LIMIT],[1],[Found htp_config_set_compression_time_limit function in libhtp]) ,,[-lhtp])
         AC_CHECK_LIB([htp], [htp_config_set_max_tx],AC_DEFINE_UNQUOTED([HAVE_HTP_CONFIG_SET_MAX_TX],[1],[Found htp_config_set_max_tx function in libhtp]) ,,[-lhtp])
-        AC_CHECK_LIB([htp], [htp_config_set_number_headers_limit],AC_DEFINE_UNQUOTED([HAVE_HTP_CONFIG_SET_HEADERS_LIMIT],[1],[Found htp_config_set_number_headers_limit function in libhtp]) ,,[-lhtp])
     ])
 
     if test "x$enable_non_bundled_htp" = "xno"; then
@@ -1650,7 +1651,6 @@
             AC_DEFINE_UNQUOTED([HAVE_HTP_CONFIG_SET_COMPRESSION_BOMB_LIMIT],[1],[Assuming htp_config_set_compression_bomb_limit function in bundled libhtp])
             AC_DEFINE_UNQUOTED([HAVE_HTP_CONFIG_SET_COMPRESSION_TIME_LIMIT],[1],[Assuming htp_config_set_compression_time_limit function in bundled libhtp])
             AC_DEFINE_UNQUOTED([HAVE_HTP_CONFIG_SET_MAX_TX],[1],[Assuming htp_config_set_max_tx function in bundled libhtp])
-            AC_DEFINE_UNQUOTED([HAVE_HTP_CONFIG_SET_HEADERS_LIMIT],[1],[Assuming htp_config_set_number_headers_limit function in bundled libhtp])
         else
             echo
             echo "  ERROR: Libhtp is not bundled. Get libhtp by doing:"
@@ -1846,77 +1846,60 @@
                 AS_HELP_STRING([--enable-napatech],[Enabled Napatech Devices]),
                 [ enable_napatech=$enableval ],
                 [ enable_napatech=no])
-    AS_IF([test "x$enable_napatech" = "xyes"], [
-        if test "x$enable_shared" = "xno"; then
+    AC_ARG_ENABLE(napatech_bypass,
+                AS_HELP_STRING([--disable-napatech-bypass],[Disable Bypass feature on Napatech cards]),
+                [ napatech_bypass=$enableval ],
+                [ napatech_bypass=yes])
+    AC_ARG_WITH(napatech_includes,
+                [  --with-napatech-includes=DIR   napatech include directory],
+                [with_napatech_includes="$withval"],[with_napatech_includes="/opt/napatech3/include"])
+    AC_ARG_WITH(napatech_libraries,
+                [  --with-napatech-libraries=DIR  napatech library directory],
+                [with_napatech_libraries="$withval"],[with_napatech_libraries="/opt/napatech3/lib"])
+
+    if test "$enable_napatech" = "yes"; then
+        CPPFLAGS="${CPPFLAGS} -I${with_napatech_includes}"
+        LDFLAGS="${LDFLAGS} -L${with_napatech_libraries}"
+        LIBS="${LIBS} -lntapi"
+        AC_CHECK_HEADER(nt.h,NAPATECH="yes",NAPATECH="no")
+        if test "$NAPATECH" != "no"; then
+            NAPATECH=""
+            AC_CHECK_LIB(ntapi, NT_Init,NAPATECH="yes",NAPATECH="no")
+        fi
+
+        if test "$NAPATECH" = "no"; then
             echo
-            echo "   ERROR! napatech cannot be enabled with --disable-shared"
+            echo "  ERROR! libntapi library not found"
             echo
             exit 1
-        fi
-        AC_ARG_ENABLE(napatech_bypass,
-                    AS_HELP_STRING([--disable-napatech-bypass],[Disable Bypass feature on Napatech cards]),
-                    [ napatech_bypass=$enableval ],
-                    [ napatech_bypass=yes])
-        AC_ARG_WITH(napatech_includes,
-                    [  --with-napatech-includes=DIR   napatech include directory],
-                    [with_napatech_includes="$withval"],[with_napatech_includes="/opt/napatech3/include"])
-        AC_ARG_WITH(napatech_libraries,
-                    [  --with-napatech-libraries=DIR  napatech library directory],
-                    [with_napatech_libraries="$withval"],[with_napatech_libraries="/opt/napatech3/lib"])
-
-        if test "$enable_napatech" = "yes"; then
-            CPPFLAGS="${CPPFLAGS} -I${with_napatech_includes}"
-            LDFLAGS="${LDFLAGS} -L${with_napatech_libraries}"
-            LIBS="${LIBS} -lntapi"
-            AC_CHECK_HEADER(nt.h,NAPATECH="yes",NAPATECH="no")
-            if test "$NAPATECH" != "no"; then
-                NAPATECH=""
-                AC_CHECK_LIB(ntapi, NT_Init,NAPATECH="yes",NAPATECH="no")
-            fi
-
-            if test "$NAPATECH" = "no"; then
+        else
+            AC_CHECK_LIB(numa, numa_available,, LIBNUMA="no")
+            if test "$LIBNUMA" = "no"; then
                 echo
-                echo "  ERROR! libntapi library not found"
+                echo "  WARNING: libnuma is required to use Napatech auto-config"
+                echo "      libnuma is not found.  Go get it"
+                echo "      from http://github.com/numactl/numactl or your distribution:"
+                echo "          Ubuntu: apt-get install libnuma-dev"
+                echo "          Fedora: dnf install numactl-devel"
+                echo "          CentOS/RHEL: yum install numactl-devel"
                 echo
                 exit 1
-            else
-                AC_CHECK_LIB(numa, numa_available,, LIBNUMA="no")
-                if test "$LIBNUMA" = "no"; then
-                    echo
-                    echo "  WARNING: libnuma is required to use Napatech auto-config"
-                    echo "      libnuma is not found.  Go get it"
-                    echo "      from http://github.com/numactl/numactl or your distribution:"
-                    echo "          Ubuntu: apt-get install libnuma-dev"
-                    echo "          Fedora: dnf install numactl-devel"
-                    echo "          CentOS/RHEL: yum install numactl-devel"
-                    echo
-                    exit 1
-                fi
-            fi
-
-            AC_DEFINE([HAVE_NAPATECH],[1],(Napatech capture card support))
-            if test "$napatech_bypass" = "yes"; then
-                AC_CHECK_LIB(ntapi, NT_FlowOpenAttrInit,NTFLOW="yes",NTFLOW="no")
-                if test "$NTFLOW" = "yes"; then
-                    echo "   Napatech Flow Processing is Enabled (--disable-napatech-bypass if not needed)"
-                    AC_DEFINE([NAPATECH_ENABLE_BYPASS],[1],(Napatech flowdirector support))
-                else
-                    echo "Napatech Flow Processing is not available"
-                fi
-            else
-                echo "Napatech Flow Processing is Disabled."
             fi
         fi
-        ])
 
-    if test "x$enable_napatech" = "xyes"; then
-        AM_CONDITIONAL([BUILD_NAPATECH], [true])
-        napatech_comment=""
-    else
-        AM_CONDITIONAL([BUILD_NAPATECH], [false])
-        napatech_comment="#"
+        AC_DEFINE([HAVE_NAPATECH],[1],(Napatech capture card support))
+        if test "$napatech_bypass" = "yes"; then
+            AC_CHECK_LIB(ntapi, NT_FlowOpenAttrInit,NTFLOW="yes",NTFLOW="no")
+            if test "$NTFLOW" = "yes"; then
+                echo "   Napatech Flow Processing is Enabled (--disable-napatech-bypass if not needed)"
+                AC_DEFINE([NAPATECH_ENABLE_BYPASS],[1],(Napatech flowdirector support))
+            else
+                echo "Napatech Flow Processing is not available"
+            fi
+        else
+            echo "Napatech Flow Processing is Disabled."
+        fi
     fi
-    AC_SUBST([napatech_comment])
 
   # libmaxminddb
     AC_ARG_ENABLE(geoip,
@@ -2167,6 +2150,7 @@ fi
     AM_CONDITIONAL([HAVE_RUST],true)
     AC_SUBST([CARGO], [$CARGO])
 
+    enable_rust="yes"
     rust_compiler_version=$($RUSTC --version)
     rustc_version=$(echo "$rust_compiler_version" | sed 's/^.*[[^0-9]]\([[0-9]]*\.[[0-9]]*\.[[0-9]]*\).*$/\1/')
     cargo_version_output=$($CARGO --version)
@@ -2286,7 +2270,7 @@ fi
         have_rust_headers="no"
       fi
     fi
-
+    
     AC_SUBST([CBINDGEN], [$CBINDGEN])
 
     # Require cbindgen if generated headers are not bundled.
@@ -2515,6 +2499,827 @@ AC_SUBST(enable_non_bundled_htp)
 
 AM_CONDITIONAL([BUILD_SHARED_LIBRARY], [test "x$enable_shared" = "xyes"] && [test "x$can_build_shared_library" = "xyes"])
 
+#### ----------- SECTION TO DEFINE CUSTOM PROTOCOLS CONFIGURATION ------------- ####
+# How does it work:
+# AC_ARG_ENABLE allows the creation of a custom option:
+#  first: name of the option
+#  second: string to show in case of ./configure --help
+#  third: what to do if the option is specified (in this case set or unset marcos)
+#  fourth: default behaviour
+
+# AC_SUBST allows the variable to be seen in makefiles 
+
+# AC_DEFINE_UNQUOTED define a macro in C files
+
+# AM_CONDITIONAL create a condition on the variable in the makefile (in this case if the variable is 1 or 0) to allow custom disabling of files
+
+# ESP
+AC_ARG_ENABLE([esp], 
+    [AS_HELP_STRING([--enable-esp], [Enable ESP protocol])],
+    [if test "x$enable_esp" = "xyes"; then
+         ENABLE_ESP=1
+     else
+         ENABLE_ESP=0
+     fi],
+    [ENABLE_ESP=1])
+
+AC_SUBST(ENABLE_ESP)
+AC_DEFINE_UNQUOTED([ENABLE_ESP], [$ENABLE_ESP], [Define if ESP support is enabled])
+
+AM_CONDITIONAL([ENABLE_ESP], [test "x$ENABLE_ESP" = "x1"])
+
+# TELNET
+AC_ARG_ENABLE([telnet],
+    [AS_HELP_STRING([--enable-telnet], [Enable Telnet protocol])],
+    [if test "x$enable_telnet" = "xyes"; then
+         ENABLE_TELNET=1
+         ENABLE_TELNET_STRING="yes"
+     else
+         ENABLE_TELNET=0
+         ENABLE_TELNET_STRING="no"
+     fi],
+    [ENABLE_TELNET=1
+     ENABLE_TELNET_STRING="yes"])
+
+AC_SUBST(ENABLE_TELNET)
+AC_SUBST(ENABLE_TELNET_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_TELNET], [$ENABLE_TELNET], [Define if Telnet support is enabled])
+
+AM_CONDITIONAL([ENABLE_TELNET], [test "x$ENABLE_TELNET" = "x1"])
+
+# MQTT
+AC_ARG_ENABLE([mqtt],
+    [AS_HELP_STRING([--enable-mqtt], [Enable MQTT protocol])],
+    [if test "x$enable_mqtt" = "xyes"; then
+         ENABLE_MQTT=1
+         ENABLE_MQTT_STRING="yes"
+     else
+         ENABLE_MQTT=0
+         ENABLE_MQTT_STRING="no"
+     fi],
+    [ENABLE_MQTT=1
+     ENABLE_MQTT_STRING="yes"])
+
+AC_SUBST(ENABLE_MQTT)
+AC_SUBST(ENABLE_MQTT_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_MQTT], [$ENABLE_MQTT], [Define if MQTT support is enabled])
+
+AM_CONDITIONAL([ENABLE_MQTT], [test "x$ENABLE_MQTT" = "x1"])
+
+# NTP
+AC_ARG_ENABLE([ntp],
+    [AS_HELP_STRING([--enable-ntp], [Enable NTP protocol])],
+    [if test "x$enable_ntp" = "xyes"; then
+         ENABLE_NTP=1
+         ENABLE_NTP_STRING="yes"
+     else
+         ENABLE_NTP=0
+         ENABLE_NTP_STRING="no"
+     fi],
+    [ENABLE_NTP=1
+     ENABLE_NTP_STRING="yes"])
+
+AC_SUBST(ENABLE_NTP)
+AC_SUBST(ENABLE_NTP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_NTP], [$ENABLE_NTP], [Define if NTP support is enabled])
+
+AM_CONDITIONAL([ENABLE_NTP], [test "x$ENABLE_NTP" = "x1"])
+
+# RAW
+AC_ARG_ENABLE([raw],
+    [AS_HELP_STRING([--enable-raw], [Enable RAW protocol])],
+    [if test "x$enable_raw" = "xyes"; then
+         ENABLE_RAW=1
+     else
+         ENABLE_RAW=0
+     fi],
+    [ENABLE_RAW=1])
+
+AC_SUBST(ENABLE_RAW)
+AC_DEFINE_UNQUOTED([ENABLE_RAW], [$ENABLE_RAW], [Define if RAW support is enabled])
+
+AM_CONDITIONAL([ENABLE_RAW], [test "x$ENABLE_RAW" = "x1"])
+
+# RDP
+AC_ARG_ENABLE([rdp],
+    [AS_HELP_STRING([--enable-rdp], [Enable RDP protocol])],
+    [if test "x$enable_rdp" = "xyes"; then
+         ENABLE_RDP=1
+         ENABLE_RDP_STRING="yes"
+     else
+         ENABLE_RDP=0
+         ENABLE_RDP_STRING="no"
+     fi],
+    [ENABLE_RDP=1
+     ENABLE_RDP_STRING="yes"])
+
+AC_SUBST(ENABLE_RDP)
+AC_SUBST(ENABLE_RDP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_RDP], [$ENABLE_RDP], [Define if RDP support is enabled])
+
+AM_CONDITIONAL([ENABLE_RDP], [test "x$ENABLE_RDP" = "x1"])
+
+# MAIL: SMTP, POP3, IMAP
+AC_ARG_ENABLE([mail],
+    [AS_HELP_STRING([--enable-mail], [Enable SMTP, IMAP and POP3 protocols])],
+    [if test "x$enable_mail" = "xyes"; then
+         ENABLE_SMTP=1
+         ENABLE_SMTP_STRING="yes"
+         ENABLE_POP3=1
+         ENABLE_POP3_STRING="detection-only"
+         ENABLE_IMAP=1
+         ENABLE_IMAP_STRING="detection-only"        
+     else
+         ENABLE_SMTP=0
+         ENABLE_SMTP_STRING="no"
+         ENABLE_POP3=0
+         ENABLE_POP3_STRING="no"
+         ENABLE_IMAP=0
+         ENABLE_IMAP_STRING="no"      
+     fi],
+    [ENABLE_SMTP=1
+     ENABLE_SMTP_STRING="yes"
+     ENABLE_POP3=1
+     ENABLE_POP3_STRING="detection-only"
+     ENABLE_IMAP=1
+     ENABLE_IMAP_STRING="detection-only"])
+
+AC_SUBST(ENABLE_SMTP)
+AC_SUBST(ENABLE_SMTP_STRING)
+AC_SUBST(ENABLE_POP3)
+AC_SUBST(ENABLE_POP3_STRING)
+AC_SUBST(ENABLE_IMAP)
+AC_SUBST(ENABLE_IMAP_STRING)
+
+AC_DEFINE_UNQUOTED([ENABLE_SMTP], [$ENABLE_SMTP], [Define if SMTP support is enabled])
+AM_CONDITIONAL([ENABLE_SMTP], [test "x$ENABLE_SMTP" = "x1"])
+
+AC_DEFINE_UNQUOTED([ENABLE_POP3], [$ENABLE_POP3], [Define if POP3 support is enabled])
+AM_CONDITIONAL([ENABLE_POP3], [test "x$ENABLE_POP3" = "x1"])
+
+AC_DEFINE_UNQUOTED([ENABLE_IMAP], [$ENABLE_IMAP], [Define if IMAP support is enabled])
+AM_CONDITIONAL([ENABLE_IMAP], [test "x$ENABLE_IMAP" = "x1"])
+
+# AUTHENTICATION: KRB5, LDAP
+AC_ARG_ENABLE([auth],
+    [AS_HELP_STRING([--enable-auth], [Enable Kerberos5 and LDAP protocols])],
+    [if test "x$enable_auth" = "xyes"; then
+         ENABLE_KRB5=1
+         ENABLE_LDAP=1
+         ENABLE_KRB5_STRING="yes"
+         ENABLE_LDAP_STRING="yes"
+     else
+         ENABLE_KRB5=0
+         ENABLE_LDAP=0
+         ENABLE_KRB5_STRING="no"
+         ENABLE_LDAP_STRING="no"
+     fi],
+    [ENABLE_KRB5=1
+     ENABLE_LDAP=1
+     ENABLE_KRB5_STRING="yes"
+     ENABLE_LDAP_STRING="yes"])
+
+AC_SUBST(ENABLE_KRB5)
+AC_SUBST(ENABLE_KRB5_STRING)
+AC_SUBST(ENABLE_LDAP)
+AC_SUBST(ENABLE_LDAP_STRING)
+
+AC_DEFINE_UNQUOTED([ENABLE_KRB5], [$ENABLE_KRB5], [Define if Kerberos5 support is enabled])
+AM_CONDITIONAL([ENABLE_KRB5], [test "x$ENABLE_KRB5" = "x1"])
+
+AC_DEFINE_UNQUOTED([ENABLE_LDAP], [$ENABLE_LDAP], [Define if LDAP support is enabled])
+AM_CONDITIONAL([ENABLE_LDAP], [test "x$ENABLE_LDAP" = "x1"])
+
+# COMMUNICATION: SMB, FTP, SSH, SNMP, BitTorrent, WebSocket
+AC_ARG_ENABLE([communication],
+    [AS_HELP_STRING([--enable-communication], [Enable SMB, FTP, SSH, SNMP, BitTorrent and WebSocket protocols])],
+    [if test "x$enable_communication" = "xyes"; then
+         ENABLE_SMB=1
+         ENABLE_SMB_STRING="yes"
+         ENABLE_FTP=1
+         ENABLE_FTP_STRING="yes"
+         ENABLE_SSH=1
+         ENABLE_SSH_STRING="yes"
+         ENABLE_SNMP=1
+         ENABLE_SNMP_STRING="yes"
+         ENABLE_BITTORRENT=1
+         ENABLE_BITTORRENT_STRING="yes"
+         ENABLE_WEBSOCKET=1
+         ENABLE_WEBSOCKET_STRING="yes"
+     else
+         ENABLE_SMB=0
+         ENABLE_SMB_STRING="no"
+         ENABLE_FTP=0
+         ENABLE_FTP_STRING="no"
+         ENABLE_SSH=0
+         ENABLE_SSH_STRING="no"
+         ENABLE_SNMP=0
+         ENABLE_SNMP_STRING="no"
+         ENABLE_BITTORRENT=0
+         ENABLE_BITTORRENT_STRING="no"
+         ENABLE_WEBSOCKET=0
+         ENABLE_WEBSOCKET_STRING="no"
+         
+     fi],
+    [ENABLE_SMB=1
+     ENABLE_SMB_STRING="yes"
+     ENABLE_FTP=1
+     ENABLE_FTP_STRING="yes"
+     ENABLE_SSH=1
+     ENABLE_SSH_STRING="yes"
+     ENABLE_SNMP=1
+     ENABLE_SNMP_STRING="yes"
+     ENABLE_BITTORRENT=1
+     ENABLE_BITTORRENT_STRING="yes"
+     ENABLE_WEBSOCKET=1
+     ENABLE_WEBSOCKET_STRING="yes"
+     ])
+
+AC_SUBST(ENABLE_SMB)
+AC_SUBST(ENABLE_SMB_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_SMB], [$ENABLE_SMB], [Define if SMB support is enabled])
+
+AM_CONDITIONAL([ENABLE_SMB], [test "x$ENABLE_SMB" = "x1"])
+
+AC_SUBST(ENABLE_FTP)
+AC_SUBST(ENABLE_FTP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_FTP], [$ENABLE_FTP], [Define if FTP support is enabled])
+
+AM_CONDITIONAL([ENABLE_FTP], [test "x$ENABLE_FTP" = "x1"])
+
+AC_SUBST(ENABLE_SSH)
+AC_SUBST(ENABLE_SSH_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_SSH], [$ENABLE_SSH], [Define if SSH support is enabled])
+
+AM_CONDITIONAL([ENABLE_SSH], [test "x$ENABLE_SSH" = "x1"])
+
+AC_SUBST(ENABLE_SNMP)
+AC_SUBST(ENABLE_SNMP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_SNMP], [$ENABLE_SNMP], [Define if SNMP support is enabled])
+
+AM_CONDITIONAL([ENABLE_SNMP], [test "x$ENABLE_SNMP" = "x1"])
+
+AC_SUBST(ENABLE_BITTORRENT)
+AC_SUBST(ENABLE_BITTORRENT_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_BITTORRENT], [$ENABLE_BITTORRENT], [Define if BitTorrent support is enabled])
+
+AM_CONDITIONAL([ENABLE_BITTORRENT], [test "x$ENABLE_BITTORRENT" = "x1"])
+
+AC_SUBST(ENABLE_WEBSOCKET)
+AC_SUBST(ENABLE_WEBSOCKET_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_WEBSOCKET], [$ENABLE_WEBSOCKET], [Define if WebSocket support is enabled])
+
+AM_CONDITIONAL([ENABLE_WEBSOCKET], [test "x$ENABLE_WEBSOCKET" = "x1"])
+
+
+# NETWORK: IPv6/ICMPv6, TCP, UDP, HTTP, SSL/TLS, DNS, DHCP, PPPoE, ARP
+AC_ARG_ENABLE([network],
+    [AS_HELP_STRING([--enable-network], [Enable IPv6, TCP, UDP, ICMPv6, HTTP, SSL, TLS, DNS, DHCP, PPPoE and ARP protocols])],
+    [if test "x$enable_network" = "xyes"; then
+        ENABLE_IPV6=1
+     	ENABLE_TCP=1
+     	ENABLE_TCP_STRING="yes"
+     	ENABLE_UDP=1
+     	ENABLE_HTTP=1
+     	ENABLE_HTTP_STRING="yes"
+     	ENABLE_TLS=1
+     	ENABLE_TLS_STRING="yes"
+     	ENABLE_DNS=1
+     	ENABLE_DNS_STRING="yes" 
+     	ENABLE_DHCP=1
+     	ENABLE_DHCP_STRING="yes"
+     	ENABLE_PPPOE=1
+    	ENABLE_ARP=1
+     	ENABLE_ARP_STRING="yes"
+     else
+        ENABLE_IPV6=0
+     	ENABLE_TCP=0
+     	ENABLE_TCP_STRING="no"
+     	ENABLE_UDP=0
+     	ENABLE_HTTP=0
+     	ENABLE_HTTP_STRING="no"
+     	ENABLE_TLS=0
+     	ENABLE_TLS_STRING="no"
+     	ENABLE_DNS=0
+     	ENABLE_DNS_STRING="no"
+     	ENABLE_DHCP=0
+     	ENABLE_DHCP_STRING="no"
+     	ENABLE_PPPOE=0
+    	ENABLE_ARP=0
+     	ENABLE_ARP_STRING="no"
+     fi],
+    [ENABLE_IPV6=1
+     ENABLE_TCP=1
+     ENABLE_TCP_STRING="yes"
+     ENABLE_UDP=1
+     ENABLE_HTTP=1
+     ENABLE_HTTP_STRING="yes"
+     ENABLE_TLS=1
+     ENABLE_TLS_STRING="yes"
+     ENABLE_DNS=1
+     ENABLE_DNS_STRING="yes"
+     ENABLE_DHCP=1
+     ENABLE_DHCP_STRING="yes"
+     ENABLE_PPPOE=1
+     ENABLE_ARP=1
+     ENABLE_ARP_STRING="yes"])
+
+AC_SUBST(ENABLE_IPV6)
+AC_DEFINE_UNQUOTED([ENABLE_IPV6], [$ENABLE_IPV6], [Define if IPv6 support is enabled])
+
+AM_CONDITIONAL([ENABLE_IPV6], [test "x$ENABLE_IPV6" = "x1"])
+
+AC_SUBST(ENABLE_TCP)
+AC_SUBST(ENABLE_TCP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_TCP], [$ENABLE_TCP], [Define if TCP support is enabled])
+
+AM_CONDITIONAL([ENABLE_TCP], [test "x$ENABLE_TCP" = "x1"])
+
+AC_SUBST(ENABLE_UDP)
+AC_DEFINE_UNQUOTED([ENABLE_UDP], [$ENABLE_UDP], [Define if UDP support is enabled])
+
+AM_CONDITIONAL([ENABLE_UDP], [test "x$ENABLE_UDP" = "x1"])
+
+AC_SUBST(ENABLE_HTTP)
+AC_SUBST(ENABLE_HTTP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_HTTP], [$ENABLE_HTTP], [Define if HTTP support is enabled])
+
+AM_CONDITIONAL([ENABLE_HTTP], [test "x$ENABLE_HTTP" = "x1"])
+
+AC_SUBST(ENABLE_TLS)
+AC_SUBST(ENABLE_TLS_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_TLS], [$ENABLE_TLS], [Define if TLS support is enabled])
+
+AM_CONDITIONAL([ENABLE_TLS], [test "x$ENABLE_TLS" = "x1"])
+
+if test "x$ENABLE_HTTP_STRING" = "xyes" && test "x$ENABLE_DNS_STRING" = "xyes"; then
+    ENABLE_DOH2_STRING="yes"
+else
+    ENABLE_DOH2_STRING="no"
+fi
+
+AC_SUBST(ENABLE_DNS)
+AC_SUBST(ENABLE_DNS_STRING)
+AC_SUBST(ENABLE_DOH2_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_DNS], [$ENABLE_DNS], [Define if DNS support is enabled])
+
+AM_CONDITIONAL([ENABLE_DNS], [test "x$ENABLE_DNS" = "x1"])
+
+AC_SUBST(ENABLE_DHCP)
+AC_SUBST(ENABLE_DHCP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_DHCP], [$ENABLE_DHCP], [Define if DHCP support is enabled])
+
+AM_CONDITIONAL([ENABLE_DHCP], [test "x$ENABLE_DHCP" = "x1"])
+
+AC_SUBST(ENABLE_PPPOE)
+AC_DEFINE_UNQUOTED([ENABLE_PPPOE], [$ENABLE_PPPOE], [Define if PPPoE support is enabled])
+
+AM_CONDITIONAL([ENABLE_PPPOE], [test "x$ENABLE_PPPOE" = "x1"])
+
+AC_SUBST(ENABLE_ARP)
+AC_SUBST(ENABLE_ARP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_ARP], [$ENABLE_ARP], [Define if ARP support is enabled])
+
+AM_CONDITIONAL([ENABLE_ARP], [test "x$ENABLE_ARP" = "x1"])
+
+#IKE
+#ike, ppp, vntag, sll, rfb, quic, nfs, modbus, mpls, gre, erspan, chdlc, dnp3, enip, dcerpc, pgsql, sip, tftp, sctp, vxlan, geneve, vlan, nsh, teredo
+
+AC_ARG_ENABLE([ike],
+    [AS_HELP_STRING([--enable-ike], [Enable IKE protocol])],
+    [if test "x$enable_ike" = "xyes"; then
+         ENABLE_IKE=1
+         ENABLE_IKE_STRING="yes"
+     else
+         ENABLE_IKE=0
+         ENABLE_IKE_STRING="no"
+     fi],
+    [ENABLE_IKE=1
+     ENABLE_IKE_STRING="yes"])
+
+AC_SUBST(ENABLE_IKE)
+AC_SUBST(ENABLE_IKE_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_IKE], [$ENABLE_IKE], [Define if IKE support is enabled])
+
+AM_CONDITIONAL([ENABLE_IKE], [test "x$ENABLE_IKE" = "x1"])
+
+AC_ARG_ENABLE([ppp],
+    [AS_HELP_STRING([--enable-ppp], [Enable PPP protocol])],
+    [if test "x$enable_ppp" = "xyes"; then
+         ENABLE_PPP=1
+         ENABLE_PPP_STRING="yes"
+     else
+         ENABLE_PPP=0
+         ENABLE_PPP_STRING="no"
+     fi],
+    [ENABLE_PPP=1
+     ENABLE_PPP_STRING="yes"])
+
+AC_SUBST(ENABLE_PPP)
+AC_SUBST(ENABLE_PPP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_PPP], [$ENABLE_PPP], [Define if PPP support is enabled])
+
+AM_CONDITIONAL([ENABLE_PPP], [test "x$ENABLE_PPP" = "x1"])
+
+AC_ARG_ENABLE([vntag],
+    [AS_HELP_STRING([--enable-vntag], [Enable VNTAG protocol])],
+    [if test "x$enable_vntag" = "xyes"; then
+         ENABLE_VNTAG=1
+         ENABLE_VNTAG_STRING="yes"
+     else
+         ENABLE_VNTAG=0
+         ENABLE_VNTAG_STRING="no"
+     fi],
+    [ENABLE_VNTAG=1
+     ENABLE_VNTAG_STRING="yes"])
+
+AC_SUBST(ENABLE_VNTAG)
+AC_SUBST(ENABLE_VNTAG_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_VNTAG], [$ENABLE_VNTAG], [Define if VNTAG support is enabled])
+
+AM_CONDITIONAL([ENABLE_VNTAG], [test "x$ENABLE_VNTAG" = "x1"])
+
+AC_ARG_ENABLE([sll],
+    [AS_HELP_STRING([--enable-sll], [Enable SLL protocol])],
+    [if test "x$enable_sll" = "xyes"; then
+         ENABLE_SLL=1
+         ENABLE_SLL_STRING="yes"
+     else
+         ENABLE_SLL=0
+         ENABLE_SLL_STRING="no"
+     fi],
+    [ENABLE_SLL=1
+     ENABLE_SLL_STRING="yes"])
+
+AC_SUBST(ENABLE_SLL)
+AC_SUBST(ENABLE_SLL_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_SLL], [$ENABLE_SLL], [Define if SLL support is enabled])
+
+AM_CONDITIONAL([ENABLE_SLL], [test "x$ENABLE_SLL" = "x1"])
+
+AC_ARG_ENABLE([rfb],
+    [AS_HELP_STRING([--enable-rfb], [Enable RFB protocol])],
+    [if test "x$enable_rfb" = "xyes"; then
+         ENABLE_RFB=1
+         ENABLE_RFB_STRING="yes"
+     else
+         ENABLE_RFB=0
+         ENABLE_RFB_STRING="no"
+     fi],
+    [ENABLE_RFB=1
+     ENABLE_RFB_STRING="yes"])
+
+AC_SUBST(ENABLE_RFB)
+AC_SUBST(ENABLE_RFB_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_RFB], [$ENABLE_RFB], [Define if RFB support is enabled])
+
+AM_CONDITIONAL([ENABLE_RFB], [test "x$ENABLE_RFB" = "x1"])
+
+AC_ARG_ENABLE([quic],
+    [AS_HELP_STRING([--enable-quic], [Enable QUIC protocol])],
+    [if test "x$enable_quic" = "xyes"; then
+         ENABLE_QUIC=1
+         ENABLE_QUIC_STRING="yes"
+     else
+         ENABLE_QUIC=0
+         ENABLE_QUIC_STRING="no"
+     fi],
+    [ENABLE_QUIC=1
+     ENABLE_QUIC_STRING="yes"])
+
+AC_SUBST(ENABLE_QUIC)
+AC_SUBST(ENABLE_QUIC_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_QUIC], [$ENABLE_QUIC], [Define if QUIC support is enabled])
+
+AM_CONDITIONAL([ENABLE_QUIC], [test "x$ENABLE_QUIC" = "x1"])
+
+AC_ARG_ENABLE([nfs],
+    [AS_HELP_STRING([--enable-nfs], [Enable NFS protocol])],
+    [if test "x$enable_nfs" = "xyes"; then
+         ENABLE_NFS=1
+         ENABLE_NFS_STRING="yes"
+     else
+         ENABLE_NFS=0
+         ENABLE_NFS_STRING="no"
+     fi],
+    [ENABLE_NFS=1
+     ENABLE_NFS_STRING="yes"])
+
+AC_SUBST(ENABLE_NFS)
+AC_SUBST(ENABLE_NFS_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_NFS], [$ENABLE_NFS], [Define if NFS support is enabled])
+
+AM_CONDITIONAL([ENABLE_NFS], [test "x$ENABLE_NFS" = "x1"])
+
+AC_ARG_ENABLE([modbus],
+    [AS_HELP_STRING([--enable-modbus], [Enable MODBUS protocol])],
+    [if test "x$enable_modbus" = "xyes"; then
+         ENABLE_MODBUS=1
+         ENABLE_MODBUS_STRING="yes"
+     else
+         ENABLE_MODBUS=0
+         ENABLE_MODBUS_STRING="no"
+     fi],
+    [ENABLE_MODBUS=1
+     ENABLE_MODBUS_STRING="yes"])
+
+AC_SUBST(ENABLE_MODBUS)
+AC_SUBST(ENABLE_MODBUS_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_MODBUS], [$ENABLE_MODBUS], [Define if MODBUS support is enabled])
+
+AM_CONDITIONAL([ENABLE_MODBUS], [test "x$ENABLE_MODBUS" = "x1"])
+
+AC_ARG_ENABLE([mpls],
+    [AS_HELP_STRING([--enable-mpls], [Enable MPLS protocol])],
+    [if test "x$enable_mpls" = "xyes"; then
+         ENABLE_MPLS=1
+         ENABLE_MPLS_STRING="yes"
+     else
+         ENABLE_MPLS=0
+         ENABLE_MPLS_STRING="no"
+     fi],
+    [ENABLE_MPLS=1
+     ENABLE_MPLS_STRING="yes"])
+
+AC_SUBST(ENABLE_MPLS)
+AC_SUBST(ENABLE_MPLS_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_MPLS], [$ENABLE_MPLS], [Define if MPLS support is enabled])
+
+AM_CONDITIONAL([ENABLE_MPLS], [test "x$ENABLE_MPLS" = "x1"])
+
+AC_ARG_ENABLE([gre],
+    [AS_HELP_STRING([--enable-gre], [Enable GRE protocol])],
+    [if test "x$enable_gre" = "xyes"; then
+         ENABLE_GRE=1
+         ENABLE_GRE_STRING="yes"
+     else
+         ENABLE_GRE=0
+         ENABLE_GRE_STRING="no"
+     fi],
+    [ENABLE_GRE=1
+     ENABLE_GRE_STRING="yes"])
+
+AC_SUBST(ENABLE_GRE)
+AC_SUBST(ENABLE_GRE_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_GRE], [$ENABLE_GRE], [Define if GRE support is enabled])
+
+AM_CONDITIONAL([ENABLE_GRE], [test "x$ENABLE_GRE" = "x1"])
+
+AC_ARG_ENABLE([erspan],
+    [AS_HELP_STRING([--enable-erspan], [Enable ERSPAN protocol])],
+    [if test "x$enable_erspan" = "xyes"; then
+         ENABLE_ERSPAN=1
+         ENABLE_ERSPAN_STRING="yes"
+     else
+         ENABLE_ERSPAN=0
+         ENABLE_ERSPAN_STRING="no"
+     fi],
+    [ENABLE_ERSPAN=1
+     ENABLE_ERSPAN_STRING="yes"])
+
+AC_SUBST(ENABLE_ERSPAN)
+AC_SUBST(ENABLE_ERSPAN_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_ERSPAN], [$ENABLE_ERSPAN], [Define if ERSPAN support is enabled])
+
+AM_CONDITIONAL([ENABLE_ERSPAN], [test "x$ENABLE_ERSPAN" = "x1"])
+
+AC_ARG_ENABLE([chdlc],
+    [AS_HELP_STRING([--enable-chdlc], [Enable CHDLC protocol])],
+    [if test "x$enable_chdlc" = "xyes"; then
+         ENABLE_CHDLC=1
+         ENABLE_CHDLC_STRING="yes"
+     else
+         ENABLE_CHDLC=0
+         ENABLE_CHDLC_STRING="no"
+     fi],
+    [ENABLE_CHDLC=1
+     ENABLE_CHDLC_STRING="yes"])
+
+AC_SUBST(ENABLE_CHDLC)
+AC_SUBST(ENABLE_CHDLC_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_CHDLC], [$ENABLE_CHDLC], [Define if CHDLC support is enabled])
+
+AM_CONDITIONAL([ENABLE_CHDLC], [test "x$ENABLE_CHDLC" = "x1"])
+
+AC_ARG_ENABLE([dnp3],
+    [AS_HELP_STRING([--enable-dnp3], [Enable DNP3 protocol])],
+    [if test "x$enable_dnp3" = "xyes"; then
+         ENABLE_DNP3=1
+         ENABLE_DNP3_STRING="yes"
+     else
+         ENABLE_DNP3=0
+         ENABLE_DNP3_STRING="no"
+     fi],
+    [ENABLE_DNP3=1
+     ENABLE_DNP3_STRING="yes"])
+
+AC_SUBST(ENABLE_DNP3)
+AC_SUBST(ENABLE_DNP3_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_DNP3], [$ENABLE_DNP3], [Define if DNP3 support is enabled])
+
+AM_CONDITIONAL([ENABLE_DNP3], [test "x$ENABLE_DNP3" = "x1"])
+
+AC_ARG_ENABLE([enip],
+    [AS_HELP_STRING([--enable-enip], [Enable ENIP protocol])],
+    [if test "x$enable_enip" = "xyes"; then
+         ENABLE_ENIP=1
+         ENABLE_ENIP_STRING="yes"
+     else
+         ENABLE_ENIP=0
+         ENABLE_ENIP_STRING="no"
+     fi],
+    [ENABLE_ENIP=1
+     ENABLE_ENIP_STRING="yes"])
+
+AC_SUBST(ENABLE_ENIP)
+AC_SUBST(ENABLE_ENIP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_ENIP], [$ENABLE_ENIP], [Define if ENIP support is enabled])
+
+AM_CONDITIONAL([ENABLE_ENIP], [test "x$ENABLE_ENIP" = "x1"])
+
+AC_ARG_ENABLE([dcerpc],
+    [AS_HELP_STRING([--enable-dcerpc], [Enable DCERPC protocol])],
+    [if test "x$enable_dcerpc" = "xyes"; then
+         ENABLE_DCERPC=1
+         ENABLE_DCERPC_STRING="yes"
+     else
+         ENABLE_DCERPC=0
+         ENABLE_DCERPC_STRING="no"
+     fi],
+    [ENABLE_DCERPC=1
+     ENABLE_DCERPC_STRING="yes"])
+
+AC_SUBST(ENABLE_DCERPC)
+AC_SUBST(ENABLE_DCERPC_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_DCERPC], [$ENABLE_DCERPC], [Define if DCERPC support is enabled])
+
+AM_CONDITIONAL([ENABLE_DCERPC], [test "x$ENABLE_DCERPC" = "x1"])
+
+AC_ARG_ENABLE([pgsql],
+    [AS_HELP_STRING([--enable-pgsql], [Enable PGSQL protocol])],
+    [if test "x$enable_pgsql" = "xyes"; then
+         ENABLE_PGSQL=1
+         ENABLE_PGSQL_STRING="yes"
+     else
+         ENABLE_PGSQL=0
+         ENABLE_PGSQL_STRING="no"
+     fi],
+    [ENABLE_PGSQL=1
+     ENABLE_PGSQL_STRING="yes"])
+
+AC_SUBST(ENABLE_PGSQL)
+AC_SUBST(ENABLE_PGSQL_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_PGSQL], [$ENABLE_PGSQL], [Define if PGSQL support is enabled])
+
+AM_CONDITIONAL([ENABLE_PGSQL], [test "x$ENABLE_PGSQL" = "x1"])
+
+AC_ARG_ENABLE([sip],
+    [AS_HELP_STRING([--enable-sip], [Enable SIP protocol])],
+    [if test "x$enable_sip" = "xyes"; then
+         ENABLE_SIP=1
+         ENABLE_SIP_STRING="yes"
+     else
+         ENABLE_SIP=0
+         ENABLE_SIP_STRING="no"
+     fi],
+    [ENABLE_SIP=1
+     ENABLE_SIP_STRING="yes"])
+
+AC_SUBST(ENABLE_SIP)
+AC_SUBST(ENABLE_SIP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_SIP], [$ENABLE_SIP], [Define if SIP support is enabled])
+
+AM_CONDITIONAL([ENABLE_SIP], [test "x$ENABLE_SIP" = "x1"])
+
+AC_ARG_ENABLE([tftp],
+    [AS_HELP_STRING([--enable-tftp], [Enable TFTP protocol])],
+    [if test "x$enable_tftp" = "xyes"; then
+         ENABLE_TFTP=1
+         ENABLE_TFTP_STRING="yes"
+     else
+         ENABLE_TFTP=0
+         ENABLE_TFTP_STRING="no"
+     fi],
+    [ENABLE_TFTP=1
+     ENABLE_TFTP_STRING="yes"])
+
+AC_SUBST(ENABLE_TFTP)
+AC_SUBST(ENABLE_TFTP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_TFTP], [$ENABLE_TFTP], [Define if TFTP support is enabled])
+
+AM_CONDITIONAL([ENABLE_TFTP], [test "x$ENABLE_TFTP" = "x1"])
+
+AC_ARG_ENABLE([sctp],
+    [AS_HELP_STRING([--enable-sctp], [Enable SCTP protocol])],
+    [if test "x$enable_sctp" = "xyes"; then
+         ENABLE_SCTP=1
+         ENABLE_SCTP_STRING="yes"
+     else
+         ENABLE_SCTP=0
+         ENABLE_SCTP_STRING="no"
+     fi],
+    [ENABLE_SCTP=1
+     ENABLE_SCTP_STRING="yes"])
+
+AC_SUBST(ENABLE_SCTP)
+AC_SUBST(ENABLE_SCTP_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_SCTP], [$ENABLE_SCTP], [Define if SCTP support is enabled])
+
+AM_CONDITIONAL([ENABLE_SCTP], [test "x$ENABLE_SCTP" = "x1"])
+
+AC_ARG_ENABLE([vxlan],
+    [AS_HELP_STRING([--enable-vxlan], [Enable VXLAN protocol])],
+    [if test "x$enable_vxlan" = "xyes"; then
+         ENABLE_VXLAN=1
+         ENABLE_VXLAN_STRING="yes"
+     else
+         ENABLE_VXLAN=0
+         ENABLE_VXLAN_STRING="no"
+     fi],
+    [ENABLE_VXLAN=1
+     ENABLE_VXLAN_STRING="yes"])
+
+AC_SUBST(ENABLE_VXLAN)
+AC_SUBST(ENABLE_VXLAN_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_VXLAN], [$ENABLE_VXLAN], [Define if VXLAN support is enabled])
+
+AM_CONDITIONAL([ENABLE_VXLAN], [test "x$ENABLE_VXLAN" = "x1"])
+
+AC_ARG_ENABLE([geneve],
+    [AS_HELP_STRING([--enable-geneve], [Enable GENEVE protocol])],
+    [if test "x$enable_geneve" = "xyes"; then
+         ENABLE_GENEVE=1
+         ENABLE_GENEVE_STRING="yes"
+     else
+         ENABLE_GENEVE=0
+         ENABLE_GENEVE_STRING="no"
+     fi],
+    [ENABLE_GENEVE=1
+     ENABLE_GENEVE_STRING="yes"])
+
+AC_SUBST(ENABLE_GENEVE)
+AC_SUBST(ENABLE_GENEVE_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_GENEVE], [$ENABLE_GENEVE], [Define if GENEVE support is enabled])
+
+AM_CONDITIONAL([ENABLE_GENEVE], [test "x$ENABLE_GENEVE" = "x1"])
+
+AC_ARG_ENABLE([vlan],
+    [AS_HELP_STRING([--enable-vlan], [Enable VLAN protocol])],
+    [if test "x$enable_vlan" = "xyes"; then
+         ENABLE_VLAN=1
+         ENABLE_VLAN_STRING="yes"
+     else
+         ENABLE_VLAN=0
+         ENABLE_VLAN_STRING="no"
+     fi],
+    [ENABLE_VLAN=1
+     ENABLE_VLAN_STRING="yes"])
+
+AC_SUBST(ENABLE_VLAN)
+AC_SUBST(ENABLE_VLAN_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_VLAN], [$ENABLE_VLAN], [Define if VLAN support is enabled])
+
+AM_CONDITIONAL([ENABLE_VLAN], [test "x$ENABLE_VLAN" = "x1"])
+
+AC_ARG_ENABLE([nsh],
+    [AS_HELP_STRING([--enable-nsh], [Enable NSH protocol])],
+    [if test "x$enable_nsh" = "xyes"; then
+         ENABLE_NSH=1
+         ENABLE_NSH_STRING="yes"
+     else
+         ENABLE_NSH=0
+         ENABLE_NSH_STRING="no"
+     fi],
+    [ENABLE_NSH=1
+     ENABLE_NSH_STRING="yes"])
+
+AC_SUBST(ENABLE_NSH)
+AC_SUBST(ENABLE_NSH_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_NSH], [$ENABLE_NSH], [Define if NSH support is enabled])
+
+AM_CONDITIONAL([ENABLE_NSH], [test "x$ENABLE_NSH" = "x1"])
+
+AC_ARG_ENABLE([teredo],
+    [AS_HELP_STRING([--enable-teredo], [Enable TEREDO protocol])],
+    [if test "x$enable_teredo" = "xyes"; then
+         ENABLE_TEREDO=1
+         ENABLE_TEREDO_STRING="yes"
+     else
+         ENABLE_TEREDO=0
+         ENABLE_TEREDO_STRING="no"
+     fi],
+    [ENABLE_TEREDO=1
+     ENABLE_TEREDO_STRING="yes"])
+
+AC_SUBST(ENABLE_TEREDO)
+AC_SUBST(ENABLE_TEREDO_STRING)
+AC_DEFINE_UNQUOTED([ENABLE_TEREDO], [$ENABLE_TEREDO], [Define if TEREDO support is enabled])
+
+AM_CONDITIONAL([ENABLE_TEREDO], [test "x$ENABLE_TEREDO" = "x1"])
+
+
+#### ----------- END SECTION TO DEFINE CUSTOM PROTOCOLS CONFIGURATION ------------- ####
+
 AC_CONFIG_FILES(Makefile src/Makefile rust/Makefile rust/Cargo.lock rust/Cargo.toml rust/derive/Cargo.toml rust/.cargo/config.toml)
 AC_CONFIG_FILES(qa/Makefile qa/coccinelle/Makefile)
 AC_CONFIG_FILES(rules/Makefile doc/Makefile doc/userguide/Makefile)
@@ -2529,7 +3334,6 @@ AC_CONFIG_FILES(examples/plugins/ci-capture/Makefile)
 AC_CONFIG_FILES(examples/lib/simple/Makefile examples/lib/simple/Makefile.example)
 AC_CONFIG_FILES(plugins/Makefile)
 AC_CONFIG_FILES(plugins/pfring/Makefile)
-AC_CONFIG_FILES(plugins/napatech/Makefile)
 
 AC_OUTPUT
 
@@ -2566,6 +3370,7 @@ SURICATA_BUILD_CONF="Suricata Configuration:
   Landlock support:                        ${enable_landlock}
   Systemd support:                         ${enable_systemd}
 
+  Rust support:                            ${enable_rust}
   Rust strict mode:                        ${enable_rust_strict}
   Rust compiler path:                      ${RUSTC}
   Rust compiler version:                   ${rust_compiler_version}
