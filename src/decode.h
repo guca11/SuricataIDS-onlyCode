@@ -99,28 +99,28 @@ enum PktSrcEnum {
 #include "decode-ppp.h"
 #endif
 #include "decode-ipv4.h"
-#if ENABLE_IPV6
+//#if ENABLE_IPV6
 #include "decode-ipv6.h"
 #include "decode-icmpv6.h"
-#endif
+//#endif
 #include "decode-icmpv4.h"
 #include "decode-tcp.h"
 #include "decode-udp.h"
 //#if ENABLE_SCTP
 #include "decode-sctp.h"
 //#endif
-#if ENABLE_ESP
+//#if ENABLE_ESP
 #include "decode-esp.h"
-#endif
+//#endif
 //#if ENABLE_VLAN
 #include "decode-vlan.h"
 //#endif
 #if ENABLE_MPLS
 #include "decode-mpls.h"
 #endif
-#if ENABLE_ARP
+//#if ENABLE_ARP
 #include "decode-arp.h"
-#endif
+//#endif
 #include "util-validate.h"
 
 /* forward declarations */
