@@ -233,8 +233,10 @@ static int DetectAddressInsert(DetectEngineCtx *de_ctx, DetectAddressHead *gh,
         cur = NULL;
 
         for (cur = head; cur != NULL; cur = cur->next) {
+            #if !ENABLE_IPV6
             if(new->ip.family == AF_INET6 && cur->ip.family == AF_INET6)
               return 0;
+            #endif
             r = DetectAddressCmp(new, cur);
             BUG_ON(r == ADDRESS_ER);
 
