@@ -69,7 +69,7 @@ time = "~0.3.36"
 
 suricata-derive = { path = "./derive", version = "@PACKAGE_VERSION@" }
 
-#suricata-lua-sys = { git = "https://github.com/guca11/suricata-lua-sys-aarch64", rev = "b5dc88e4a32cc9f8e279d0da6e3fcd9acdb90177" }
+suricata-lua-sys = { git = "https://github.com/guca11/suricata-lua-sys-aarch64", rev = "b5dc88e4a32cc9f8e279d0da6e3fcd9acdb90177" }
 
 [dev-dependencies]
 test-case = "~3.3.1"
