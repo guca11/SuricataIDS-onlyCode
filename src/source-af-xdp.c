@@ -930,11 +930,9 @@ static TmEcode DecodeAFXDP(ThreadVars *tv, Packet *p, void *data)
     DecodeUpdatePacketCounters(tv, dtv, p);
 
     /* If suri has set vlan during reading, we increase vlan counter */
-    #if ENABLE_VLAN
     if (p->vlan_idx) {
         StatsIncr(tv, dtv->counter_vlan);
     }
-    #endif
 
     /* call the decoder */
     DecodeLinkLayer(tv, dtv, p->datalink, p, GET_PKT_DATA(p), GET_PKT_LEN(p));

@@ -67,7 +67,6 @@
 static inline int StateIsValid(uint16_t alproto, void *alstate)
 {
     if (alstate != NULL) {
-    	#if ENABLE_HTTP
         if (alproto == ALPROTO_HTTP1) {
             HtpState *htp_state = (HtpState *)alstate;
             if (htp_state->conn != NULL) {
@@ -76,9 +75,6 @@ static inline int StateIsValid(uint16_t alproto, void *alstate)
         } else {
             return 1;
         }
-        #else
-            return 1;
-        #endif
     }
     return 0;
 }

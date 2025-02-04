@@ -38,6 +38,7 @@
 #include "flow-storage.h"
 #include "flow-timeout.h"
 #include "flow-spare-pool.h"
+#include "flow-callbacks.h"
 #include "app-layer-parser.h"
 
 #include "util-time.h"
@@ -129,7 +130,10 @@ uint32_t FlowGetIpPairProtoHash(const Packet *p)
         fhk.ports[1] = 0xba98;
 
         fhk.proto = (uint8_t)p->proto;
-        fhk.recur = (uint8_t)p->recursion_level;
+        /* g_recurlvl_mask sets the recursion_level to 0 if
+         * decoder.recursion-level.use-for-tracking is disabled.
+         */
+        fhk.recur = (uint8_t)p->recursion_level & g_recurlvl_mask;
         /* g_vlan_mask sets the vlan_ids to 0 if vlan.use-for-tracking
          * is disabled. */
         fhk.vlan_id[0] = p->vlan_id[0] & g_vlan_mask;
@@ -164,7 +168,7 @@ uint32_t FlowGetIpPairProtoHash(const Packet *p)
         fhk.ports[0] = 0xfedc;
         fhk.ports[1] = 0xba98;
         fhk.proto = (uint8_t)p->proto;
-        fhk.recur = (uint8_t)p->recursion_level;
+        fhk.recur = (uint8_t)p->recursion_level & g_recurlvl_mask;
         fhk.vlan_id[0] = p->vlan_id[0] & g_vlan_mask;
         fhk.vlan_id[1] = p->vlan_id[1] & g_vlan_mask;
         fhk.vlan_id[2] = p->vlan_id[2] & g_vlan_mask;
@@ -204,7 +208,10 @@ static inline uint32_t FlowGetHash(const Packet *p)
             fhk.ports[pi] = p->dp;
 
             fhk.proto = p->proto;
-            fhk.recur = p->recursion_level;
+            /* g_recurlvl_mask sets the recursion_level to 0 if
+             * decoder.recursion-level.use-for-tracking is disabled.
+             */
+            fhk.recur = p->recursion_level & g_recurlvl_mask;
             /* g_livedev_mask sets the livedev ids to 0 if livedev.use-for-tracking
              * is disabled. */
             uint16_t devid = p->livedev ? p->livedev->id : 0;
@@ -231,7 +238,7 @@ static inline uint32_t FlowGetHash(const Packet *p)
             fhk.ports[pi] = p->l4.vars.icmpv4.emb_dport;
 
             fhk.proto = ICMPV4_GET_EMB_PROTO(p);
-            fhk.recur = p->recursion_level;
+            fhk.recur = p->recursion_level & g_recurlvl_mask;
             uint16_t devid = p->livedev ? p->livedev->id : 0;
             fhk.livedev = devid & g_livedev_mask;
             fhk.vlan_id[0] = p->vlan_id[0] & g_vlan_mask;
@@ -248,7 +255,7 @@ static inline uint32_t FlowGetHash(const Packet *p)
             fhk.ports[0] = 0xfeed;
             fhk.ports[1] = 0xbeef;
             fhk.proto = p->proto;
-            fhk.recur = p->recursion_level;
+            fhk.recur = p->recursion_level & g_recurlvl_mask;
             uint16_t devid = p->livedev ? p->livedev->id : 0;
             fhk.livedev = devid & g_livedev_mask;
             fhk.vlan_id[0] = p->vlan_id[0] & g_vlan_mask;
@@ -283,7 +290,7 @@ static inline uint32_t FlowGetHash(const Packet *p)
         fhk.ports[1-pi] = p->sp;
         fhk.ports[pi] = p->dp;
         fhk.proto = p->proto;
-        fhk.recur = p->recursion_level;
+        fhk.recur = p->recursion_level & g_recurlvl_mask;
         uint16_t devid = p->livedev ? p->livedev->id : 0;
         fhk.livedev = devid & g_livedev_mask;
         fhk.vlan_id[0] = p->vlan_id[0] & g_vlan_mask;
@@ -321,7 +328,7 @@ uint32_t FlowKeyGetHash(FlowKey *fk)
         fhk.ports[pi] = fk->dp;
 
         fhk.proto = fk->proto;
-        fhk.recur = fk->recursion_level;
+        fhk.recur = fk->recursion_level & g_recurlvl_mask;
         fhk.livedev = fk->livedev_id & g_livedev_mask;
         fhk.vlan_id[0] = fk->vlan_id[0] & g_vlan_mask;
         fhk.vlan_id[1] = fk->vlan_id[1] & g_vlan_mask;
@@ -357,7 +364,7 @@ uint32_t FlowKeyGetHash(FlowKey *fk)
         fhk.ports[1-pi] = fk->sp;
         fhk.ports[pi] = fk->dp;
         fhk.proto = fk->proto;
-        fhk.recur = fk->recursion_level;
+        fhk.recur = fk->recursion_level & g_recurlvl_mask;
         fhk.livedev = fk->livedev_id & g_livedev_mask;
         fhk.vlan_id[0] = fk->vlan_id[0] & g_vlan_mask;
         fhk.vlan_id[1] = fk->vlan_id[1] & g_vlan_mask;
@@ -411,7 +418,8 @@ static inline bool CmpFlowPacket(const Flow *f, const Packet *p)
     const uint32_t *p_src = p->src.address.address_un_data32;
     const uint32_t *p_dst = p->dst.address.address_un_data32;
     return CmpAddrsAndPorts(f_src, f_dst, f->sp, f->dp, p_src, p_dst, p->sp, p->dp) &&
-           f->proto == p->proto && f->recursion_level == p->recursion_level &&
+           f->proto == p->proto &&
+           (f->recursion_level == p->recursion_level || g_recurlvl_mask == 0) &&
            CmpVlanIds(f->vlan_id, p->vlan_id) && (f->livedev == p->livedev || g_livedev_mask == 0);
 }
 
@@ -422,7 +430,8 @@ static inline bool CmpFlowKey(const Flow *f, const FlowKey *k)
     const uint32_t *k_src = k->src.address.address_un_data32;
     const uint32_t *k_dst = k->dst.address.address_un_data32;
     return CmpAddrsAndPorts(f_src, f_dst, f->sp, f->dp, k_src, k_dst, k->sp, k->dp) &&
-           f->proto == k->proto && f->recursion_level == k->recursion_level &&
+           f->proto == k->proto &&
+           (f->recursion_level == k->recursion_level || g_recurlvl_mask == 0) &&
            CmpVlanIds(f->vlan_id, k->vlan_id) && CmpLiveDevIds(f->livedev, k->livedev_id);
 }
 
@@ -448,7 +457,8 @@ static inline bool CmpFlowICMPPacket(const Flow *f, const Packet *p)
     const uint32_t *p_dst = p->dst.address.address_un_data32;
     return CmpAddrsAndICMPTypes(f_src, f_dst, f->icmp_s.type, f->icmp_d.type, p_src, p_dst,
                    p->icmp_s.type, p->icmp_d.type) &&
-           f->proto == p->proto && f->recursion_level == p->recursion_level &&
+           f->proto == p->proto &&
+           (f->recursion_level == p->recursion_level || g_recurlvl_mask == 0) &&
            CmpVlanIds(f->vlan_id, p->vlan_id) && (f->livedev == p->livedev || g_livedev_mask == 0);
 }
 
@@ -471,7 +481,8 @@ static inline int FlowCompareICMPv4(Flow *f, const Packet *p)
         if ((f->src.addr_data32[0] == IPV4_GET_RAW_IPSRC_U32(PacketGetICMPv4EmbIPv4(p))) &&
                 (f->dst.addr_data32[0] == IPV4_GET_RAW_IPDST_U32(PacketGetICMPv4EmbIPv4(p))) &&
                 f->sp == p->l4.vars.icmpv4.emb_sport && f->dp == p->l4.vars.icmpv4.emb_dport &&
-                f->proto == ICMPV4_GET_EMB_PROTO(p) && f->recursion_level == p->recursion_level &&
+                f->proto == ICMPV4_GET_EMB_PROTO(p) &&
+                (f->recursion_level == p->recursion_level || g_recurlvl_mask == 0) &&
                 CmpVlanIds(f->vlan_id, p->vlan_id) &&
                 (f->livedev == p->livedev || g_livedev_mask == 0)) {
             return 1;
@@ -482,7 +493,8 @@ static inline int FlowCompareICMPv4(Flow *f, const Packet *p)
                    (f->src.addr_data32[0] == IPV4_GET_RAW_IPDST_U32(PacketGetICMPv4EmbIPv4(p))) &&
                    f->dp == p->l4.vars.icmpv4.emb_sport && f->sp == p->l4.vars.icmpv4.emb_dport &&
                    f->proto == ICMPV4_GET_EMB_PROTO(p) &&
-                   f->recursion_level == p->recursion_level && CmpVlanIds(f->vlan_id, p->vlan_id) &&
+                   (f->recursion_level == p->recursion_level || g_recurlvl_mask == 0) &&
+                   CmpVlanIds(f->vlan_id, p->vlan_id) &&
                    (f->livedev == p->livedev || g_livedev_mask == 0)) {
             return 1;
         }
@@ -505,7 +517,6 @@ static inline int FlowCompareICMPv4(Flow *f, const Packet *p)
  *  \retval 1 match
  *  \retval 0 no match
  */
-#if ENABLE_ESP
 static inline int FlowCompareESP(Flow *f, const Packet *p)
 {
     const uint32_t *f_src = f->src.address.address_un_data32;
@@ -514,11 +525,11 @@ static inline int FlowCompareESP(Flow *f, const Packet *p)
     const uint32_t *p_dst = p->dst.address.address_un_data32;
 
     return CmpAddrs(f_src, p_src) && CmpAddrs(f_dst, p_dst) && f->proto == p->proto &&
-           f->recursion_level == p->recursion_level && CmpVlanIds(f->vlan_id, p->vlan_id) &&
-           f->esp.spi == ESP_GET_SPI(PacketGetESP(p)) &&
+           (f->recursion_level == p->recursion_level || g_recurlvl_mask == 0) &&
+           CmpVlanIds(f->vlan_id, p->vlan_id) && f->esp.spi == ESP_GET_SPI(PacketGetESP(p)) &&
            (f->livedev == p->livedev || g_livedev_mask == 0);
 }
-#endif
+
 void FlowSetupPacket(Packet *p)
 {
     p->flags |= PKT_WANTS_FLOW;
@@ -529,12 +540,9 @@ static inline int FlowCompare(Flow *f, const Packet *p)
 {
     if (p->proto == IPPROTO_ICMP) {
         return FlowCompareICMPv4(f, p);
-    }
-    #if ENABLE_ESP
-    else if (PacketIsESP(p)) {
+    } else if (PacketIsESP(p)) {
         return FlowCompareESP(f, p);
     }
-    #endif
     return CmpFlowPacket(f, p);
 }
 
@@ -767,10 +775,9 @@ static Flow *TcpReuseReplace(ThreadVars *tv, FlowLookupStruct *fls, FlowBucket *
 #ifdef UNITTESTS
     }
 #endif
-    /* time out immediately */
-    old_f->timeout_at = 0;
     /* get some settings that we move over to the new flow */
     FlowThreadId thread_id[2] = { old_f->thread_id[0], old_f->thread_id[1] };
+    old_f->flow_end_flags |= FLOW_END_FLAG_TCPREUSE;
 
     /* flow is unlocked by caller */
 
@@ -785,7 +792,7 @@ static Flow *TcpReuseReplace(ThreadVars *tv, FlowLookupStruct *fls, FlowBucket *
     fb->head = f;
 
     /* initialize and return */
-    FlowInit(f, p);
+    FlowInit(tv, f, p);
     f->flow_hash = hash;
     f->fb = fb;
     FlowUpdateState(f, FLOW_STATE_NEW);
@@ -793,7 +800,7 @@ static Flow *TcpReuseReplace(ThreadVars *tv, FlowLookupStruct *fls, FlowBucket *
     f->thread_id[0] = thread_id[0];
     f->thread_id[1] = thread_id[1];
 
-    STREAM_PKT_FLAG_SET(p, STREAM_PKT_FLAG_TCP_PORT_REUSE);
+    STREAM_PKT_FLAG_SET(p, STREAM_PKT_FLAG_TCP_SESSION_REUSE);
     return f;
 }
 
@@ -835,19 +842,45 @@ static inline void MoveToWorkQueue(ThreadVars *tv, FlowLookupStruct *fls,
     }
 }
 
-static inline bool FlowIsTimedOut(const Flow *f, const uint32_t sec, const bool emerg)
+static inline bool FlowIsTimedOut(
+        const FlowThreadId ftid, const Flow *f, const SCTime_t pktts, const bool emerg)
 {
-    if (unlikely(f->timeout_at < sec)) {
-        return true;
-    } else if (unlikely(emerg)) {
-        extern FlowProtoTimeout flow_timeouts_delta[FLOW_PROTO_MAX];
-
-        int64_t timeout_at = f->timeout_at -
-            FlowGetFlowTimeoutDirect(flow_timeouts_delta, f->flow_state, f->protomap);
-        if ((int64_t)sec >= timeout_at)
-            return true;
+    SCTime_t timesout_at;
+    if (emerg) {
+        extern FlowProtoTimeout flow_timeouts_emerg[FLOW_PROTO_MAX];
+        timesout_at = SCTIME_ADD_SECS(f->lastts,
+                FlowGetFlowTimeoutDirect(flow_timeouts_emerg, f->flow_state, f->protomap));
+    } else {
+        timesout_at = SCTIME_ADD_SECS(f->lastts, f->timeout_policy);
     }
-    return false;
+    /* if time is live, we just use the pktts */
+    if (TimeModeIsLive() || ftid == f->thread_id[0] || f->thread_id[0] == 0) {
+        if (SCTIME_CMP_LT(pktts, timesout_at)) {
+            return false;
+        }
+    } else {
+        SCTime_t checkts = TmThreadsGetThreadTime(f->thread_id[0]);
+        /* do the timeout check */
+        if (SCTIME_CMP_LT(checkts, timesout_at)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+static inline uint16_t GetTvId(const ThreadVars *tv)
+{
+    uint16_t tv_id;
+#ifdef UNITTESTS
+    if (RunmodeIsUnittests()) {
+        tv_id = 0;
+    } else {
+        tv_id = (uint16_t)tv->id;
+    }
+#else
+    tv_id = (uint16_t)tv->id;
+#endif
+    return tv_id;
 }
 
 /** \brief Get Flow for packet
@@ -890,7 +923,7 @@ Flow *FlowGetFlowFromHash(ThreadVars *tv, FlowLookupStruct *fls, Packet *p, Flow
         fb->head = f;
 
         /* got one, now lock, initialize and return */
-        FlowInit(f, p);
+        FlowInit(tv, f, p);
         f->flow_hash = hash;
         f->fb = fb;
         FlowUpdateState(f, FLOW_STATE_NEW);
@@ -901,40 +934,45 @@ Flow *FlowGetFlowFromHash(ThreadVars *tv, FlowLookupStruct *fls, Packet *p, Flow
         return f;
     }
 
+    const uint16_t tv_id = GetTvId(tv);
     const bool emerg = (SC_ATOMIC_GET(flow_flags) & FLOW_EMERGENCY) != 0;
     const uint32_t fb_nextts = !emerg ? SC_ATOMIC_GET(fb->next_ts) : 0;
+    const bool timeout_check = (fb_nextts <= (uint32_t)SCTIME_SECS(p->ts));
     /* ok, we have a flow in the bucket. Let's find out if it is our flow */
     Flow *prev_f = NULL; /* previous flow */
     f = fb->head;
     do {
         Flow *next_f = NULL;
-        const bool timedout = (fb_nextts < (uint32_t)SCTIME_SECS(p->ts) &&
-                               FlowIsTimedOut(f, (uint32_t)SCTIME_SECS(p->ts), emerg));
-        if (timedout) {
+        const bool our_flow = FlowCompare(f, p) != 0;
+        if (our_flow || timeout_check) {
             FLOWLOCK_WRLOCK(f);
-            next_f = f->next;
-            MoveToWorkQueue(tv, fls, fb, f, prev_f);
-            FLOWLOCK_UNLOCK(f);
-            goto flow_removed;
-        } else if (FlowCompare(f, p) != 0) {
-            FLOWLOCK_WRLOCK(f);
-            /* found a matching flow that is not timed out */
-            if (unlikely(TcpSessionPacketSsnReuse(p, f, f->protoctx))) {
-                Flow *new_f = TcpReuseReplace(tv, fls, fb, f, hash, p);
-                if (prev_f == NULL) /* if we have no prev it means new_f is now our prev */
-                    prev_f = new_f;
-                MoveToWorkQueue(tv, fls, fb, f, prev_f); /* evict old flow */
-                FLOWLOCK_UNLOCK(f); /* unlock old replaced flow */
+            const bool timedout = (timeout_check && FlowIsTimedOut(tv_id, f, p->ts, emerg));
+            if (timedout) {
+                next_f = f->next;
+                MoveToWorkQueue(tv, fls, fb, f, prev_f);
+                FLOWLOCK_UNLOCK(f);
+                goto flow_removed;
+            } else if (our_flow) {
+                /* found a matching flow that is not timed out */
+                if (unlikely(TcpSessionPacketSsnReuse(p, f, f->protoctx))) {
+                    Flow *new_f = TcpReuseReplace(tv, fls, fb, f, hash, p);
+                    if (prev_f == NULL) /* if we have no prev it means new_f is now our prev */
+                        prev_f = new_f;
+                    MoveToWorkQueue(tv, fls, fb, f, prev_f); /* evict old flow */
+                    FLOWLOCK_UNLOCK(f);                      /* unlock old replaced flow */
 
-                if (new_f == NULL) {
-                    FBLOCK_UNLOCK(fb);
-                    return NULL;
+                    if (new_f == NULL) {
+                        FBLOCK_UNLOCK(fb);
+                        return NULL;
+                    }
+                    f = new_f;
                 }
-                f = new_f;
+                FlowReference(dest, f);
+                FBLOCK_UNLOCK(fb);
+                return f; /* return w/o releasing flow lock */
+            } else {
+                FLOWLOCK_UNLOCK(f);
             }
-            FlowReference(dest, f);
-            FBLOCK_UNLOCK(fb);
-            return f; /* return w/o releasing flow lock */
         }
         /* unless we removed 'f', prev_f needs to point to
          * current 'f' when adding a new flow below. */
@@ -955,7 +993,7 @@ flow_removed:
             fb->head = f;
 
             /* initialize and return */
-            FlowInit(f, p);
+            FlowInit(tv, f, p);
             f->flow_hash = hash;
             f->fb = fb;
             FlowUpdateState(f, FLOW_STATE_NEW);
@@ -1246,6 +1284,7 @@ static Flow *FlowGetUsedFlow(ThreadVars *tv, DecodeThreadVars *dtv, const SCTime
         }
 #endif
 
+        SCFlowRunFinishCallbacks(tv, f);
         FlowClearMemory(f, f->protomap);
 
         /* leave locked */

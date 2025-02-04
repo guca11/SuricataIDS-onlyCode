@@ -253,10 +253,10 @@ fn smb_common_header(jsb: &mut JsonBuilder, state: &SMBState, tx: &SMBTransactio
             jsb.set_string("server_guid", &guid_to_string(&x.server_guid))?;
 
             if state.max_read_size > 0 {
-                jsb.set_uint("max_read_size", state.max_read_size.into())?;
+                jsb.set_uint("max_read_size", state.max_read_size)?;
             }
             if state.max_write_size > 0 {
-                jsb.set_uint("max_write_size", state.max_write_size.into())?;
+                jsb.set_uint("max_write_size", state.max_write_size)?;
             }
         },
         Some(SMBTransactionTypeData::TREECONNECT(ref x)) => {
@@ -445,13 +445,13 @@ fn smb_common_header(jsb: &mut JsonBuilder, state: &SMBState, tx: &SMBTransactio
 }
 
 #[no_mangle]
-pub extern "C" fn rs_smb_log_json_request(jsb: &mut JsonBuilder, state: &mut SMBState, tx: &mut SMBTransaction) -> bool
+pub extern "C" fn rs_smb_log_json_request(jsb: &mut JsonBuilder, state: &mut SMBState, tx: &SMBTransaction) -> bool
 {
     smb_common_header(jsb, state, tx).is_ok()
 }
 
 #[no_mangle]
-pub extern "C" fn rs_smb_log_json_response(jsb: &mut JsonBuilder, state: &mut SMBState, tx: &mut SMBTransaction) -> bool
+pub extern "C" fn rs_smb_log_json_response(jsb: &mut JsonBuilder, state: &mut SMBState, tx: &SMBTransaction) -> bool
 {
     smb_common_header(jsb, state, tx).is_ok()
 }

@@ -37,7 +37,8 @@
 #include "util-spm.h"
 #include "util-hash.h"
 #include "util-hashlist.h"
-#include "util-radix-tree.h"
+#include "util-radix4-tree.h"
+#include "util-radix6-tree.h"
 #include "util-file.h"
 #include "reputation.h"
 
@@ -52,13 +53,13 @@
 // tx_id value to use when there is no transaction
 #define PACKET_ALERT_NOTX UINT64_MAX
 
-/* forward declarations for the structures from detect-engine-sigorder.h */
+/* forward declaration for sigorder logic in detect-engine-sigorder.[ch] */
 struct SCSigOrderFunc_;
-struct SCSigSignatureWrapper_;
 
 /* Forward declarations for structures from Rust. */
 typedef struct SCDetectRequiresStatus SCDetectRequiresStatus;
 
+// rule types documentation tag start: SignatureType
 enum SignatureType {
     SIG_TYPE_NOT_SET = 0,
     SIG_TYPE_IPONLY,      // rule is handled by IPONLY engine
@@ -76,6 +77,7 @@ enum SignatureType {
 
     SIG_TYPE_MAX,
 };
+// rule types documentation tag end: SignatureType
 
 enum SignaturePropertyFlowAction {
     SIG_PROP_FLOW_ACTION_PACKET,
@@ -432,6 +434,8 @@ typedef struct DetectEngineAppInspectionEngine_ {
     uint8_t id;     /**< per sig id used in state keeping */
     bool mpm;
     bool stream;
+    /** will match on a NULL buffer (so an absent buffer) */
+    bool match_on_null;
     uint16_t sm_list;
     uint16_t sm_list_base; /**< base buffer being transformed */
     int16_t progress;
@@ -549,6 +553,9 @@ typedef struct SignatureInitData_ {
     bool src_contains_negation;
     bool dst_contains_negation;
 
+    /** see if any of the sigmatches supports an enabled prefilter */
+    bool has_possible_prefilter;
+
     /* used to hold flags that are used during init */
     uint32_t init_flags;
     /* coccinelle: SignatureInitData:init_flags:SIG_FLAG_INIT_ */
@@ -579,8 +586,6 @@ typedef struct SignatureInitData_ {
 
     /** address settings for this signature */
     const DetectAddressHead *src, *dst;
-
-    int prefilter_list;
 
     /* holds built-in sm lists */
     struct SigMatch_ *smlists[DETECT_SM_LIST_MAX];
@@ -766,8 +771,8 @@ typedef struct SCFPSupportSMList_ {
 /** \brief IP only rules matching ctx. */
 typedef struct DetectEngineIPOnlyCtx_ {
     /* Lookup trees */
-    SCRadixTree *tree_ipv4src, *tree_ipv4dst;
-    SCRadixTree *tree_ipv6src, *tree_ipv6dst;
+    SCRadix4Tree tree_ipv4src, tree_ipv4dst;
+    SCRadix6Tree tree_ipv6src, tree_ipv6dst;
 
     /* Used to build the radix trees */
     IPOnlyCIDRItem *ip_src, *ip_dst;
@@ -884,8 +889,11 @@ typedef struct DetectEngineCtx_ {
     /* maximum recursion depth for content inspection */
     int inspection_recursion_limit;
 
-    /* maximum number of times a tx will get logged for a stream-only rule match */
-    uint8_t stream_tx_log_limit;
+    /* maximum number of times a tx will get logged for rules not using app-layer keywords */
+    uint8_t guess_applayer_log_limit;
+
+    /* force app-layer tx finding for alerts with signatures not having app-layer keywords */
+    bool guess_applayer;
 
     /* registration id for per thread ctx for the filemagic/file.magic keywords */
     int filemagic_thread_ctx_id;
@@ -974,8 +982,8 @@ typedef struct DetectEngineCtx_ {
 
     HashListTable *dport_hash_table;
 
-    DetectPort *tcp_whitelist;
-    DetectPort *udp_whitelist;
+    DetectPort *tcp_priorityports;
+    DetectPort *udp_priorityports;
 
     /** table for storing the string representation with the parsers result */
     HashListTable *address_table;
@@ -1132,10 +1140,6 @@ typedef struct DetectEngineThreadCtx_ {
     /* byte_* values */
     uint64_t *byte_values;
 
-    uint8_t *base64_decoded;
-    int base64_decoded_len;
-    int base64_decoded_len_max;
-
     /* counter for the filestore array below -- up here for cache reasons. */
     uint16_t filestore_cnt;
 
@@ -1176,6 +1180,9 @@ typedef struct DetectEngineThreadCtx_ {
     uint64_t frame_inspect_progress; /**< used to set Frame::inspect_progress after all inspection
                                         on a frame is complete. */
     Packet *p;
+
+    uint8_t *base64_decoded;
+    int base64_decoded_len;
 
     uint16_t alert_queue_size;
     uint16_t alert_queue_capacity;
@@ -1593,11 +1600,6 @@ void *DetectGetInnerTx(void *tx_ptr, AppProto alproto, AppProto engine_alproto, 
 
 void RuleMatchCandidateTxArrayInit(DetectEngineThreadCtx *det_ctx, uint32_t size);
 void RuleMatchCandidateTxArrayFree(DetectEngineThreadCtx *det_ctx);
-
-void AlertQueueInit(DetectEngineThreadCtx *det_ctx);
-void AlertQueueFree(DetectEngineThreadCtx *det_ctx);
-void AlertQueueAppend(DetectEngineThreadCtx *det_ctx, const Signature *s, Packet *p, uint64_t tx_id,
-        uint8_t alert_flags);
 
 int DetectFlowbitsAnalyze(DetectEngineCtx *de_ctx);
 

@@ -38,6 +38,7 @@ Suricata Rules
    smtp-keywords
    websocket-keywords
    app-layer
+   decode-layer
    xbits
    noalert
    thresholding
@@ -49,3 +50,6 @@ Suricata Rules
    differences-from-snort
    multi-buffer-matching
    tag
+   vlan-keywords
+   ldap-keywords
+   rule-types

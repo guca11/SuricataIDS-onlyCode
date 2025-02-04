@@ -63,6 +63,8 @@
 
 #include "detect-engine-loader.h"
 
+#include "detect-engine-alert.h"
+
 #include "util-classification-config.h"
 #include "util-reference-config.h"
 #include "util-threshold-config.h"
@@ -108,6 +110,7 @@ static DetectEnginePktInspectionEngine *g_pkt_inspect_engines = NULL;
 static DetectEngineFrameInspectionEngine *g_frame_inspect_engines = NULL;
 
 // clang-format off
+// rule types documentation tag start: SignatureProperties
 const struct SignatureProperties signature_properties[SIG_TYPE_MAX] = {
     /* SIG_TYPE_NOT_SET */      { SIG_PROP_FLOW_ACTION_PACKET, },
     /* SIG_TYPE_IPONLY */       { SIG_PROP_FLOW_ACTION_FLOW, },
@@ -120,6 +123,7 @@ const struct SignatureProperties signature_properties[SIG_TYPE_MAX] = {
     /* SIG_TYPE_APPLAYER */     { SIG_PROP_FLOW_ACTION_FLOW, },
     /* SIG_TYPE_APP_TX */       { SIG_PROP_FLOW_ACTION_FLOW, },
 };
+// rule types documentation tag end: SignatureProperties
 // clang-format on
 
 /** \brief register inspect engine at start up time
@@ -179,7 +183,7 @@ static void AppLayerInspectEngineRegisterInternal(const char *name, AppProto alp
     }
     SCLogDebug("name %s id %d", name, sm_list);
 
-    if ((alproto >= ALPROTO_FAILED) || (!(dir == SIG_FLAG_TOSERVER || dir == SIG_FLAG_TOCLIENT)) ||
+    if ((alproto == ALPROTO_FAILED) || (!(dir == SIG_FLAG_TOSERVER || dir == SIG_FLAG_TOCLIENT)) ||
             (sm_list < DETECT_SM_LIST_MATCH) || (sm_list >= SHRT_MAX) ||
             (progress < 0 || progress >= SHRT_MAX) || (Callback == NULL)) {
         SCLogError("Invalid arguments");
@@ -201,12 +205,11 @@ static void AppLayerInspectEngineRegisterInternal(const char *name, AppProto alp
         direction = 1;
     }
     // every DNS or HTTP2 can be accessed from DOH2
-    #if ENABLE_DNS  && ENABLE_HTTP
     if (alproto == ALPROTO_HTTP2 || alproto == ALPROTO_DNS) {
         AppLayerInspectEngineRegisterInternal(
                 name, ALPROTO_DOH2, dir, progress, Callback, GetData, GetMultiData);
     }
-    #endif
+
     DetectEngineAppInspectionEngine *new_engine =
             SCCalloc(1, sizeof(DetectEngineAppInspectionEngine));
     if (unlikely(new_engine == NULL)) {
@@ -665,6 +668,7 @@ static void AppendAppInspectEngine(DetectEngineCtx *de_ctx,
     new_engine->sm_list = t->sm_list;
     new_engine->sm_list_base = t->sm_list_base;
     new_engine->smd = smd;
+    new_engine->match_on_null = DetectContentInspectionMatchOnAbsentBuffer(smd);
     new_engine->progress = t->progress;
     new_engine->v2 = t->v2;
     SCLogDebug("sm_list %d new_engine->v2 %p/%p/%p", new_engine->sm_list, new_engine->v2.Callback,
@@ -1622,10 +1626,10 @@ void InspectionBufferFree(InspectionBuffer *buffer)
  * \brief make sure that the buffer has at least 'min_size' bytes
  * Expand the buffer if necessary
  */
-void InspectionBufferCheckAndExpand(InspectionBuffer *buffer, uint32_t min_size)
+void *InspectionBufferCheckAndExpand(InspectionBuffer *buffer, uint32_t min_size)
 {
     if (likely(buffer->size >= min_size))
-        return;
+        return buffer->buf;
 
     uint32_t new_size = (buffer->size == 0) ? 4096 : buffer->size;
     while (new_size < min_size) {
@@ -1636,7 +1640,19 @@ void InspectionBufferCheckAndExpand(InspectionBuffer *buffer, uint32_t min_size)
     if (ptr != NULL) {
         buffer->buf = ptr;
         buffer->size = new_size;
+    } else {
+        return NULL;
     }
+    return buffer->buf;
+}
+
+void InspectionBufferTruncate(InspectionBuffer *buffer, uint32_t buf_len)
+{
+    DEBUG_VALIDATE_BUG_ON(buffer->buf == NULL);
+    DEBUG_VALIDATE_BUG_ON(buf_len > buffer->size);
+    buffer->inspect = buffer->buf;
+    buffer->inspect_len = buf_len;
+    buffer->initialized = true;
 }
 
 void InspectionBufferCopy(InspectionBuffer *buffer, uint8_t *buf, uint32_t buf_len)
@@ -2159,6 +2175,9 @@ uint8_t DetectEngineInspectBufferGeneric(DetectEngineCtx *de_ctx, DetectEngineTh
     const InspectionBuffer *buffer = engine->v2.GetData(det_ctx, transforms,
             f, flags, txv, list_id);
     if (unlikely(buffer == NULL)) {
+        if (eof && engine->match_on_null) {
+            return DETECT_ENGINE_INSPECT_SIG_MATCH;
+        }
         return eof ? DETECT_ENGINE_INSPECT_SIG_CANT_MATCH :
                      DETECT_ENGINE_INSPECT_SIG_NO_MATCH;
     }
@@ -2220,6 +2239,14 @@ uint8_t DetectEngineInspectMultiBufferGeneric(DetectEngineCtx *de_ctx,
         }
         local_id++;
     } while (1);
+    if (local_id == 0) {
+        // That means we did not get even one buffer value from the multi-buffer
+        const bool eof = (AppLayerParserGetStateProgress(f->proto, f->alproto, txv, flags) >
+                          engine->progress);
+        if (eof && engine->match_on_null) {
+            return DETECT_ENGINE_INSPECT_SIG_MATCH;
+        }
+    }
     return DETECT_ENGINE_INSPECT_SIG_NO_MATCH;
 }
 
@@ -2663,8 +2690,8 @@ void DetectEngineCtxFree(DetectEngineCtx *de_ctx)
 #endif
     }
 
-    DetectPortCleanupList(de_ctx, de_ctx->tcp_whitelist);
-    DetectPortCleanupList(de_ctx, de_ctx->udp_whitelist);
+    DetectPortCleanupList(de_ctx, de_ctx->tcp_priorityports);
+    DetectPortCleanupList(de_ctx, de_ctx->udp_priorityports);
 
     DetectBufferTypeFreeDetectEngine(de_ctx);
     SCClassConfDeinit(de_ctx);
@@ -2906,65 +2933,81 @@ static int DetectEngineCtxLoadConf(DetectEngineCtx *de_ctx)
                de_ctx->inspection_recursion_limit);
 
     // default value is 4
-    de_ctx->stream_tx_log_limit = 4;
+    de_ctx->guess_applayer_log_limit = 4;
     if (ConfGetInt("detect.stream-tx-log-limit", &value) == 1) {
         if (value >= 0 && value <= UINT8_MAX) {
-            de_ctx->stream_tx_log_limit = (uint8_t)value;
+            de_ctx->guess_applayer_log_limit = (uint8_t)value;
         } else {
             SCLogWarning("Invalid value for detect-engine.stream-tx-log-limit: must be between 0 "
                          "and 255, will default to 4");
         }
     }
+    int guess_applayer = 0;
+    if ((ConfGetBool("detect.guess-applayer-tx", &guess_applayer)) == 1) {
+        if (guess_applayer == 1) {
+            de_ctx->guess_applayer = true;
+        }
+    }
 
-    /* parse port grouping whitelisting settings */
+    /* parse port grouping priority settings */
 
     const char *ports = NULL;
-    (void)ConfGet("detect.grouping.tcp-whitelist", &ports);
+    (void)ConfGet("detect.grouping.tcp-priority-ports", &ports);
     if (ports) {
-        SCLogConfig("grouping: tcp-whitelist %s", ports);
+        SCLogConfig("grouping: tcp-priority-ports %s", ports);
     } else {
-        ports = "53, 80, 139, 443, 445, 1433, 3306, 3389, 6666, 6667, 8080";
-        SCLogConfig("grouping: tcp-whitelist (default) %s", ports);
-
+        (void)ConfGet("detect.grouping.tcp-whitelist", &ports);
+        if (ports) {
+            SCLogConfig(
+                    "grouping: tcp-priority-ports from legacy 'tcp-whitelist' setting: %s", ports);
+        } else {
+            ports = "53, 80, 139, 443, 445, 1433, 3306, 3389, 6666, 6667, 8080";
+            SCLogConfig("grouping: tcp-priority-ports (default) %s", ports);
+        }
     }
-    if (DetectPortParse(de_ctx, &de_ctx->tcp_whitelist, ports) != 0) {
+    if (DetectPortParse(de_ctx, &de_ctx->tcp_priorityports, ports) != 0) {
         SCLogWarning("'%s' is not a valid value "
-                     "for detect.grouping.tcp-whitelist",
+                     "for detect.grouping.tcp-priority-ports",
                 ports);
     }
-    DetectPort *x = de_ctx->tcp_whitelist;
+    DetectPort *x = de_ctx->tcp_priorityports;
     for ( ; x != NULL;  x = x->next) {
         if (x->port != x->port2) {
             SCLogWarning("'%s' is not a valid value "
-                         "for detect.grouping.tcp-whitelist: only single ports allowed",
+                         "for detect.grouping.tcp-priority-ports: only single ports allowed",
                     ports);
-            DetectPortCleanupList(de_ctx, de_ctx->tcp_whitelist);
-            de_ctx->tcp_whitelist = NULL;
+            DetectPortCleanupList(de_ctx, de_ctx->tcp_priorityports);
+            de_ctx->tcp_priorityports = NULL;
             break;
         }
     }
 
     ports = NULL;
-    (void)ConfGet("detect.grouping.udp-whitelist", &ports);
+    (void)ConfGet("detect.grouping.udp-priority-ports", &ports);
     if (ports) {
-        SCLogConfig("grouping: udp-whitelist %s", ports);
+        SCLogConfig("grouping: udp-priority-ports %s", ports);
     } else {
-        ports = "53, 135, 5060";
-        SCLogConfig("grouping: udp-whitelist (default) %s", ports);
-
+        (void)ConfGet("detect.grouping.udp-whitelist", &ports);
+        if (ports) {
+            SCLogConfig(
+                    "grouping: udp-priority-ports from legacy 'udp-whitelist' setting: %s", ports);
+        } else {
+            ports = "53, 135, 5060";
+            SCLogConfig("grouping: udp-priority-ports (default) %s", ports);
+        }
     }
-    if (DetectPortParse(de_ctx, &de_ctx->udp_whitelist, ports) != 0) {
+    if (DetectPortParse(de_ctx, &de_ctx->udp_priorityports, ports) != 0) {
         SCLogWarning("'%s' is not a valid value "
-                     "for detect.grouping.udp-whitelist",
+                     "for detect.grouping.udp-priority-ports",
                 ports);
     }
-    for (x = de_ctx->udp_whitelist; x != NULL;  x = x->next) {
+    for (x = de_ctx->udp_priorityports; x != NULL; x = x->next) {
         if (x->port != x->port2) {
             SCLogWarning("'%s' is not a valid value "
-                         "for detect.grouping.udp-whitelist: only single ports allowed",
+                         "for detect.grouping.udp-priority-ports: only single ports allowed",
                     ports);
-            DetectPortCleanupList(de_ctx, de_ctx->udp_whitelist);
-            de_ctx->udp_whitelist = NULL;
+            DetectPortCleanupList(de_ctx, de_ctx->udp_priorityports);
+            de_ctx->udp_priorityports = NULL;
             break;
         }
     }
@@ -3262,7 +3305,6 @@ static TmEcode ThreadCtxDoInit (DetectEngineCtx *de_ctx, DetectEngineThreadCtx *
         if (det_ctx->base64_decoded == NULL) {
             return TM_ECODE_FAILED;
         }
-        det_ctx->base64_decoded_len_max = de_ctx->base64_decode_max_len;
         det_ctx->base64_decoded_len = 0;
     }
 
@@ -3932,12 +3974,12 @@ static int DetectEngineMultiTenantReloadTenant(uint32_t tenant_id, const char *f
     new_de_ctx->tenant_path = SCStrdup(filename);
     if (new_de_ctx->tenant_path == NULL) {
         SCLogError("Failed to duplicate path");
-        goto error;
+        goto new_de_ctx_error;
     }
 
     if (SigLoadSignatures(new_de_ctx, NULL, false) < 0) {
         SCLogError("Loading signatures failed.");
-        goto error;
+        goto new_de_ctx_error;
     }
 
     DetectEngineAddToMaster(new_de_ctx);
@@ -3946,6 +3988,9 @@ static int DetectEngineMultiTenantReloadTenant(uint32_t tenant_id, const char *f
     DetectEngineMoveToFreeList(old_de_ctx);
     DetectEngineDeReference(&old_de_ctx);
     return 0;
+
+new_de_ctx_error:
+    DetectEngineCtxFree(new_de_ctx);
 
 error:
     DetectEngineDeReference(&old_de_ctx);

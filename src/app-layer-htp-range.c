@@ -1,4 +1,4 @@
-/* Copyright (C) 2021 Open Information Security Foundation
+/* Copyright (C) 2024 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -26,7 +26,7 @@
 #include "util-misc.h"        //ParseSizeStringU64
 #include "util-thash.h"       //HashTable
 #include "util-memcmp.h"      //SCBufferCmp
-#include "util-hash-string.h" //StringHashDjb2
+#include "util-hash-lookup3.h" //hashlittle_safe
 #include "util-validate.h"    //DEBUG_VALIDATE_BUG_ON
 #include "util-byte.h"        //StringParseUint32
 
@@ -41,6 +41,28 @@ ContainerTHashTable ContainerUrlRangeList;
 static void HttpRangeBlockDerefContainer(HttpRangeContainerBlock *b);
 
 #define CONTAINER_URLRANGE_HASH_SIZE 256
+
+int HTPByteRangeSetMemcap(uint64_t size)
+{
+    if (size == 0 || (uint64_t)SC_ATOMIC_GET(ContainerUrlRangeList.ht->memuse) < size) {
+        SC_ATOMIC_SET(ContainerUrlRangeList.ht->config.memcap, size);
+        return 1;
+    }
+
+    return 0;
+}
+
+uint64_t HTPByteRangeMemcapGlobalCounter(void)
+{
+    uint64_t tmpval = SC_ATOMIC_GET(ContainerUrlRangeList.ht->config.memcap);
+    return tmpval;
+}
+
+uint64_t HTPByteRangeMemuseGlobalCounter(void)
+{
+    uint64_t tmpval = SC_ATOMIC_GET(ContainerUrlRangeList.ht->memuse);
+    return tmpval;
+}
 
 int HttpRangeContainerBufferCompare(HttpRangeContainerBuffer *a, HttpRangeContainerBuffer *b)
 {
@@ -102,10 +124,10 @@ static bool ContainerUrlRangeCompare(void *a, void *b)
     return false;
 }
 
-static uint32_t ContainerUrlRangeHash(void *s)
+static uint32_t ContainerUrlRangeHash(uint32_t hash_seed, void *s)
 {
     HttpRangeContainerFile *cur = s;
-    uint32_t h = StringHashDjb2(cur->key, cur->len);
+    uint32_t h = hashlittle_safe(cur->key, cur->len, hash_seed);
     return h;
 }
 

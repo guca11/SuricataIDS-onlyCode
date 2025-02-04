@@ -85,12 +85,8 @@ int SCOutputRegisterFileLogger(LoggerId id, const char *name, SCFileLogger LogFu
 static void CloseFile(const Packet *p, Flow *f, AppLayerTxData *txd, File *file)
 {
     DEBUG_VALIDATE_BUG_ON((file->flags & FILE_LOGGED) != 0);
-#if ENABLE_SMB    
     DEBUG_VALIDATE_BUG_ON(f->alproto == ALPROTO_SMB && txd->files_logged != 0);
-#endif    
-#if ENABLE_FTP   
     DEBUG_VALIDATE_BUG_ON(f->alproto == ALPROTO_FTPDATA && txd->files_logged != 0);
-#endif    
     txd->files_logged++;
     DEBUG_VALIDATE_BUG_ON(txd->files_logged > txd->files_opened);
     file->flags |= FILE_LOGGED;

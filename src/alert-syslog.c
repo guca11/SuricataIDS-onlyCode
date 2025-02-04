@@ -253,7 +253,6 @@ static TmEcode AlertSyslogIPv4(ThreadVars *tv, const Packet *p, void *data)
  *
  * \return On succes return TM_ECODE_OK
  */
-
 static TmEcode AlertSyslogIPv6(ThreadVars *tv, const Packet *p, void *data)
 {
     AlertSyslogThread *ast = (AlertSyslogThread *)data;
@@ -370,11 +369,9 @@ static int AlertSyslogLogger(ThreadVars *tv, void *thread_data, const Packet *p)
 {
     if (PacketIsIPv4(p)) {
         return AlertSyslogIPv4(tv, p, thread_data);
-    }
-    else if (PacketIsIPv6(p)) {
+    } else if (PacketIsIPv6(p)) {
         return AlertSyslogIPv6(tv, p, thread_data);
-    }
-     else if (p->events.cnt > 0) {
+    } else if (p->events.cnt > 0) {
         return AlertSyslogDecoderEvent(tv, p, thread_data);
     }
 

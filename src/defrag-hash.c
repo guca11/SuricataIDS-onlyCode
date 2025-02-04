@@ -134,14 +134,11 @@ static void DefragTrackerInit(DefragTracker *dt, Packet *p)
         const IPV4Hdr *ip4h = PacketGetIPv4(p);
         dt->id = (int32_t)IPV4_GET_RAW_IPID(ip4h);
         dt->af = AF_INET;
-    } 
-    #if ENABLE_IPV6
-    else {
+    } else {
         DEBUG_VALIDATE_BUG_ON(!PacketIsIPv6(p));
         dt->id = (int32_t)IPV6_EXTHDR_GET_FH_ID(p);
         dt->af = AF_INET6;
     }
-    #endif
     dt->proto = PacketGetIPProto(p);
     memcpy(&dt->vlan_id[0], &p->vlan_id[0], sizeof(dt->vlan_id));
     dt->policy = DefragGetOsPolicy(p);
@@ -401,9 +398,7 @@ static inline uint32_t DefragHashGetKey(Packet *p)
         uint32_t hash =
                 hashword(dhk.u32, sizeof(dhk.u32) / sizeof(uint32_t), defrag_config.hash_rand);
         key = hash % defrag_config.hash_size;
-    } 
-    #if ENABLE_IPV6
-    else if (PacketIsIPv6(p)) {
+    } else if (PacketIsIPv6(p)) {
         DefragHashKey6 dhk = { .pad[0] = 0 };
         if (DefragHashRawAddressIPv6GtU32(p->src.addr_data32, p->dst.addr_data32)) {
             dhk.src[0] = p->src.addr_data32[0];
@@ -430,9 +425,7 @@ static inline uint32_t DefragHashGetKey(Packet *p)
         uint32_t hash =
                 hashword(dhk.u32, sizeof(dhk.u32) / sizeof(uint32_t), defrag_config.hash_rand);
         key = hash % defrag_config.hash_size;
-    } 
-    #endif
-    else {
+    } else {
         key = 0;
     }
     return key;
@@ -449,16 +442,14 @@ static inline uint32_t DefragHashGetKey(Packet *p)
 
 static inline int DefragTrackerCompare(DefragTracker *t, Packet *p)
 {
-    uint32_t id=0;
+    uint32_t id;
     if (PacketIsIPv4(p)) {
         const IPV4Hdr *ip4h = PacketGetIPv4(p);
         id = (uint32_t)IPV4_GET_RAW_IPID(ip4h);
-    }
-    #if ENABLE_IPV6
-    else {
+    } else {
         id = IPV6_EXTHDR_GET_FH_ID(p);
     }
-    #endif
+
     return CMP_DEFRAGTRACKER(t, p, id);
 }
 

@@ -95,7 +95,6 @@
 #include "source-pcap-file-helper.h"
 #include "source-erf-file.h"
 #include "source-erf-dag.h"
-#include "source-napatech.h"
 #include "source-af-packet.h"
 #include "source-af-xdp.h"
 #include "source-netmap.h"
@@ -202,6 +201,10 @@ uint16_t g_vlan_mask = 0xffff;
 /** determine (without branching) if we include the livedev ids when hashing or
  * comparing flows */
 uint16_t g_livedev_mask = 0xffff;
+
+/** determine (without branching) if we include the recursion levels when hashing or
+ * comparing flows */
+uint8_t g_recurlvl_mask = 0xff;
 
 /* flag to disable hashing almost globally, to be similar to disabling nss
  * support */
@@ -362,7 +365,6 @@ void GlobalsInitPreConfig(void)
     SupportFastPatternForSigMatchTypes();
     SCThresholdConfGlobalInit();
     SCProtoNameInit();
-    FrameConfigInit();
 }
 
 void GlobalsDestroy(void)
@@ -370,12 +372,11 @@ void GlobalsDestroy(void)
     SCInstance *suri = &suricata;
     ThresholdDestroy();
     HostShutdown();
-    #if ENABLE_HTTP
     HTPFreeConfig();
     HTPAtExitPrintStats();
-    
+
     AppLayerHtpPrintStats();
-    #endif
+
     /* TODO this can do into it's own func */
     DetectEngineCtx *de_ctx = DetectEngineGetCurrent();
     if (de_ctx) {
@@ -507,7 +508,7 @@ static void SetBpfStringFromFile(char *filename)
     char *bpf_filter = NULL;
     char *bpf_comment_tmp = NULL;
     char *bpf_comment_start =  NULL;
-    uint32_t bpf_len = 0;
+    size_t bpf_len = 0;
     SCStat st;
     FILE *fp = NULL;
     size_t nm = 0;
@@ -522,7 +523,8 @@ static void SetBpfStringFromFile(char *filename)
         SCLogError("Failed to stat file %s", filename);
         exit(EXIT_FAILURE);
     }
-    bpf_len = st.st_size + 1;
+    // st.st_size is signed on Windows
+    bpf_len = ((size_t)(st.st_size)) + 1;
 
     bpf_filter = SCCalloc(1, bpf_len);
     if (unlikely(bpf_filter == NULL)) {
@@ -665,9 +667,6 @@ static void PrintUsage(const char *progname)
 #ifdef HAVE_DAG
     printf("\t--dag <dagX:Y>                       : process ERF records from DAG interface X, stream Y\n");
 #endif
-#ifdef HAVE_NAPATECH
-    printf("\t--napatech                           : run Napatech Streams using the API\n");
-#endif
 #ifdef BUILD_UNIX_SOCKET
     printf("\t--unix-socket[=<file>]               : use unix socket to control suricata work\n");
 #endif
@@ -715,6 +714,9 @@ static void PrintBuildInfo(void)
 #endif
 #ifdef HAVE_PFRING
     strlcat(features, "PF_RING ", sizeof(features));
+#endif
+#ifdef HAVE_NAPATECH
+    strlcat(features, "NAPATECH ", sizeof(features));
 #endif
 #ifdef HAVE_AF_PACKET
     strlcat(features, "AF_PACKET ", sizeof(features));
@@ -880,10 +882,9 @@ static void PrintBuildInfo(void)
 #error "Unsupported thread local"
 #endif
     printf("thread local storage method: %s\n", tls);
-#if ENABLE_HTTP
+
     printf("compiled with %s, linked against %s\n",
            HTP_VERSION_STRING_FULL, htp_get_version());
-#endif
     printf("\n");
 #include "build-info.h"
 }
@@ -929,9 +930,6 @@ void RegisterAllModules(void)
     /* dag live */
     TmModuleReceiveErfDagRegister();
     TmModuleDecodeErfDagRegister();
-    /* napatech */
-    TmModuleNapatechStreamRegister();
-    TmModuleNapatechDecodeRegister();
 
     /* flow worker */
     TmModuleFlowWorkerRegister();
@@ -1080,6 +1078,7 @@ static void SCInstanceInit(SCInstance *suri, const char *progname)
 
     suri->progname = progname;
     suri->run_mode = RUNMODE_UNKNOWN;
+
     memset(suri->pcap_dev, 0, sizeof(suri->pcap_dev));
     suri->sig_file = NULL;
     suri->sig_file_exclusive = false;
@@ -1387,7 +1386,6 @@ TmEcode SCParseCommandLine(int argc, char **argv)
         {"group", required_argument, 0, 0},
         {"erf-in", required_argument, 0, 0},
         {"dag", required_argument, 0, 0},
-        {"napatech", 0, 0, 0},
         {"build-info", 0, &build_info, 1},
         {"data-dir", required_argument, 0, 0},
 #ifdef WINDIVERT
@@ -1606,6 +1604,8 @@ TmEcode SCParseCommandLine(int argc, char **argv)
                 g_detect_disabled = suri->disabled_detect = 1;
             } else if (strcmp((long_opts[option_index]).name, "disable-hashing") == 0) {
                 g_disable_hashing = true;
+                // for rust
+                SCDisableHashing();
             } else if (strcmp((long_opts[option_index]).name, "fatal-unittests") == 0) {
 #ifdef UNITTESTS
                 unittests_fatal = 1;
@@ -1656,7 +1656,7 @@ TmEcode SCParseCommandLine(int argc, char **argv)
 #endif /* HAVE_DAG */
             } else if (strcmp((long_opts[option_index]).name, "napatech") == 0) {
 #ifdef HAVE_NAPATECH
-                suri->run_mode = RUNMODE_NAPATECH;
+                suri->run_mode = RUNMODE_PLUGIN;
 #else
                 SCLogError("libntapi and a Napatech adapter are required"
                            " to capture packets using --napatech.");
@@ -2214,12 +2214,9 @@ static int InitSignalHandler(SCInstance *suri)
  * Will be run once per pcap in unix-socket mode */
 void PreRunInit(const int runmode)
 {
-    #if ENABLE_HTTP
-    HttpRangeContainersInit();
-    #endif
     if (runmode == RUNMODE_UNIX_SOCKET)
         return;
-	
+
     StatsInit();
 #ifdef PROFILE_RULES
     SCProfilingRulesGlobalInit();
@@ -2239,36 +2236,33 @@ void PreRunInit(const int runmode)
     AppLayerParserPostStreamSetup();
     AppLayerRegisterGlobalCounters();
     OutputFilestoreRegisterGlobalCounters();
+    HttpRangeContainersInit();
 }
 
 /* tasks we need to run before packets start flowing,
  * but after we dropped privs */
 void PreRunPostPrivsDropInit(const int runmode)
 {
-    StatsSetupPostConfigPreOutput();
-    RunModeInitializeOutputs();
-    DatasetsInit();
-
     if (runmode == RUNMODE_UNIX_SOCKET) {
-        /* As the above did some necessary startup initialization, it
-         * also setup some outputs where only one is allowed, so
-         * deinitialize to the state that unix-mode does after every
-         * pcap. */
-        PostRunDeinit(RUNMODE_PCAP_FILE, NULL);
         return;
     }
 
+    StatsSetupPostConfigPreOutput();
+    RunModeInitializeOutputs();
+    DatasetsInit();
     StatsSetupPostConfigPostOutput();
 }
 
-/* clean up / shutdown code for both the main modes and for
- * unix socket mode.
+/** \brief clean up / shutdown code for packet modes
  *
- * Will be run once per pcap in unix-socket mode */
+ *  Shuts down packet modes, so regular packet runmodes and the
+ *  per pcap mode in the unix socket. */
 void PostRunDeinit(const int runmode, struct timeval *start_time)
 {
     if (runmode == RUNMODE_UNIX_SOCKET)
         return;
+
+    TmThreadsUnsealThreads();
 
     /* needed by FlowWorkToDoCleanup */
     PacketPoolInit();
@@ -2302,9 +2296,8 @@ void PostRunDeinit(const int runmode, struct timeval *start_time)
     HostCleanup();
     StreamTcpFreeConfig(STREAM_VERBOSE);
     DefragDestroy();
-    #if ENABLE_HTTP
     HttpRangeContainersDestroy();
-    #endif
+
     TmqResetQueues();
 #ifdef PROFILING
     if (profiling_packets_enabled)
@@ -2575,6 +2568,7 @@ void PostConfLoadedDetectSetup(SCInstance *suri)
 static void PostConfLoadedSetupHostMode(void)
 {
     const char *hostmode = NULL;
+
     if (ConfGet("host-mode", &hostmode) == 1) {
         if (!strcmp(hostmode, "router")) {
             host_mode = SURI_HOST_IS_ROUTER;
@@ -2675,6 +2669,8 @@ int PostConfLoadedSetup(SCInstance *suri)
 
     MacSetRegisterFlowStorage();
 
+    SigTableInit();
+
 #ifdef HAVE_PLUGINS
     SCPluginsLoad(suri->capture_plugin_name, suri->capture_plugin_args);
 #endif
@@ -2694,7 +2690,6 @@ int PostConfLoadedSetup(SCInstance *suri)
     SetMasterExceptionPolicy();
 
     ConfNode *eps = ConfGetNode("stats.exception-policy");
-
     if (eps != NULL) {
         if (ConfNodeChildValueIsTrue(eps, "per-app-proto-errors")) {
             g_stats_eps_per_app_proto_errors = true;
@@ -2763,10 +2758,10 @@ int PostConfLoadedSetup(SCInstance *suri)
     }
 
     RegisterAllModules();
-    #if ENABLE_HTTP
     AppLayerHtpNeedFileInspection();
-    #endif
+
     StorageFinalize();
+
     TmModuleRunInit();
 
     if (MayDaemonize(suri) != TM_ECODE_OK)
@@ -2897,6 +2892,7 @@ int InitGlobal(void)
 void SuricataPreInit(const char *progname)
 {
     SCInstanceInit(&suricata, progname);
+
     if (InitGlobal() != 0) {
         exit(EXIT_FAILURE);
     }
@@ -2922,6 +2918,10 @@ void SuricataInit(void)
         /* Ignore livedev id when comparing flows. */
         g_livedev_mask = 0x0000;
     }
+    if (ConfGetBool("decoder.recursion-level.use-for-tracking", &tracking) == 1 && !tracking) {
+        /* Ignore recursion level when comparing flows. */
+        g_recurlvl_mask = 0x00;
+    }
     SetupUserMode(&suricata);
     InitRunAs(&suricata);
 
@@ -2935,14 +2935,15 @@ void SuricataInit(void)
 
     if (suricata.run_mode == RUNMODE_CONF_TEST)
         SCLogInfo("Running suricata under test mode");
-        
+
     if (ParseInterfacesList(suricata.aux_run_mode, suricata.pcap_dev) != TM_ECODE_OK) {
         exit(EXIT_FAILURE);
     }
-    
+
     if (PostConfLoadedSetup(&suricata) != TM_ECODE_OK) {
         exit(EXIT_FAILURE);
     }
+
     SCDropMainThreadCaps(suricata.userid, suricata.groupid);
 
     /* Re-enable coredumps after privileges are dropped. */
@@ -2971,12 +2972,11 @@ void SuricataInit(void)
         prerun_snap = SystemHugepageSnapshotCreate();
 
     SCSetStartTime(&suricata);
-    RunModeDispatch(suricata.run_mode, suricata.runmode_custom_mode,
-            suricata.capture_plugin_name, suricata.capture_plugin_args);
     if (suricata.run_mode != RUNMODE_UNIX_SOCKET) {
         UnixManagerThreadSpawnNonRunmode(suricata.unix_socket_enabled);
     }
-
+    RunModeDispatch(suricata.run_mode, suricata.runmode_custom_mode, suricata.capture_plugin_name,
+            suricata.capture_plugin_args);
     return;
 
 out:

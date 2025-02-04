@@ -176,8 +176,7 @@ static TmEcode AlertDebugLogger(ThreadVars *tv, const Packet *p, void *thread_da
     if (PacketIsIPv4(p)) {
         PrintInet(AF_INET, (const void *)GET_IPV4_SRC_ADDR_PTR(p), srcip, sizeof(srcip));
         PrintInet(AF_INET, (const void *)GET_IPV4_DST_ADDR_PTR(p), dstip, sizeof(dstip));
-    }
-     else {
+    } else {
         DEBUG_VALIDATE_BUG_ON(!(PacketIsIPv6(p)));
         PrintInet(AF_INET6, (const void *)GET_IPV6_SRC_ADDR(p), srcip, sizeof(srcip));
         PrintInet(AF_INET6, (const void *)GET_IPV6_DST_ADDR(p), dstip, sizeof(dstip));
@@ -217,17 +216,14 @@ static TmEcode AlertDebugLogger(ThreadVars *tv, const Packet *p, void *thread_da
                              p->flow->todstpktcnt, p->flow->tosrcpktcnt,
                              p->flow->todstbytecnt + p->flow->tosrcbytecnt);
         MemBufferWriteString(aft->buffer,
-                             "FLOW IPONLY SET:   TOSERVER: %s, TOCLIENT: %s\n"
-                             "FLOW ACTION:       DROP: %s\n"
-                             "FLOW NOINSPECTION: PACKET: %s, PAYLOAD: %s, APP_LAYER: %s\n"
-                             "FLOW APP_LAYER:    DETECTED: %s, PROTO %"PRIu16"\n",
-                             p->flow->flags & FLOW_TOSERVER_IPONLY_SET ? "TRUE" : "FALSE",
-                             p->flow->flags & FLOW_TOCLIENT_IPONLY_SET ? "TRUE" : "FALSE",
-                             p->flow->flags & FLOW_ACTION_DROP ? "TRUE" : "FALSE",
-                             p->flow->flags & FLOW_NOPACKET_INSPECTION ? "TRUE" : "FALSE",
-                             p->flow->flags & FLOW_NOPAYLOAD_INSPECTION ? "TRUE" : "FALSE",
-                             applayer ? "TRUE" : "FALSE",
-                             (p->flow->alproto != ALPROTO_UNKNOWN) ? "TRUE" : "FALSE", p->flow->alproto);
+                "FLOW ACTION:       DROP: %s\n"
+                "FLOW NOINSPECTION: PACKET: %s, PAYLOAD: %s, APP_LAYER: %s\n"
+                "FLOW APP_LAYER:    DETECTED: %s, PROTO %" PRIu16 "\n",
+                p->flow->flags & FLOW_ACTION_DROP ? "TRUE" : "FALSE",
+                p->flow->flags & FLOW_NOPACKET_INSPECTION ? "TRUE" : "FALSE",
+                p->flow->flags & FLOW_NOPAYLOAD_INSPECTION ? "TRUE" : "FALSE",
+                applayer ? "TRUE" : "FALSE",
+                (p->flow->alproto != ALPROTO_UNKNOWN) ? "TRUE" : "FALSE", p->flow->alproto);
         AlertDebugLogFlowVars(aft, p);
     }
 
@@ -475,7 +471,7 @@ static bool AlertDebugLogCondition(ThreadVars *tv, void *thread_data, const Pack
 
 static int AlertDebugLogLogger(ThreadVars *tv, void *thread_data, const Packet *p)
 {
-    if (PacketIsIPv4(p) || PacketIsIPv6(p) ) {
+    if (PacketIsIPv4(p) || PacketIsIPv6(p)) {
         return AlertDebugLogger(tv, p, thread_data);
     } else if (p->events.cnt > 0) {
         return AlertDebugLogDecoderEvent(tv, p, thread_data);

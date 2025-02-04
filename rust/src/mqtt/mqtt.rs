@@ -23,6 +23,8 @@ use crate::applayer::*;
 use crate::applayer::{self, LoggerFlags};
 use crate::conf::{conf_get, get_memval};
 use crate::core::*;
+use crate::direction::Direction;
+use crate::flow::Flow;
 use crate::frames::*;
 use nom7::Err;
 use std;
@@ -174,6 +176,8 @@ impl MQTTState {
             if !tx.complete {
                 if let Some(mpktid) = tx.pkt_id {
                     if mpktid == pkt_id {
+                        tx.tx_data.updated_tc = true;
+                        tx.tx_data.updated_ts = true;
                         return Some(tx);
                     }
                 }
@@ -196,6 +200,8 @@ impl MQTTState {
             for tx_old in &mut self.transactions.range_mut(self.tx_index_completed..) {
                 index += 1;
                 if !tx_old.complete {
+                    tx_old.tx_data.updated_tc = true;
+                    tx_old.tx_data.updated_ts = true;
                     tx_old.complete = true;
                     MQTTState::set_event(tx_old, MQTTEvent::TooManyTransactions);
                     break;
@@ -755,8 +761,8 @@ pub unsafe extern "C" fn rs_mqtt_tx_set_logged(
 // Parser name as a C style string.
 const PARSER_NAME: &[u8] = b"mqtt\0";
 
-export_tx_data_get!(rs_mqtt_get_tx_data, MQTTTransaction);
-export_state_data_get!(rs_mqtt_get_state_data, MQTTState);
+export_tx_data_get!(mqtt_get_tx_data, MQTTTransaction);
+export_state_data_get!(mqtt_get_state_data, MQTTState);
 
 #[no_mangle]
 pub unsafe extern "C" fn SCMqttRegisterParser() {
@@ -785,8 +791,8 @@ pub unsafe extern "C" fn SCMqttRegisterParser() {
         localstorage_free: None,
         get_tx_files: None,
         get_tx_iterator: Some(crate::applayer::state_get_tx_iterator::<MQTTState, MQTTTransaction>),
-        get_tx_data: rs_mqtt_get_tx_data,
-        get_state_data: rs_mqtt_get_state_data,
+        get_tx_data: mqtt_get_tx_data,
+        get_state_data: mqtt_get_state_data,
         apply_tx_config: None,
         flags: 0,
         get_frame_id_by_name: Some(MQTTFrameType::ffi_id_from_name),

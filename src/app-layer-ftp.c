@@ -52,9 +52,7 @@ const FtpCommand FtpCommands[FTP_COMMAND_MAX + 1] = {
     /* Parsed and handled */
     { "PORT",   FTP_COMMAND_PORT,   4 },
     { "EPRT",   FTP_COMMAND_EPRT,   4 },
-    #if ENABLE_TLS
     { "AUTH TLS",   FTP_COMMAND_AUTH_TLS,   8 },
-    #endif
     { "PASV",   FTP_COMMAND_PASV,   4 },
     { "RETR",   FTP_COMMAND_RETR,   4 },
     { "EPSV",   FTP_COMMAND_EPSV,   4 },
@@ -174,6 +172,16 @@ uint64_t FTPMemcapGlobalCounter(void)
 {
     uint64_t tmpval = SC_ATOMIC_GET(ftp_memcap);
     return tmpval;
+}
+
+int FTPSetMemcap(uint64_t size)
+{
+    if ((uint64_t)SC_ATOMIC_GET(ftp_memcap) < size) {
+        SC_ATOMIC_SET(ftp_memcap, size);
+        return 1;
+    }
+
+    return 0;
 }
 
 /**
@@ -716,6 +724,7 @@ static AppLayerResult FTPParseResponse(Flow *f, void *ftp_state, AppLayerParserS
             SCReturnStruct(APP_LAYER_ERROR);
         }
         lasttx = tx;
+        tx->tx_data.updated_tc = true;
         if (state->command == FTP_COMMAND_UNKNOWN || tx->command_descriptor == NULL) {
             /* unknown */
             tx->command_descriptor = &FtpCommands[FTP_COMMAND_MAX - 1];
@@ -724,13 +733,12 @@ static AppLayerResult FTPParseResponse(Flow *f, void *ftp_state, AppLayerParserS
         state->curr_tx = tx;
         uint16_t dyn_port;
         switch (state->command) {
-            #if ENABLE_TLS
             case FTP_COMMAND_AUTH_TLS:
                 if (line.len >= 4 && SCMemcmp("234 ", line.buf, 4) == 0) {
                     AppLayerRequestProtocolTLSUpgrade(f);
                 }
                 break;
-            #endif
+
             case FTP_COMMAND_EPRT:
                 dyn_port = rs_ftp_active_eprt(state->port_line, state->port_line_len);
                 if (dyn_port == 0) {
@@ -961,12 +969,10 @@ static int FTPGetAlstateProgress(void *vtx, uint8_t direction)
 static AppProto FTPUserProbingParser(
         Flow *f, uint8_t direction, const uint8_t *input, uint32_t len, uint8_t *rdir)
 {
-#if ENABLE_POP3
     if (f->alproto_tc == ALPROTO_POP3) {
         // POP traffic begins by same "USER" pattern as FTP
         return ALPROTO_FAILED;
     }
-#endif
     return ALPROTO_FTP;
 }
 
@@ -1051,7 +1057,11 @@ static AppLayerResult FTPDataParse(Flow *f, FtpDataState *ftpdata_state,
     SCTxDataUpdateFileFlags(&ftpdata_state->tx_data, ftpdata_state->state_data.file_flags);
     if (ftpdata_state->tx_data.file_tx == 0)
         ftpdata_state->tx_data.file_tx = direction & (STREAM_TOSERVER | STREAM_TOCLIENT);
-
+    if (direction & STREAM_TOSERVER) {
+        ftpdata_state->tx_data.updated_ts = true;
+    } else {
+        ftpdata_state->tx_data.updated_tc = true;
+    }
     /* we depend on detection engine for file pruning */
     const uint16_t flags = FileFlowFlagsToFlags(ftpdata_state->tx_data.file_flags, direction);
     int ret = 0;

@@ -24,12 +24,8 @@
 #include "suricata.h"
 #include "suricata-common.h"
 #include "decode.h"
-#include "threads.h"
 
-#include "stream-tcp-private.h"
-#include "stream-tcp-reassemble.h"
 #include "stream-tcp.h"
-#include "stream.h"
 
 #include "app-layer.h"
 #include "app-layer-detect-proto.h"
@@ -41,7 +37,6 @@
 #include "util-enum.h"
 #include "util-mpm.h"
 #include "util-debug.h"
-#include "util-print.h"
 #include "util-byte.h"
 #include "util-unittest.h"
 #include "util-unittest-helper.h"
@@ -53,7 +48,6 @@
 #include "detect-engine-build.h"
 #include "detect-parse.h"
 
-#include "decode-events.h"
 #include "conf.h"
 
 #include "util-mem.h"
@@ -644,13 +638,8 @@ static int SMTPInsertCommandIntoCommandBuffer(uint8_t command, SMTPState *state)
         state->cmds_buffer_len += increment;
     }
     if (state->cmds_cnt >= 1 &&
-    #if ENABLE_TLS
         ((state->cmds[state->cmds_cnt - 1] == SMTP_COMMAND_STARTTLS) ||
-         (state->cmds[state->cmds_cnt - 1] == SMTP_COMMAND_DATA)))
-    #else
-    	(state->cmds[state->cmds_cnt - 1] == SMTP_COMMAND_DATA))
-    #endif 
-    {
+         (state->cmds[state->cmds_cnt - 1] == SMTP_COMMAND_DATA))) {
         /* decoder event */
         SMTPSetEvent(state, SMTP_DECODER_EVENT_INVALID_PIPELINED_SEQUENCE);
         /* we have to have EHLO, DATA, VRFY, EXPN, TURN, QUIT, NOOP,
@@ -871,6 +860,9 @@ static int SMTPProcessReply(
         return 0; // to continue processing further
     }
 
+    if (state->curr_tx) {
+        state->curr_tx->tx_data.updated_tc = true;
+    }
     /* the reply code has to contain at least 3 bytes, to hold the 3 digit
      * reply code */
     if (line->len < 3) {
@@ -933,9 +925,7 @@ static int SMTPProcessReply(
 
     if (state->cmds_cnt == 0) {
         /* reply but not a command we have stored, fall through */
-    } 
-    #if ENABLE_TLS
-    else if (IsReplyToCommand(state, SMTP_COMMAND_STARTTLS)) {
+    } else if (IsReplyToCommand(state, SMTP_COMMAND_STARTTLS)) {
         if (reply_code == SMTP_REPLY_220) {
             /* we are entering STARTTLS data mode */
             state->parser_state |= SMTP_PARSER_STATE_COMMAND_DATA_MODE;
@@ -949,9 +939,7 @@ static int SMTPProcessReply(
             /* decoder event */
             SMTPSetEvent(state, SMTP_DECODER_EVENT_TLS_REJECTED);
         }
-    } 
-    #endif
-    else if (IsReplyToCommand(state, SMTP_COMMAND_DATA)) {
+    } else if (IsReplyToCommand(state, SMTP_COMMAND_DATA)) {
         if (reply_code == SMTP_REPLY_354) {
             /* Next comes the mail for the DATA command in toserver direction */
             state->parser_state |= SMTP_PARSER_STATE_COMMAND_DATA_MODE;
@@ -1179,6 +1167,7 @@ static int SMTPProcessRequest(
     if (frame != NULL && state->curr_tx) {
         AppLayerFrameSetTxId(frame, state->curr_tx->tx_id);
     }
+    tx->tx_data.updated_ts = true;
 
     state->toserver_data_count += (line->len + line->delim_len);
 
@@ -1190,12 +1179,10 @@ static int SMTPProcessRequest(
      * STARTTLS and DATA */
     if (!(state->parser_state & SMTP_PARSER_STATE_COMMAND_DATA_MODE)) {
         int r = 0;
-        #if ENABLE_TLS
+
         if (line->len >= 8 && SCMemcmpLowercase("starttls", line->buf, 8) == 0) {
             state->current_command = SMTP_COMMAND_STARTTLS;
-        } else 
-        #endif
-        if (line->len >= 4 && SCMemcmpLowercase("data", line->buf, 4) == 0) {
+        } else if (line->len >= 4 && SCMemcmpLowercase("data", line->buf, 4) == 0) {
             state->current_command = SMTP_COMMAND_DATA;
             if (state->curr_tx->is_data) {
                 // We did not receive a confirmation from server
@@ -1661,25 +1648,18 @@ static void SMTPFreeMpmState(void)
     }
 }
 
-static int SMTPStateGetEventInfo(const char *event_name,
-                          int *event_id, AppLayerEventType *event_type)
+static int SMTPStateGetEventInfo(
+        const char *event_name, uint8_t *event_id, AppLayerEventType *event_type)
 {
-    *event_id = SCMapEnumNameToValue(event_name, smtp_decoder_event_table);
-    if (*event_id == -1) {
-        SCLogError("event \"%s\" not present in "
-                   "smtp's enum map table.",
-                event_name);
-        /* yes this is fatal */
-        return -1;
+    if (SCAppLayerGetEventIdByName(event_name, smtp_decoder_event_table, event_id) == 0) {
+        *event_type = APP_LAYER_EVENT_TYPE_TRANSACTION;
+        return 0;
     }
-
-    *event_type = APP_LAYER_EVENT_TYPE_TRANSACTION;
-
-    return 0;
+    return -1;
 }
 
-static int SMTPStateGetEventInfoById(int event_id, const char **event_name,
-                                     AppLayerEventType *event_type)
+static int SMTPStateGetEventInfoById(
+        uint8_t event_id, const char **event_name, AppLayerEventType *event_type)
 {
     *event_name = SCMapEnumValueToName(event_id, smtp_decoder_event_table);
     if (*event_name == NULL) {
@@ -1719,7 +1699,7 @@ static AppProto SMTPServerProbingParser(
         return ALPROTO_UNKNOWN;
     }
     AppProto r = ALPROTO_UNKNOWN;
-    if (f->todstbytecnt > 4 && f->alproto_ts == ALPROTO_UNKNOWN) {
+    if (f->todstbytecnt > 4 && (f->alproto_ts == ALPROTO_UNKNOWN || f->alproto_ts == ALPROTO_TLS)) {
         // Only validates SMTP if client side is unknown
         // despite having received bytes.
         r = ALPROTO_SMTP;

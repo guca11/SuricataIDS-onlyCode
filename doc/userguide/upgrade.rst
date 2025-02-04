@@ -82,6 +82,13 @@ Major changes
 - Unknown requirements in the ``requires`` keyword will now be treated
   as unmet requirements, causing the rule to not be loaded. See
   :ref:`keyword_requires`.
+- The configuration setting controlling stream checksum checks no longer affects
+  checksum keyword validation. In Suricata 7.0, when ``stream.checksum-validation``
+  was set to ``no``, the checksum keywords (e.g., ``ipv4-csum``, ``tcpv4-csum``, etc)
+  will always consider it valid; e.g., ``tcpv4-csum: invalid`` will never match. In
+  Suricata 8.0, ``stream.checksum-validation`` no longer affects the checksum rule keywords.
+  E.g., ``ipv4-csum: valid`` will only match if the check sum is valid, even when engine
+  checksum validations are disabled.
 
 Removals
 ~~~~~~~~
@@ -99,6 +106,13 @@ Logging changes
 ~~~~~~~~~~~~~~~
 - RFB security result is now consistently logged as ``security_result`` when it was
   sometimes logged with a dash instead of an underscore.
+- Application layer metadata is logged with alerts by default **only for rules that
+  use application layer keywords**. For other rules, the configuration parameter
+  ``detect.guess-applayer-tx`` can be used to force the detect engine to guess a
+  transaction, which is not guaranteed to be the one you expect. **In this case,
+  the engine will NOT log any transaction metadata if there is more than one
+  live transaction, to reduce the chances of logging unrelated data.** This may
+  lead to what looks like a regression in behavior, but it is a considered choice.
 
 Upgrading 6.0 to 7.0
 --------------------

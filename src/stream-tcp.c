@@ -438,6 +438,17 @@ static inline bool StreamTcpInlineDropInvalid(void)
             && (stream_config.flags & STREAMTCP_INIT_FLAG_DROP_INVALID));
 }
 
+/** \internal
+ *  \brief See if stream engine is dropping URG packets in inline mode
+ *  \retval false no
+ *  \retval true yes
+ */
+static inline bool StreamTcpInlineDropUrg(void)
+{
+    return ((stream_config.flags & STREAMTCP_INIT_FLAG_INLINE) &&
+            stream_config.urgent_policy == TCP_STREAM_URGENT_DROP);
+}
+
 /* hack: stream random range code expects random values in range of 0-RAND_MAX,
  * but we can get both <0 and >RAND_MAX values from RandomGet
  */
@@ -451,6 +462,22 @@ static int RandomGetWrap(void)
 
     return r % RAND_MAX;
 }
+
+static const char *UrgentPolicyToString(enum TcpStreamUrgentHandling pol)
+{
+    switch (pol) {
+        case TCP_STREAM_URGENT_OOB:
+            return "oob";
+        case TCP_STREAM_URGENT_INLINE:
+            return "inline";
+        case TCP_STREAM_URGENT_DROP:
+            return "drop";
+        case TCP_STREAM_URGENT_GAP:
+            return "gap";
+    }
+    return NULL;
+}
+
 
 /** \brief          To initialize the stream global configuration data
  *
@@ -599,6 +626,46 @@ void StreamTcpInitConfig(bool quiet)
         }
     } else {
         stream_config.flags |= STREAMTCP_INIT_FLAG_DROP_INVALID;
+    }
+
+    const char *temp_urgpol = NULL;
+    if (ConfGet("stream.reassembly.urgent.policy", &temp_urgpol) == 1 && temp_urgpol != NULL) {
+        if (strcmp(temp_urgpol, "inline") == 0) {
+            stream_config.urgent_policy = TCP_STREAM_URGENT_INLINE;
+        } else if (strcmp(temp_urgpol, "drop") == 0) {
+            stream_config.urgent_policy = TCP_STREAM_URGENT_DROP;
+        } else if (strcmp(temp_urgpol, "oob") == 0) {
+            stream_config.urgent_policy = TCP_STREAM_URGENT_OOB;
+        } else if (strcmp(temp_urgpol, "gap") == 0) {
+            stream_config.urgent_policy = TCP_STREAM_URGENT_GAP;
+        } else {
+            FatalError("stream.reassembly.urgent.policy: invalid value '%s'", temp_urgpol);
+        }
+    } else {
+        stream_config.urgent_policy = TCP_STREAM_URGENT_DEFAULT;
+    }
+    if (!quiet) {
+        SCLogConfig("stream.reassembly.urgent.policy\": %s", UrgentPolicyToString(stream_config.urgent_policy));
+    }
+    if (stream_config.urgent_policy == TCP_STREAM_URGENT_OOB) {
+        const char *temp_urgoobpol = NULL;
+        if (ConfGet("stream.reassembly.urgent.oob-limit-policy", &temp_urgoobpol) == 1 &&
+                temp_urgoobpol != NULL) {
+            if (strcmp(temp_urgoobpol, "inline") == 0) {
+                stream_config.urgent_oob_limit_policy = TCP_STREAM_URGENT_INLINE;
+            } else if (strcmp(temp_urgoobpol, "drop") == 0) {
+                stream_config.urgent_oob_limit_policy = TCP_STREAM_URGENT_DROP;
+            } else if (strcmp(temp_urgoobpol, "gap") == 0) {
+                stream_config.urgent_oob_limit_policy = TCP_STREAM_URGENT_GAP;
+            } else {
+                FatalError("stream.reassembly.urgent.oob-limit-policy: invalid value '%s'", temp_urgoobpol);
+            }
+        } else {
+            stream_config.urgent_oob_limit_policy = TCP_STREAM_URGENT_DEFAULT;
+        }
+        if (!quiet) {
+            SCLogConfig("stream.reassembly.urgent.oob-limit-policy\": %s", UrgentPolicyToString(stream_config.urgent_oob_limit_policy));
+        }
     }
 
     if ((ConfGetInt("stream.max-syn-queued", &value)) == 1) {
@@ -1187,7 +1254,7 @@ static int StreamTcpPacketStateNone(
 
             ssn->flags |= STREAMTCP_FLAG_TIMESTAMP;
 
-            ssn->client.last_pkt_ts = SCTIME_SECS(p->ts);
+            ssn->client.last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
             if (ssn->server.last_ts == 0)
                 ssn->server.flags |= STREAMTCP_STREAM_FLAG_ZERO_TIMESTAMP;
             if (ssn->client.last_ts == 0)
@@ -1294,7 +1361,7 @@ static int StreamTcpPacketStateNone(
 
             ssn->flags |= STREAMTCP_FLAG_TIMESTAMP;
 
-            ssn->server.last_pkt_ts = SCTIME_SECS(p->ts);
+            ssn->server.last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
             if (ssn->server.last_ts == 0)
                 ssn->server.flags |= STREAMTCP_STREAM_FLAG_ZERO_TIMESTAMP;
             if (ssn->client.last_ts == 0)
@@ -1347,7 +1414,7 @@ static int StreamTcpPacketStateNone(
             if (ssn->client.last_ts == 0)
                 ssn->client.flags |= STREAMTCP_STREAM_FLAG_ZERO_TIMESTAMP;
 
-            ssn->client.last_pkt_ts = SCTIME_SECS(p->ts);
+            ssn->client.last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
             ssn->client.flags |= STREAMTCP_STREAM_FLAG_TIMESTAMP;
         }
 
@@ -1455,7 +1522,7 @@ static int StreamTcpPacketStateNone(
 
             ssn->flags |= STREAMTCP_FLAG_TIMESTAMP;
 
-            ssn->client.last_pkt_ts = SCTIME_SECS(p->ts);
+            ssn->client.last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
             if (ssn->server.last_ts == 0)
                 ssn->server.flags |= STREAMTCP_STREAM_FLAG_ZERO_TIMESTAMP;
             if (ssn->client.last_ts == 0)
@@ -1490,7 +1557,7 @@ static inline void StreamTcp3whsSynAckToStateQueue(Packet *p, TcpStateQueue *q)
     q->win = TCP_GET_RAW_WINDOW(tcph);
     q->seq = TCP_GET_RAW_SEQ(tcph);
     q->ack = TCP_GET_RAW_ACK(tcph);
-    q->pkt_ts = SCTIME_SECS(p->ts);
+    q->pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
 
     if (TCP_GET_SACKOK(p))
         q->flags |= STREAMTCP_QUEUE_FLAG_SACK;
@@ -1753,7 +1820,7 @@ static void TcpStateQueueInitFromPktSyn(const Packet *p, TcpStateQueue *q)
     const TCPHdr *tcph = PacketGetTCP(p);
 
     q->win = TCP_GET_RAW_WINDOW(tcph);
-    q->pkt_ts = SCTIME_SECS(p->ts);
+    q->pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
 
     if (TCP_GET_SACKOK(p)) {
         q->flags |= STREAMTCP_QUEUE_FLAG_SACK;
@@ -1786,7 +1853,7 @@ static void TcpStateQueueInitFromPktSynAck(const Packet *p, TcpStateQueue *q)
 
     const TCPHdr *tcph = PacketGetTCP(p);
     q->win = TCP_GET_RAW_WINDOW(tcph);
-    q->pkt_ts = SCTIME_SECS(p->ts);
+    q->pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
 
     if (TCP_GET_SACKOK(p)) {
         q->flags |= STREAMTCP_QUEUE_FLAG_SACK;
@@ -2025,7 +2092,7 @@ static int StreamTcpPacketStateSynSent(
                        "ssn->server.last_ts %" PRIu32 "",
                     ssn, ssn->client.last_ts, ssn->server.last_ts);
             ssn->flags |= STREAMTCP_FLAG_TIMESTAMP;
-            ssn->client.last_pkt_ts = SCTIME_SECS(p->ts);
+            ssn->client.last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
             if (ssn->client.last_ts == 0)
                 ssn->client.flags |= STREAMTCP_STREAM_FLAG_ZERO_TIMESTAMP;
         } else {
@@ -2131,7 +2198,7 @@ static int StreamTcpPacketStateSynSent(
 
                 if (ssn->server.last_ts == 0)
                     ssn->server.flags |= STREAMTCP_STREAM_FLAG_ZERO_TIMESTAMP;
-                ssn->server.last_pkt_ts = SCTIME_SECS(p->ts);
+                ssn->server.last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
                 ssn->server.flags |= STREAMTCP_STREAM_FLAG_TIMESTAMP;
             }
 
@@ -2233,7 +2300,7 @@ static int StreamTcpPacketStateSynSent(
         {
             ssn->flags |= STREAMTCP_FLAG_TIMESTAMP;
             ssn->client.flags &= ~STREAMTCP_STREAM_FLAG_TIMESTAMP;
-            ssn->client.last_pkt_ts = SCTIME_SECS(p->ts);
+            ssn->client.last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
         } else {
             ssn->client.last_ts = 0;
             ssn->client.flags &= ~STREAMTCP_STREAM_FLAG_ZERO_TIMESTAMP;
@@ -2995,32 +3062,6 @@ static int HandleEstablishedPacketToClient(
     return 0;
 }
 
-/**
- *  \internal
- *
- *  \brief Find the highest sequence number needed to consider all segments as ACK'd
- *
- *  Used to treat all segments as ACK'd upon receiving a valid RST.
- *
- *  \param stream stream to inspect the segments from
- *  \param seq sequence number to check against
- *
- *  \retval ack highest ack we need to set
- */
-static inline uint32_t StreamTcpResetGetMaxAck(TcpStream *stream, uint32_t seq)
-{
-    uint32_t ack = seq;
-
-    if (STREAM_HAS_SEEN_DATA(stream)) {
-        const uint32_t tail_seq = STREAM_SEQ_RIGHT_EDGE(stream);
-        if (SEQ_GT(tail_seq, ack)) {
-            ack = tail_seq;
-        }
-    }
-
-    SCReturnUInt(ack);
-}
-
 static bool StreamTcpPacketIsZeroWindowProbeAck(const TcpSession *ssn, const Packet *p)
 {
     const TCPHdr *tcph = PacketGetTCP(p);
@@ -3242,10 +3283,9 @@ static int StreamTcpPacketStateEstablished(
             ssn->client.window = window << ssn->client.wscale;
 
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->server, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, window));
+                StreamTcpUpdateLastAck(ssn, &ssn->server, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->client, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -3270,10 +3310,9 @@ static int StreamTcpPacketStateEstablished(
             ssn->server.window = window << ssn->server.wscale;
 
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->client, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->client, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->server, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -3574,10 +3613,9 @@ static int StreamTcpPacketStateFinWait1(
 
         if (PKT_IS_TOSERVER(p)) {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->server, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->server, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->client, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -3586,10 +3624,9 @@ static int StreamTcpPacketStateFinWait1(
             StreamTcpReassembleHandleSegment(tv, stt->ra_ctx, ssn, &ssn->client, p);
         } else {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->client, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->client, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->server, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4018,10 +4055,9 @@ static int StreamTcpPacketStateFinWait2(
 
         if (PKT_IS_TOSERVER(p)) {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->server, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->server, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->client, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4030,10 +4066,9 @@ static int StreamTcpPacketStateFinWait2(
             StreamTcpReassembleHandleSegment(tv, stt->ra_ctx, ssn, &ssn->client, p);
         } else {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->client, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->client, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->server, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4318,10 +4353,9 @@ static int StreamTcpPacketStateClosing(
 
         if (PKT_IS_TOSERVER(p)) {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->server, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->server, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->client, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4330,10 +4364,9 @@ static int StreamTcpPacketStateClosing(
             StreamTcpReassembleHandleSegment(tv, stt->ra_ctx, ssn, &ssn->client, p);
         } else {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->client, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->client, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->server, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4493,10 +4526,9 @@ static int StreamTcpPacketStateCloseWait(
 
         if (PKT_IS_TOSERVER(p)) {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->server, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->server, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->client, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4505,10 +4537,9 @@ static int StreamTcpPacketStateCloseWait(
             StreamTcpReassembleHandleSegment(tv, stt->ra_ctx, ssn, &ssn->client, p);
         } else {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->client, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->client, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->server, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4778,10 +4809,9 @@ static int StreamTcpPacketStateLastAck(
 
         if (PKT_IS_TOSERVER(p)) {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->server, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->server, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->client, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4790,10 +4820,9 @@ static int StreamTcpPacketStateLastAck(
             StreamTcpReassembleHandleSegment(tv, stt->ra_ctx, ssn, &ssn->client, p);
         } else {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->client, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->client, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->server, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4901,10 +4930,9 @@ static int StreamTcpPacketStateTimeWait(
 
         if (PKT_IS_TOSERVER(p)) {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->server, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->server, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->client, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -4913,10 +4941,9 @@ static int StreamTcpPacketStateTimeWait(
             StreamTcpReassembleHandleSegment(tv, stt->ra_ctx, ssn, &ssn->client, p);
         } else {
             if ((tcph->th_flags & TH_ACK) && StreamTcpValidateAck(ssn, &ssn->client, p) == 0)
-                StreamTcpUpdateLastAck(
-                        ssn, &ssn->client, StreamTcpResetGetMaxAck(&ssn->client, ack));
+                StreamTcpUpdateLastAck(ssn, &ssn->client, ack);
 
-            StreamTcpUpdateLastAck(ssn, &ssn->server, StreamTcpResetGetMaxAck(&ssn->server, seq));
+            StreamTcpUpdateLastAck(ssn, &ssn->server, seq);
 
             if (ssn->flags & STREAMTCP_FLAG_TIMESTAMP) {
                 StreamTcpHandleTimestamp(ssn, p);
@@ -5532,6 +5559,12 @@ int StreamTcpPacket (ThreadVars *tv, Packet *p, StreamTcpThread *stt,
         StreamTcpSetEvent(p, STREAM_PKT_BROKEN_ACK);
     }
 
+    if ((tcph->th_flags & TH_URG) && StreamTcpInlineDropUrg()) {
+        PacketDrop(p, ACTION_DROP, PKT_DROP_REASON_STREAM_URG);
+        SCLogDebug("dropping urgent packet");
+        SCReturnInt(0);
+    }
+
     /* If we are on IPS mode, and got a drop action triggered from
      * the IP only module, or from a reassembled msg and/or from an
      * applayer detection, then drop the rest of the packets of the
@@ -5925,11 +5958,7 @@ TmEcode StreamTcp (ThreadVars *tv, Packet *p, void *data, PacketQueueNoLock *pq)
                 StatsIncr(tv, stt->counter_tcp_invalid_checksum);
                 return TM_ECODE_OK;
             }
-        } else {
-            p->flags |= PKT_IGNORE_CHECKSUM;
         }
-    } else {
-        p->flags |= PKT_IGNORE_CHECKSUM; //TODO check that this is set at creation
     }
     AppLayerProfilingReset(stt->ra_ctx->app_tctx);
 
@@ -5959,7 +5988,6 @@ TmEcode StreamTcpThreadInit(ThreadVars *tv, void *initdata, void **data)
             IsStreamTcpSessionMemcapExceptionPolicyStatsValid);
 
     stt->counter_tcp_pseudo = StatsRegisterCounter("tcp.pseudo", tv);
-    stt->counter_tcp_pseudo_failed = StatsRegisterCounter("tcp.pseudo_failed", tv);
     stt->counter_tcp_invalid_checksum = StatsRegisterCounter("tcp.invalid_checksum", tv);
     stt->counter_tcp_midstream_pickups = StatsRegisterCounter("tcp.midstream_pickups", tv);
     if (stream_config.midstream) {
@@ -5996,6 +6024,7 @@ TmEcode StreamTcpThreadInit(ThreadVars *tv, void *initdata, void **data)
 
     stt->ra_ctx->counter_tcp_reass_data_normal_fail = StatsRegisterCounter("tcp.insert_data_normal_fail", tv);
     stt->ra_ctx->counter_tcp_reass_data_overlap_fail = StatsRegisterCounter("tcp.insert_data_overlap_fail", tv);
+    stt->ra_ctx->counter_tcp_urgent_oob = StatsRegisterCounter("tcp.urgent_oob_data", tv);
 
     SCLogDebug("StreamTcp thread specific ctx online at %p, reassembly ctx %p",
                 stt, stt->ra_ctx);
@@ -6350,7 +6379,7 @@ static int StreamTcpValidateTimestamp (TcpSession *ssn, Packet *p)
             if (last_pkt_ts == 0 &&
                     (ssn->flags & STREAMTCP_FLAG_MIDSTREAM))
             {
-                last_pkt_ts = SCTIME_SECS(p->ts);
+                last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
             }
 
             if (result < 0) {
@@ -6494,7 +6523,7 @@ static int StreamTcpHandleTimestamp (TcpSession *ssn, Packet *p)
             if (sender_stream->last_pkt_ts == 0 &&
                     (ssn->flags & STREAMTCP_FLAG_MIDSTREAM))
             {
-                sender_stream->last_pkt_ts = SCTIME_SECS(p->ts);
+                sender_stream->last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
             }
 
             if (result < 0) {
@@ -6519,7 +6548,7 @@ static int StreamTcpHandleTimestamp (TcpSession *ssn, Packet *p)
                 if (SEQ_EQ(sender_stream->next_seq, seq))
                     sender_stream->last_ts = ts;
 
-                sender_stream->last_pkt_ts = SCTIME_SECS(p->ts);
+                sender_stream->last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
 
             } else if (ret == 0) {
                 /* if the timestamp of packet is not valid then, check if the
@@ -6529,7 +6558,7 @@ static int StreamTcpHandleTimestamp (TcpSession *ssn, Packet *p)
                         (((uint32_t)SCTIME_SECS(p->ts) >
                                 (sender_stream->last_pkt_ts + PAWS_24DAYS)))) {
                     sender_stream->last_ts = ts;
-                    sender_stream->last_pkt_ts = SCTIME_SECS(p->ts);
+                    sender_stream->last_pkt_ts = (uint32_t)SCTIME_SECS(p->ts);
 
                     SCLogDebug("timestamp considered valid anyway");
                 } else {
@@ -6723,10 +6752,10 @@ static void StreamTcpPseudoPacketCreateDetectLogFlush(ThreadVars *tv,
     np->vlan_idx = f->vlan_idx;
     np->livedev = (struct LiveDevice_ *)f->livedev;
 
-    if (f->flags & FLOW_NOPACKET_INSPECTION) {
+    if (parent->flags & PKT_NOPACKET_INSPECTION) {
         DecodeSetNoPacketInspectionFlag(np);
     }
-    if (f->flags & FLOW_NOPAYLOAD_INSPECTION) {
+    if (parent->flags & PKT_NOPAYLOAD_INSPECTION) {
         DecodeSetNoPayloadInspectionFlag(np);
     }
 
@@ -6740,7 +6769,7 @@ static void StreamTcpPseudoPacketCreateDetectLogFlush(ThreadVars *tv,
     np->flowflags |= FLOW_PKT_ESTABLISHED;
     np->payload = NULL;
     np->payload_len = 0;
-    
+
     if (FLOW_IS_IPV4(f)) {
         if (dir == 0) {
             FLOW_COPY_IPV4_ADDR_TO_PACKET(&f->src, &np->src);
@@ -7022,8 +7051,8 @@ int StreamTcpSegmentForSession(
             }
             server_node = TCPSEG_RB_NEXT(server_node);
         } else {
-            if (TimevalEarlier(
-                        &client_node->pcap_hdr_storage->ts, &server_node->pcap_hdr_storage->ts)) {
+            if (SCTIME_CMP_LT(
+                        client_node->pcap_hdr_storage->ts, server_node->pcap_hdr_storage->ts)) {
                 StreamingBufferSegmentGetData(
                         &client_stream->sb, &client_node->sbseg, &seg_data, &seg_datalen);
                 ret = CallbackFunc(p, client_node, data, seg_data, seg_datalen);

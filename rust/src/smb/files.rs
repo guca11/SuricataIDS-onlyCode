@@ -17,6 +17,7 @@
 
 use std;
 use crate::core::*;
+use crate::direction::Direction;
 use crate::filetracker::*;
 use crate::filecontainer::*;
 
@@ -126,6 +127,8 @@ impl SMBState {
                     tx.tx_data.update_file_flags(self.state_data.file_flags);
                     d.update_file_flags(tx.tx_data.file_flags);
                 }
+                tx.tx_data.updated_tc = true;
+                tx.tx_data.updated_ts = true;
                 return Some(tx);
             }
         }
@@ -152,6 +155,8 @@ impl SMBState {
                     tx.tx_data.update_file_flags(self.state_data.file_flags);
                     d.update_file_flags(tx.tx_data.file_flags);
                 }
+                tx.tx_data.updated_tc = true;
+                tx.tx_data.updated_ts = true;
                 return Some(tx);
             }
         }

@@ -20,6 +20,8 @@
 use crate::applayer::{self, *};
 use crate::core;
 use crate::core::{AppProto, ALPROTO_UNKNOWN, IPPROTO_TCP, IPPROTO_UDP};
+use crate::direction::Direction;
+use crate::flow::Flow;
 use crate::frames::*;
 use crate::sip::parser::*;
 use nom7::Err;
@@ -89,7 +91,7 @@ impl SIPState {
         self.transactions.clear();
     }
 
-    fn new_tx(&mut self, direction: crate::core::Direction) -> SIPTransaction {
+    fn new_tx(&mut self, direction: Direction) -> SIPTransaction {
         self.tx_id += 1;
         SIPTransaction::new(self.tx_id, direction)
     }
@@ -113,7 +115,7 @@ impl SIPState {
     }
 
     // app-layer-frame-documentation tag start: parse_request
-    fn parse_request(&mut self, flow: *const core::Flow, stream_slice: StreamSlice) -> bool {
+    fn parse_request(&mut self, flow: *const Flow, stream_slice: StreamSlice) -> bool {
         let input = stream_slice.as_slice();
         let _pdu = Frame::new(
             flow,
@@ -127,7 +129,7 @@ impl SIPState {
 
         match sip_parse_request(input) {
             Ok((_, request)) => {
-                let mut tx = self.new_tx(crate::core::Direction::ToServer);
+                let mut tx = self.new_tx(Direction::ToServer);
                 sip_frames_ts(flow, &stream_slice, &request, tx.id);
                 tx.request = Some(request);
                 if let Ok((_, req_line)) = sip_take_line(input) {
@@ -149,7 +151,7 @@ impl SIPState {
     }
 
     fn parse_request_tcp(
-        &mut self, flow: *const core::Flow, stream_slice: StreamSlice,
+        &mut self, flow: *const Flow, stream_slice: StreamSlice,
     ) -> AppLayerResult {
         let input = stream_slice.as_slice();
         if input.is_empty() {
@@ -171,7 +173,7 @@ impl SIPState {
             }
             match sip_parse_request(start) {
                 Ok((rem, request)) => {
-                    let mut tx = self.new_tx(crate::core::Direction::ToServer);
+                    let mut tx = self.new_tx(Direction::ToServer);
                     let tx_id = tx.id;
                     sip_frames_ts(flow, &stream_slice, &request, tx_id);
                     tx.request = Some(request);
@@ -209,7 +211,7 @@ impl SIPState {
         return AppLayerResult::ok();
     }
 
-    fn parse_response(&mut self, flow: *const core::Flow, stream_slice: StreamSlice) -> bool {
+    fn parse_response(&mut self, flow: *const Flow, stream_slice: StreamSlice) -> bool {
         let input = stream_slice.as_slice();
         let _pdu = Frame::new(
             flow,
@@ -223,7 +225,7 @@ impl SIPState {
 
         match sip_parse_response(input) {
             Ok((_, response)) => {
-                let mut tx = self.new_tx(crate::core::Direction::ToClient);
+                let mut tx = self.new_tx(Direction::ToClient);
                 sip_frames_tc(flow, &stream_slice, &response, tx.id);
                 tx.response = Some(response);
                 if let Ok((_, resp_line)) = sip_take_line(input) {
@@ -244,7 +246,7 @@ impl SIPState {
     }
 
     fn parse_response_tcp(
-        &mut self, flow: *const core::Flow, stream_slice: StreamSlice,
+        &mut self, flow: *const Flow, stream_slice: StreamSlice,
     ) -> AppLayerResult {
         let input = stream_slice.as_slice();
         if input.is_empty() {
@@ -266,7 +268,7 @@ impl SIPState {
             }
             match sip_parse_response(start) {
                 Ok((rem, response)) => {
-                    let mut tx = self.new_tx(crate::core::Direction::ToClient);
+                    let mut tx = self.new_tx(Direction::ToClient);
                     let tx_id = tx.id;
                     sip_frames_tc(flow, &stream_slice, &response, tx_id);
                     tx.response = Some(response);
@@ -306,7 +308,7 @@ impl SIPState {
 }
 
 impl SIPTransaction {
-    pub fn new(id: u64, direction: crate::core::Direction) -> SIPTransaction {
+    pub fn new(id: u64, direction: Direction) -> SIPTransaction {
         SIPTransaction {
             id,
             request: None,
@@ -319,7 +321,7 @@ impl SIPTransaction {
 }
 
 // app-layer-frame-documentation tag start: function to add frames
-fn sip_frames_ts(flow: *const core::Flow, stream_slice: &StreamSlice, r: &Request, tx_id: u64) {
+fn sip_frames_ts(flow: *const Flow, stream_slice: &StreamSlice, r: &Request, tx_id: u64) {
     let oi = stream_slice.as_slice();
     let _f = Frame::new(
         flow,
@@ -355,7 +357,7 @@ fn sip_frames_ts(flow: *const core::Flow, stream_slice: &StreamSlice, r: &Reques
 }
 // app-layer-frame-documentation tag end: function to add frames
 
-fn sip_frames_tc(flow: *const core::Flow, stream_slice: &StreamSlice, r: &Response, tx_id: u64) {
+fn sip_frames_tc(flow: *const Flow, stream_slice: &StreamSlice, r: &Response, tx_id: u64) {
     let oi = stream_slice.as_slice();
     let _f = Frame::new(
         flow,
@@ -439,7 +441,7 @@ pub static mut ALPROTO_SIP: AppProto = ALPROTO_UNKNOWN;
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_sip_parse_request(
-    flow: *const core::Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
+    flow: *const Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice, _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
     let state = cast_pointer!(state, SIPState);
@@ -448,7 +450,7 @@ pub unsafe extern "C" fn rs_sip_parse_request(
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_sip_parse_request_tcp(
-    flow: *const core::Flow, state: *mut std::os::raw::c_void, pstate: *mut std::os::raw::c_void,
+    flow: *const Flow, state: *mut std::os::raw::c_void, pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice, _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
     if stream_slice.is_empty() {
@@ -465,7 +467,7 @@ pub unsafe extern "C" fn rs_sip_parse_request_tcp(
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_sip_parse_response(
-    flow: *const core::Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
+    flow: *const Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice, _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
     let state = cast_pointer!(state, SIPState);
@@ -474,7 +476,7 @@ pub unsafe extern "C" fn rs_sip_parse_response(
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_sip_parse_response_tcp(
-    flow: *const core::Flow, state: *mut std::os::raw::c_void, pstate: *mut std::os::raw::c_void,
+    flow: *const Flow, state: *mut std::os::raw::c_void, pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice, _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
     if stream_slice.is_empty() {
@@ -496,7 +498,6 @@ fn register_pattern_probe(proto: u8) -> i8 {
         "ACK\0",
         "BYE\0",
         "CANCEL\0",
-        "UPDATE\0",
         "REFER\0",
         "PRACK\0",
         "SUBSCRIBE\0",
@@ -515,7 +516,7 @@ fn register_pattern_probe(proto: u8) -> i8 {
                 method.as_ptr() as *const std::os::raw::c_char,
                 depth,
                 0,
-                core::Direction::ToServer as u8,
+                Direction::ToServer as u8,
             );
         }
         r |= AppLayerProtoDetectPMRegisterPatternCS(
@@ -524,8 +525,18 @@ fn register_pattern_probe(proto: u8) -> i8 {
             b"SIP/2.0\0".as_ptr() as *const std::os::raw::c_char,
             8,
             0,
-            core::Direction::ToClient as u8,
+            Direction::ToClient as u8,
         );
+        if proto == core::IPPROTO_UDP {
+            r |= AppLayerProtoDetectPMRegisterPatternCS(
+                proto,
+                ALPROTO_SIP,
+                "UPDATE\0".as_ptr() as *const std::os::raw::c_char,
+                "UPDATE".len() as u16,
+                0,
+                Direction::ToServer as u8,
+            );
+        }
     }
 
     if r == 0 {
@@ -535,8 +546,8 @@ fn register_pattern_probe(proto: u8) -> i8 {
     }
 }
 
-export_tx_data_get!(rs_sip_get_tx_data, SIPTransaction);
-export_state_data_get!(rs_sip_get_state_data, SIPState);
+export_tx_data_get!(sip_get_tx_data, SIPTransaction);
+export_state_data_get!(sip_get_state_data, SIPState);
 
 const PARSER_NAME: &[u8] = b"sip\0";
 
@@ -566,8 +577,8 @@ pub unsafe extern "C" fn rs_sip_register_parser() {
         localstorage_free: None,
         get_tx_files: None,
         get_tx_iterator: Some(applayer::state_get_tx_iterator::<SIPState, SIPTransaction>),
-        get_tx_data: rs_sip_get_tx_data,
-        get_state_data: rs_sip_get_state_data,
+        get_tx_data: sip_get_tx_data,
+        get_state_data: sip_get_state_data,
         apply_tx_config: None,
         flags: 0,
         get_frame_id_by_name: Some(SIPFrameType::ffi_id_from_name),

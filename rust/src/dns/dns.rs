@@ -22,7 +22,10 @@ use std::ffi::CString;
 
 use crate::applayer::*;
 use crate::core::{self, *};
+use crate::direction::Direction;
+use crate::direction::DIR_BOTH;
 use crate::dns::parser;
+use crate::flow::Flow;
 use crate::frames::Frame;
 
 use nom7::number::streaming::be_u16;
@@ -129,6 +132,14 @@ pub enum DNSEvent {
     NotResponse,
     ZFlagSet,
     InvalidOpcode,
+    /// A DNS resource name was exessively long and was truncated.
+    NameTooLong,
+    /// An infinite loop was found while parsing a name.
+    InfiniteLoop,
+    /// Too many labels were found.
+    TooManyLabels,
+    InvalidAdditionals,
+    InvalidAuthorities,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -144,7 +155,7 @@ pub struct DNSHeader {
 
 #[derive(Debug)]
 pub struct DNSQueryEntry {
-    pub name: Vec<u8>,
+    pub name: DNSName,
     pub rrtype: u16,
     pub rrclass: u16,
 }
@@ -160,9 +171,9 @@ pub struct DNSRDataOPT {
 #[derive(Debug, PartialEq, Eq)]
 pub struct DNSRDataSOA {
     /// Primary name server for this zone
-    pub mname: Vec<u8>,
+    pub mname: DNSName,
     /// Authority's mailbox
-    pub rname: Vec<u8>,
+    pub rname: DNSName,
     /// Serial version number
     pub serial: u32,
     /// Refresh interval (seconds)
@@ -194,7 +205,22 @@ pub struct DNSRDataSRV {
     /// Port
     pub port: u16,
     /// Target
-    pub target: Vec<u8>,
+    pub target: DNSName,
+}
+
+bitflags! {
+    #[derive(Default)]
+    pub struct DNSNameFlags: u8 {
+        const INFINITE_LOOP = 0b0000_0001;
+        const TRUNCATED     = 0b0000_0010;
+        const LABEL_LIMIT   = 0b0000_0100;
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DNSName {
+    pub value: Vec<u8>,
+    pub flags: DNSNameFlags,
 }
 
 /// Represents RData of various formats
@@ -204,10 +230,10 @@ pub enum DNSRData {
     A(Vec<u8>),
     AAAA(Vec<u8>),
     // RData is a domain name
-    CNAME(Vec<u8>),
-    PTR(Vec<u8>),
-    MX(Vec<u8>),
-    NS(Vec<u8>),
+    CNAME(DNSName),
+    PTR(DNSName),
+    MX(DNSName),
+    NS(DNSName),
     // RData is text
     TXT(Vec<u8>),
     NULL(Vec<u8>),
@@ -222,7 +248,7 @@ pub enum DNSRData {
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct DNSAnswerEntry {
-    pub name: Vec<u8>,
+    pub name: DNSName,
     pub rrtype: u16,
     pub rrclass: u16,
     pub ttl: u32,
@@ -235,7 +261,9 @@ pub struct DNSMessage {
     pub queries: Vec<DNSQueryEntry>,
     pub answers: Vec<DNSAnswerEntry>,
     pub authorities: Vec<DNSAnswerEntry>,
+    pub invalid_authorities: bool,
     pub additionals: Vec<DNSAnswerEntry>,
+    pub invalid_additionals: bool,
 }
 
 #[derive(Debug, Default)]
@@ -368,7 +396,7 @@ pub(crate) fn dns_parse_request(input: &[u8]) -> Result<DNSTransaction, DNSParse
     };
 
     match parser::dns_parse_body(body, input, header) {
-        Ok((_, request)) => {
+        Ok((_, (request, parse_flags))) => {
             if request.header.flags & 0x8000 != 0 {
                 SCLogDebug!("DNS message is not a request");
                 return Err(DNSParseError::NotRequest);
@@ -378,14 +406,33 @@ pub(crate) fn dns_parse_request(input: &[u8]) -> Result<DNSTransaction, DNSParse
             let opcode = ((request.header.flags >> 11) & 0xf) as u8;
 
             let mut tx = DNSTransaction::new(Direction::ToServer);
+            if request.invalid_additionals {
+                tx.set_event(DNSEvent::InvalidAdditionals);
+            }
+            if request.invalid_authorities {
+                tx.set_event(DNSEvent::InvalidAuthorities);
+            }
             tx.request = Some(request);
 
             if z_flag {
                 SCLogDebug!("Z-flag set on DNS request");
                 tx.set_event(DNSEvent::ZFlagSet);
             }
+
             if opcode >= 7 {
                 tx.set_event(DNSEvent::InvalidOpcode);
+            }
+
+            if parse_flags.contains(DNSNameFlags::TRUNCATED) {
+                tx.set_event(DNSEvent::NameTooLong);
+            }
+
+            if parse_flags.contains(DNSNameFlags::INFINITE_LOOP) {
+                tx.set_event(DNSEvent::InfiniteLoop);
+            }
+
+            if parse_flags.contains(DNSNameFlags::LABEL_LIMIT) {
+                tx.set_event(DNSEvent::TooManyLabels);
             }
 
             return Ok(tx);
@@ -411,13 +458,19 @@ pub(crate) fn dns_parse_response(input: &[u8]) -> Result<DNSTransaction, DNSPars
     };
 
     match parser::dns_parse_body(body, input, header) {
-        Ok((_, response)) => {
+        Ok((_, (response, parse_flags))) => {
             SCLogDebug!("Response header flags: {}", response.header.flags);
             let z_flag = response.header.flags & 0x0040 != 0;
             let opcode = ((response.header.flags >> 11) & 0xf) as u8;
             let flags = response.header.flags;
 
             let mut tx = DNSTransaction::new(Direction::ToClient);
+            if response.invalid_additionals {
+                tx.set_event(DNSEvent::InvalidAdditionals);
+            }
+            if response.invalid_authorities {
+                tx.set_event(DNSEvent::InvalidAuthorities);
+            }
             tx.response = Some(response);
 
             if flags & 0x8000 == 0 {
@@ -429,8 +482,21 @@ pub(crate) fn dns_parse_response(input: &[u8]) -> Result<DNSTransaction, DNSPars
                 SCLogDebug!("Z-flag set on DNS response");
                 tx.set_event(DNSEvent::ZFlagSet);
             }
+
             if opcode >= 7 {
                 tx.set_event(DNSEvent::InvalidOpcode);
+            }
+
+            if parse_flags.contains(DNSNameFlags::TRUNCATED) {
+                tx.set_event(DNSEvent::NameTooLong);
+            }
+
+            if parse_flags.contains(DNSNameFlags::INFINITE_LOOP) {
+                tx.set_event(DNSEvent::InfiniteLoop);
+            }
+
+            if parse_flags.contains(DNSNameFlags::LABEL_LIMIT) {
+                tx.set_event(DNSEvent::TooManyLabels);
             }
 
             return Ok(tx);
@@ -485,7 +551,9 @@ impl DNSState {
         tx.tx_data.set_event(event as u8);
     }
 
-    fn parse_request(&mut self, input: &[u8], is_tcp: bool, frame: Option<Frame>, flow: *const core::Flow,) -> bool {
+    fn parse_request(
+        &mut self, input: &[u8], is_tcp: bool, frame: Option<Frame>, flow: *const Flow,
+    ) -> bool {
         match dns_parse_request(input) {
             Ok(mut tx) => {
                 self.tx_id += 1;
@@ -516,7 +584,7 @@ impl DNSState {
         }
     }
 
-    fn parse_request_udp(&mut self, flow: *const core::Flow, stream_slice: StreamSlice) -> bool {
+    fn parse_request_udp(&mut self, flow: *const Flow, stream_slice: StreamSlice) -> bool {
         let input = stream_slice.as_slice();
         let frame = Frame::new(
             flow,
@@ -529,7 +597,7 @@ impl DNSState {
         self.parse_request(input, false, frame, flow)
     }
 
-    fn parse_response_udp(&mut self, flow: *const core::Flow, stream_slice: StreamSlice) -> bool {
+    fn parse_response_udp(&mut self, flow: *const Flow, stream_slice: StreamSlice) -> bool {
         let input = stream_slice.as_slice();
         let frame = Frame::new(
             flow,
@@ -542,7 +610,9 @@ impl DNSState {
         self.parse_response(input, false, frame, flow)
     }
 
-    fn parse_response(&mut self, input: &[u8], is_tcp: bool, frame: Option<Frame>, flow: *const core::Flow) -> bool {
+    fn parse_response(
+        &mut self, input: &[u8], is_tcp: bool, frame: Option<Frame>, flow: *const Flow,
+    ) -> bool {
         match dns_parse_response(input) {
             Ok(mut tx) => {
                 self.tx_id += 1;
@@ -577,7 +647,7 @@ impl DNSState {
     ///
     /// Returns the number of messages parsed.
     fn parse_request_tcp(
-        &mut self, flow: *const core::Flow, stream_slice: StreamSlice,
+        &mut self, flow: *const Flow, stream_slice: StreamSlice,
     ) -> AppLayerResult {
         let input = stream_slice.as_slice();
         if self.gap {
@@ -641,7 +711,7 @@ impl DNSState {
     ///
     /// Returns the number of messages parsed.
     fn parse_response_tcp(
-        &mut self, flow: *const core::Flow, stream_slice: StreamSlice,
+        &mut self, flow: *const Flow, stream_slice: StreamSlice,
     ) -> AppLayerResult {
         let input = stream_slice.as_slice();
         if self.gap {
@@ -719,20 +789,28 @@ impl DNSState {
 const DNS_HEADER_SIZE: usize = 12;
 
 fn probe_header_validity(header: &DNSHeader, rlen: usize) -> (bool, bool, bool) {
-    let min_msg_size = 2
-        * (header.additional_rr as usize
-            + header.answer_rr as usize
-            + header.authority_rr as usize
-            + header.questions as usize)
-        + DNS_HEADER_SIZE;
+    let nb_records = header.additional_rr as usize
+        + header.answer_rr as usize
+        + header.authority_rr as usize
+        + header.questions as usize;
 
+    let min_msg_size = 2 * nb_records;
     if min_msg_size > rlen {
         // Not enough data for records defined in the header, or
         // impossibly large.
         return (false, false, false);
     }
 
+    if nb_records == 0 && rlen > DNS_HEADER_SIZE {
+        // zero fields, data size should be just DNS_HEADER_SIZE
+        // happens when DNS server returns format error
+        return (false, false, false);
+    }
+
     let is_request = header.flags & 0x8000 == 0;
+    if is_request && header.questions == 0 {
+        return (false, false, false);
+    }
     return (true, is_request, false);
 }
 
@@ -759,7 +837,7 @@ fn probe(input: &[u8], dlen: usize) -> (bool, bool, bool) {
 
     match parser::dns_parse_header(input) {
         Ok((body, header)) => match parser::dns_parse_body(body, input, header) {
-            Ok((_, request)) => probe_header_validity(&request.header, dlen),
+            Ok((_, (request, _flags))) => probe_header_validity(&request.header, dlen),
             Err(Err::Incomplete(_)) => (false, false, true),
             Err(_) => (false, false, false),
         },
@@ -804,7 +882,7 @@ unsafe extern "C" fn state_tx_free(state: *mut std::os::raw::c_void, tx_id: u64)
 
 /// C binding parse a DNS request. Returns 1 on success, -1 on failure.
 unsafe extern "C" fn parse_request(
-    flow: *const core::Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
+    flow: *const Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice, _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
     let state = cast_pointer!(state, DNSState);
@@ -813,7 +891,7 @@ unsafe extern "C" fn parse_request(
 }
 
 unsafe extern "C" fn parse_response(
-    flow: *const core::Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
+    flow: *const Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice, _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
     let state = cast_pointer!(state, DNSState);
@@ -823,7 +901,7 @@ unsafe extern "C" fn parse_response(
 
 /// C binding parse a DNS request. Returns 1 on success, -1 on failure.
 unsafe extern "C" fn parse_request_tcp(
-    flow: *const core::Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
+    flow: *const Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice, _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
     let state = cast_pointer!(state, DNSState);
@@ -836,7 +914,7 @@ unsafe extern "C" fn parse_request_tcp(
 }
 
 unsafe extern "C" fn parse_response_tcp(
-    flow: *const core::Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
+    flow: *const Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice, _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
     let state = cast_pointer!(state, DNSState);
@@ -908,9 +986,9 @@ pub unsafe extern "C" fn SCDnsTxGetQueryName(
 
     if let Some(queries) = queries {
         if let Some(query) = queries.get(index) {
-            if !query.name.is_empty() {
-                *buf = query.name.as_ptr();
-                *len = query.name.len() as u32;
+            if !query.name.value.is_empty() {
+                *buf = query.name.value.as_ptr();
+                *len = query.name.value.len() as u32;
                 return true;
             }
         }
@@ -933,9 +1011,9 @@ pub unsafe extern "C" fn SCDnsTxGetAnswerName(
 
     if let Some(answers) = answers {
         if let Some(answer) = answers.get(index) {
-            if !answer.name.is_empty() {
-                *buf = answer.name.as_ptr();
-                *len = answer.name.len() as u32;
+            if !answer.name.value.is_empty() {
+                *buf = answer.name.value.as_ptr();
+                *len = answer.name.value.len() as u32;
                 return true;
             }
         }
@@ -953,7 +1031,7 @@ pub extern "C" fn SCDnsTxGetResponseFlags(tx: &mut DNSTransaction) -> u16 {
 }
 
 unsafe extern "C" fn probe_udp(
-    _flow: *const core::Flow, _dir: u8, input: *const u8, len: u32, rdir: *mut u8,
+    _flow: *const Flow, _dir: u8, input: *const u8, len: u32, rdir: *mut u8,
 ) -> AppProto {
     if input.is_null() || len < std::mem::size_of::<DNSHeader>() as u32 {
         return core::ALPROTO_UNKNOWN;
@@ -973,7 +1051,7 @@ unsafe extern "C" fn probe_udp(
 }
 
 unsafe extern "C" fn c_probe_tcp(
-    _flow: *const core::Flow, direction: u8, input: *const u8, len: u32, rdir: *mut u8,
+    _flow: *const Flow, direction: u8, input: *const u8, len: u32, rdir: *mut u8,
 ) -> AppProto {
     if input.is_null() || len < std::mem::size_of::<DNSHeader>() as u32 + 2 {
         return core::ALPROTO_UNKNOWN;
@@ -1542,7 +1620,7 @@ mod tests {
     fn test_dns_event_from_id() {
         assert_eq!(DNSEvent::from_id(0), Some(DNSEvent::MalformedData));
         assert_eq!(DNSEvent::from_id(3), Some(DNSEvent::ZFlagSet));
-        assert_eq!(DNSEvent::from_id(9), None);
+        assert_eq!(DNSEvent::from_id(99), None);
     }
 
     #[test]

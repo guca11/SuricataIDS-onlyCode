@@ -24,71 +24,32 @@
  */
 
 #include "suricata-common.h"
-#include "conf.h"
 
-#include "threads.h"
 #include "decode.h"
-
 #include "detect.h"
-#include "detect-parse.h"
-#include "detect-flowvar.h"
-
-#include "detect-engine.h"
-#include "detect-engine-mpm.h"
-#include "detect-engine-state.h"
 
 #include "flow.h"
 #include "flow-var.h"
-#include "flow-util.h"
 
 #include "util-debug.h"
-#include "util-spm-bm.h"
-#include "util-print.h"
-
-#include "util-unittest.h"
-#include "util-unittest-helper.h"
-
-#include "app-layer.h"
-
-#include "stream-tcp.h"
 
 #include "detect-lua.h"
-
-#include "queue.h"
-#include "util-cpu.h"
 
 #include "app-layer-parser.h"
 
 #include "util-lua.h"
 #include "util-lua-common.h"
 #include "util-lua-http.h"
-#if ENABLE_DNS
 #include "util-lua-dns.h"
-#endif
-#if ENABLE_TLS
 #include "util-lua-ja3.h"
 #include "util-lua-tls.h"
-#endif
-#if ENABLE_SSH
 #include "util-lua-ssh.h"
 #include "util-lua-hassh.h"
-#endif
-#if ENABLE_SMTP
 #include "util-lua-smtp.h"
-#endif
-#if ENABLE_DNP3
 #include "util-lua-dnp3.h"
-#endif
 #include "detect-lua-extensions.h"
 
 static const char luaext_key_ld[] = "suricata:luadata";
-
-/* hack to please scan-build. Even though LuaCallbackError *always*
- * returns 2, scan-build doesn't accept it and generates false
- * positives */
-#define LUA_ERROR(msg)                  \
-    LuaCallbackError(luastate, (msg));  \
-    return 2
 
 static int GetLuaData(lua_State *luastate, DetectLuaData **ret_ld)
 {
@@ -589,25 +550,13 @@ int LuaRegisterExtensions(lua_State *lua_state)
     lua_setglobal(lua_state, "SCByteVarGet");
 
     LuaRegisterFunctions(lua_state);
-    #if ENABLE_HTTP
     LuaRegisterHttpFunctions(lua_state);
-    #endif
-    #if ENABLE_DNS    
     LuaRegisterDnsFunctions(lua_state);
-#endif
-#if ENABLE_TLS
     LuaRegisterJa3Functions(lua_state);
     LuaRegisterTlsFunctions(lua_state);
-#endif
-    #if ENABLE_SSH
     LuaRegisterSshFunctions(lua_state);
     LuaRegisterHasshFunctions(lua_state);
-    #endif
-    #if ENABLE_SMTP
     LuaRegisterSmtpFunctions(lua_state);
-    #endif
-    #if ENABLE_DNP3
     LuaRegisterDNP3Functions(lua_state);
-    #endif
     return 0;
 }

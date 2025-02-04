@@ -19,7 +19,9 @@
 
 use crate::applayer::{self, *};
 use crate::conf::conf_get;
-use crate::core::{Flow, *};
+use crate::core::*;
+use crate::direction::Direction;
+use crate::flow::Flow;
 use crate::frames::*;
 use nom7 as nom;
 use std;
@@ -33,7 +35,9 @@ static LDAP_MAX_TX_DEFAULT: usize = 256;
 
 static mut LDAP_MAX_TX: usize = LDAP_MAX_TX_DEFAULT;
 
-static mut ALPROTO_LDAP: AppProto = ALPROTO_UNKNOWN;
+pub(super) static mut ALPROTO_LDAP: AppProto = ALPROTO_UNKNOWN;
+
+const STARTTLS_OID: &str = "1.3.6.1.4.1.1466.20037";
 
 #[derive(AppLayerFrameType)]
 pub enum LdapFrameType {
@@ -87,11 +91,12 @@ pub struct LdapState {
     state_data: AppLayerStateData,
     tx_id: u64,
     transactions: VecDeque<LdapTransaction>,
-    tx_index_completed: usize,
     request_frame: Option<Frame>,
     response_frame: Option<Frame>,
     request_gap: bool,
     response_gap: bool,
+    request_tls: bool,
+    has_starttls: bool,
 }
 
 impl State<LdapTransaction> for LdapState {
@@ -110,11 +115,12 @@ impl LdapState {
             state_data: AppLayerStateData::new(),
             tx_id: 0,
             transactions: VecDeque::new(),
-            tx_index_completed: 0,
             request_frame: None,
             response_frame: None,
             request_gap: false,
             response_gap: false,
+            request_tls: false,
+            has_starttls: false,
         }
     }
 
@@ -132,7 +138,6 @@ impl LdapState {
             }
         }
         if found {
-            self.tx_index_completed = 0;
             self.transactions.remove(index);
         }
     }
@@ -141,25 +146,24 @@ impl LdapState {
         self.transactions.iter().find(|tx| tx.tx_id == tx_id + 1)
     }
 
-    pub fn new_tx(&mut self) -> LdapTransaction {
-        let mut tx = LdapTransaction::new();
-        self.tx_id += 1;
-        tx.tx_id = self.tx_id;
+    pub fn new_tx(&mut self) -> Option<LdapTransaction> {
         if self.transactions.len() > unsafe { LDAP_MAX_TX } {
-            let mut index = self.tx_index_completed;
-            for tx_old in &mut self.transactions.range_mut(self.tx_index_completed..) {
-                index += 1;
+            for tx_old in &mut self.transactions {
                 if !tx_old.complete {
+                    tx_old.tx_data.updated_tc = true;
+                    tx_old.tx_data.updated_ts = true;
                     tx_old.complete = true;
                     tx_old
                         .tx_data
                         .set_event(LdapEvent::TooManyTransactions as u8);
-                    break;
                 }
             }
-            self.tx_index_completed = index;
+            return None;
         }
-        return tx;
+        let mut tx = LdapTransaction::new();
+        self.tx_id += 1;
+        tx.tx_id = self.tx_id;
+        return Some(tx);
     }
 
     fn set_event(&mut self, e: LdapEvent) {
@@ -182,13 +186,16 @@ impl LdapState {
             return AppLayerResult::ok();
         }
 
+        if self.has_starttls {
+            unsafe {
+                AppLayerRequestProtocolTLSUpgrade(flow);
+            }
+            return AppLayerResult::ok();
+        }
+
         if self.request_gap {
             match ldap_parse_msg(input) {
-                Ok((_, msg)) => {
-                    let ldap_msg = LdapMessage::from(msg);
-                    if ldap_msg.is_unknown() {
-                        return AppLayerResult::err();
-                    }
+                Ok((_, _msg)) => {
                     AppLayerResult::ok();
                 }
                 Err(_e) => {
@@ -213,10 +220,20 @@ impl LdapState {
             }
             match ldap_parse_msg(start) {
                 Ok((rem, msg)) => {
-                    let mut tx = self.new_tx();
+                    let tx = self.new_tx();
+                    if tx.is_none() {
+                        return AppLayerResult::err();
+                    }
+                    let mut tx = tx.unwrap();
                     let tx_id = tx.id();
                     let request = LdapMessage::from(msg);
-                    tx.complete = tx_is_complete(&request.protocol_op, Direction::ToServer);
+                    // check if STARTTLS was requested
+                    if let ProtocolOp::ExtendedRequest(request) = &request.protocol_op {
+                        if request.request_name.0 == STARTTLS_OID {
+                            self.request_tls = true;
+                        }
+                    }
+                    tx.complete |= tx_is_complete(&request.protocol_op, Direction::ToServer);
                     tx.request = Some(request);
                     self.transactions.push_back(tx);
                     let consumed = start.len() - rem.len();
@@ -245,11 +262,7 @@ impl LdapState {
 
         if self.response_gap {
             match ldap_parse_msg(input) {
-                Ok((_, msg)) => {
-                    let ldap_msg = LdapMessage::from(msg);
-                    if ldap_msg.is_unknown() {
-                        return AppLayerResult::err();
-                    }
+                Ok((_, _msg)) => {
                     AppLayerResult::ok();
                 }
                 Err(_e) => {
@@ -275,16 +288,31 @@ impl LdapState {
             match ldap_parse_msg(start) {
                 Ok((rem, msg)) => {
                     let response = LdapMessage::from(msg);
+                    // check if STARTTLS was requested
+                    if self.request_tls {
+                        if let ProtocolOp::ExtendedResponse(response) = &response.protocol_op {
+                            if response.result.result_code == ResultCode(0) {
+                                SCLogDebug!("LDAP: STARTTLS detected");
+                                self.has_starttls = true;
+                            }
+                            self.request_tls = false;
+                        }
+                    }
                     if let Some(tx) = self.find_request(response.message_id) {
-                        tx.complete = tx_is_complete(&response.protocol_op, Direction::ToClient);
+                        tx.complete |= tx_is_complete(&response.protocol_op, Direction::ToClient);
                         let tx_id = tx.id();
+                        tx.tx_data.updated_tc = true;
                         tx.responses.push_back(response);
                         let consumed = start.len() - rem.len();
                         self.set_frame_tc(flow, tx_id, consumed as i64);
                     } else if let ProtocolOp::ExtendedResponse(_) = response.protocol_op {
                         // this is an unsolicited notification, which means
                         // there is no request
-                        let mut tx = self.new_tx();
+                        let tx = self.new_tx();
+                        if tx.is_none() {
+                            return AppLayerResult::err();
+                        }
+                        let mut tx = tx.unwrap();
                         let tx_id = tx.id();
                         tx.complete = true;
                         tx.responses.push_back(response);
@@ -292,7 +320,11 @@ impl LdapState {
                         let consumed = start.len() - rem.len();
                         self.set_frame_tc(flow, tx_id, consumed as i64);
                     } else {
-                        let mut tx = self.new_tx();
+                        let tx = self.new_tx();
+                        if tx.is_none() {
+                            return AppLayerResult::err();
+                        }
+                        let mut tx = tx.unwrap();
                         tx.complete = true;
                         let tx_id = tx.id();
                         tx.responses.push_back(response);
@@ -334,9 +366,13 @@ impl LdapState {
 
         match ldap_parse_msg(input) {
             Ok((_, msg)) => {
-                let mut tx = self.new_tx();
+                let tx = self.new_tx();
+                if tx.is_none() {
+                    return AppLayerResult::err();
+                }
+                let mut tx = tx.unwrap();
                 let request = LdapMessage::from(msg);
-                tx.complete = tx_is_complete(&request.protocol_op, Direction::ToServer);
+                tx.complete |= tx_is_complete(&request.protocol_op, Direction::ToServer);
                 tx.request = Some(request);
                 self.transactions.push_back(tx);
             }
@@ -378,7 +414,7 @@ impl LdapState {
                 Ok((rem, msg)) => {
                     let response = LdapMessage::from(msg);
                     if let Some(tx) = self.find_request(response.message_id) {
-                        tx.complete = tx_is_complete(&response.protocol_op, Direction::ToClient);
+                        tx.complete |= tx_is_complete(&response.protocol_op, Direction::ToClient);
                         let tx_id = tx.id();
                         tx.responses.push_back(response);
                         let consumed = start.len() - rem.len();
@@ -386,7 +422,11 @@ impl LdapState {
                     } else if let ProtocolOp::ExtendedResponse(_) = response.protocol_op {
                         // this is an unsolicited notification, which means
                         // there is no request
-                        let mut tx = self.new_tx();
+                        let tx = self.new_tx();
+                        if tx.is_none() {
+                            return AppLayerResult::err();
+                        }
+                        let mut tx = tx.unwrap();
                         tx.complete = true;
                         let tx_id = tx.id();
                         tx.responses.push_back(response);
@@ -394,7 +434,11 @@ impl LdapState {
                         let consumed = start.len() - rem.len();
                         self.set_frame_tc(flow, tx_id, consumed as i64);
                     } else {
-                        let mut tx = self.new_tx();
+                        let tx = self.new_tx();
+                        if tx.is_none() {
+                            return AppLayerResult::err();
+                        }
+                        let mut tx = tx.unwrap();
                         tx.complete = true;
                         let tx_id = tx.id();
                         tx.responses.push_back(response);
@@ -468,9 +512,6 @@ fn probe(input: &[u8], direction: Direction, rdir: *mut u8) -> AppProto {
     match ldap_parse_msg(input) {
         Ok((_, msg)) => {
             let ldap_msg = LdapMessage::from(msg);
-            if ldap_msg.is_unknown() {
-                return unsafe { ALPROTO_FAILED };
-            }
             if direction == Direction::ToServer && !ldap_msg.is_request() {
                 unsafe {
                     *rdir = Direction::ToClient.into();
@@ -487,13 +528,12 @@ fn probe(input: &[u8], direction: Direction, rdir: *mut u8) -> AppProto {
             return ALPROTO_UNKNOWN;
         }
         Err(_e) => {
-            return unsafe { ALPROTO_FAILED };
+            return ALPROTO_FAILED;
         }
     }
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapProbingParser(
+unsafe extern "C" fn ldap_probing_parser(
     _flow: *const Flow, direction: u8, input: *const u8, input_len: u32, rdir: *mut u8,
 ) -> AppProto {
     if input_len > 1 && !input.is_null() {
@@ -503,26 +543,22 @@ unsafe extern "C" fn SCLdapProbingParser(
     return ALPROTO_UNKNOWN;
 }
 
-#[no_mangle]
-extern "C" fn SCLdapStateNew(_orig_state: *mut c_void, _orig_proto: AppProto) -> *mut c_void {
+extern "C" fn ldap_state_new(_orig_state: *mut c_void, _orig_proto: AppProto) -> *mut c_void {
     let state = LdapState::new();
     let boxed = Box::new(state);
     return Box::into_raw(boxed) as *mut c_void;
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapStateFree(state: *mut c_void) {
+unsafe extern "C" fn ldap_state_free(state: *mut c_void) {
     std::mem::drop(Box::from_raw(state as *mut LdapState));
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapStateTxFree(state: *mut c_void, tx_id: u64) {
+unsafe extern "C" fn ldap_state_tx_free(state: *mut c_void, tx_id: u64) {
     let state = cast_pointer!(state, LdapState);
     state.free_tx(tx_id);
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapParseRequest(
+unsafe extern "C" fn ldap_parse_request(
     flow: *const Flow, state: *mut c_void, pstate: *mut c_void, stream_slice: StreamSlice,
     _data: *const c_void,
 ) -> AppLayerResult {
@@ -543,8 +579,7 @@ unsafe extern "C" fn SCLdapParseRequest(
     AppLayerResult::ok()
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapParseResponse(
+unsafe extern "C" fn ldap_parse_response(
     flow: *const Flow, state: *mut c_void, pstate: *mut c_void, stream_slice: StreamSlice,
     _data: *const c_void,
 ) -> AppLayerResult {
@@ -564,8 +599,7 @@ unsafe extern "C" fn SCLdapParseResponse(
     AppLayerResult::ok()
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapParseRequestUDP(
+unsafe extern "C" fn ldap_parse_request_udp(
     flow: *const Flow, state: *mut c_void, _pstate: *mut c_void, stream_slice: StreamSlice,
     _data: *const c_void,
 ) -> AppLayerResult {
@@ -573,8 +607,7 @@ unsafe extern "C" fn SCLdapParseRequestUDP(
     state.parse_request_udp(flow, stream_slice)
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapParseResponseUDP(
+unsafe extern "C" fn ldap_parse_response_udp(
     flow: *const Flow, state: *mut c_void, _pstate: *mut c_void, stream_slice: StreamSlice,
     _data: *const c_void,
 ) -> AppLayerResult {
@@ -582,8 +615,7 @@ unsafe extern "C" fn SCLdapParseResponseUDP(
     state.parse_response_udp(flow, stream_slice)
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapStateGetTx(state: *mut c_void, tx_id: u64) -> *mut c_void {
+unsafe extern "C" fn ldap_state_get_tx(state: *mut c_void, tx_id: u64) -> *mut c_void {
     let state = cast_pointer!(state, LdapState);
     match state.get_tx(tx_id) {
         Some(tx) => {
@@ -595,14 +627,12 @@ unsafe extern "C" fn SCLdapStateGetTx(state: *mut c_void, tx_id: u64) -> *mut c_
     }
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapStateGetTxCount(state: *mut c_void) -> u64 {
+unsafe extern "C" fn ldap_state_get_tx_count(state: *mut c_void) -> u64 {
     let state = cast_pointer!(state, LdapState);
     return state.tx_id;
 }
 
-#[no_mangle]
-unsafe extern "C" fn SCLdapTxGetAlstateProgress(tx: *mut c_void, _direction: u8) -> c_int {
+unsafe extern "C" fn ldap_tx_get_alstate_progress(tx: *mut c_void, _direction: u8) -> c_int {
     let tx = cast_pointer!(tx, LdapTransaction);
     if tx.complete {
         return 1;
@@ -610,40 +640,40 @@ unsafe extern "C" fn SCLdapTxGetAlstateProgress(tx: *mut c_void, _direction: u8)
     return 0;
 }
 
-export_tx_data_get!(SCLdapGetTxData, LdapTransaction);
-export_state_data_get!(SCLdapGetStateData, LdapState);
+export_tx_data_get!(ldap_get_tx_data, LdapTransaction);
+export_state_data_get!(ldap_get_state_data, LdapState);
 
 const PARSER_NAME: &[u8] = b"ldap\0";
 
 #[no_mangle]
 pub unsafe extern "C" fn SCRegisterLdapTcpParser() {
-    let default_port = CString::new("389").unwrap();
+    let default_port = CString::new("[389, 3268]").unwrap();
     let parser = RustParser {
         name: PARSER_NAME.as_ptr() as *const c_char,
         default_port: default_port.as_ptr(),
         ipproto: IPPROTO_TCP,
-        probe_ts: Some(SCLdapProbingParser),
-        probe_tc: Some(SCLdapProbingParser),
+        probe_ts: Some(ldap_probing_parser),
+        probe_tc: Some(ldap_probing_parser),
         min_depth: 0,
         max_depth: 16,
-        state_new: SCLdapStateNew,
-        state_free: SCLdapStateFree,
-        tx_free: SCLdapStateTxFree,
-        parse_ts: SCLdapParseRequest,
-        parse_tc: SCLdapParseResponse,
-        get_tx_count: SCLdapStateGetTxCount,
-        get_tx: SCLdapStateGetTx,
+        state_new: ldap_state_new,
+        state_free: ldap_state_free,
+        tx_free: ldap_state_tx_free,
+        parse_ts: ldap_parse_request,
+        parse_tc: ldap_parse_response,
+        get_tx_count: ldap_state_get_tx_count,
+        get_tx: ldap_state_get_tx,
         tx_comp_st_ts: 1,
         tx_comp_st_tc: 1,
-        tx_get_progress: SCLdapTxGetAlstateProgress,
+        tx_get_progress: ldap_tx_get_alstate_progress,
         get_eventinfo: Some(LdapEvent::get_event_info),
         get_eventinfo_byid: Some(LdapEvent::get_event_info_by_id),
         localstorage_new: None,
         localstorage_free: None,
         get_tx_files: None,
         get_tx_iterator: Some(applayer::state_get_tx_iterator::<LdapState, LdapTransaction>),
-        get_tx_data: SCLdapGetTxData,
-        get_state_data: SCLdapGetStateData,
+        get_tx_data: ldap_get_tx_data,
+        get_state_data: ldap_get_state_data,
         apply_tx_config: None,
         flags: APP_LAYER_PARSER_OPT_ACCEPT_GAPS,
         get_frame_id_by_name: Some(LdapFrameType::ffi_id_from_name),
@@ -674,33 +704,33 @@ pub unsafe extern "C" fn SCRegisterLdapTcpParser() {
 
 #[no_mangle]
 pub unsafe extern "C" fn SCRegisterLdapUdpParser() {
-    let default_port = CString::new("389").unwrap();
+    let default_port = CString::new("[389, 3268]").unwrap();
     let parser = RustParser {
         name: PARSER_NAME.as_ptr() as *const c_char,
         default_port: default_port.as_ptr(),
         ipproto: IPPROTO_UDP,
-        probe_ts: Some(SCLdapProbingParser),
-        probe_tc: Some(SCLdapProbingParser),
+        probe_ts: Some(ldap_probing_parser),
+        probe_tc: Some(ldap_probing_parser),
         min_depth: 0,
         max_depth: 16,
-        state_new: SCLdapStateNew,
-        state_free: SCLdapStateFree,
-        tx_free: SCLdapStateTxFree,
-        parse_ts: SCLdapParseRequestUDP,
-        parse_tc: SCLdapParseResponseUDP,
-        get_tx_count: SCLdapStateGetTxCount,
-        get_tx: SCLdapStateGetTx,
+        state_new: ldap_state_new,
+        state_free: ldap_state_free,
+        tx_free: ldap_state_tx_free,
+        parse_ts: ldap_parse_request_udp,
+        parse_tc: ldap_parse_response_udp,
+        get_tx_count: ldap_state_get_tx_count,
+        get_tx: ldap_state_get_tx,
         tx_comp_st_ts: 1,
         tx_comp_st_tc: 1,
-        tx_get_progress: SCLdapTxGetAlstateProgress,
+        tx_get_progress: ldap_tx_get_alstate_progress,
         get_eventinfo: Some(LdapEvent::get_event_info),
         get_eventinfo_byid: Some(LdapEvent::get_event_info_by_id),
         localstorage_new: None,
         localstorage_free: None,
         get_tx_files: None,
         get_tx_iterator: Some(applayer::state_get_tx_iterator::<LdapState, LdapTransaction>),
-        get_tx_data: SCLdapGetTxData,
-        get_state_data: SCLdapGetStateData,
+        get_tx_data: ldap_get_tx_data,
+        get_state_data: ldap_get_state_data,
         apply_tx_config: None,
         flags: 0,
         get_frame_id_by_name: Some(LdapFrameType::ffi_id_from_name),

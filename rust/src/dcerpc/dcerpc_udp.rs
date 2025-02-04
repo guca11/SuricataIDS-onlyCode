@@ -15,12 +15,14 @@
  * 02110-1301, USA.
  */
 
+use crate::core;
 use crate::applayer::{self, *};
-use crate::core::{self, Direction, DIR_BOTH};
 use crate::dcerpc::dcerpc::{
     DCERPCTransaction, DCERPC_MAX_TX, DCERPC_TYPE_REQUEST, DCERPC_TYPE_RESPONSE, PFCL1_FRAG, PFCL1_LASTFRAG,
     rs_dcerpc_get_alstate_progress, ALPROTO_DCERPC, PARSER_NAME,
 };
+use crate::direction::{Direction, DIR_BOTH};
+use crate::flow::Flow;
 use nom7::Err;
 use std;
 use std::ffi::CString;
@@ -88,6 +90,8 @@ impl DCERPCUDPState {
             for tx_old in &mut self.transactions.range_mut(self.tx_index_completed..) {
                 index += 1;
                 if !tx_old.req_done || !tx_old.resp_done {
+                    tx_old.tx_data.updated_tc = true;
+                    tx_old.tx_data.updated_ts = true;
                     tx_old.req_done = true;
                     tx_old.resp_done = true;
                     break;
@@ -164,6 +168,8 @@ impl DCERPCUDPState {
         }
 
         if let Some(tx) = otx {
+            tx.tx_data.updated_tc = true;
+            tx.tx_data.updated_ts = true;
             let done = (hdr.flags1 & PFCL1_FRAG) == 0 || (hdr.flags1 & PFCL1_LASTFRAG) != 0;
 
             match hdr.pkt_type {
@@ -229,7 +235,7 @@ impl DCERPCUDPState {
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_dcerpc_udp_parse(
-    _flow: *const core::Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
+    _flow: *const Flow, state: *mut std::os::raw::c_void, _pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice,
     _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
@@ -294,9 +300,11 @@ pub unsafe extern "C" fn rs_dcerpc_udp_get_tx_cnt(vtx: *mut std::os::raw::c_void
 /// Probe input to see if it looks like DCERPC.
 fn probe(input: &[u8]) -> (bool, bool) {
     match parser::parse_dcerpc_udp_header(input) {
-        Ok((_, hdr)) => {
+        Ok((leftover_bytes, hdr)) => {
             let is_request = hdr.pkt_type == 0x00;
             let is_dcerpc = hdr.rpc_vers == 0x04 &&
+                hdr.fragnum == 0 &&
+                leftover_bytes.len() >= hdr.fraglen as usize &&
                 (hdr.flags2 & 0xfc == 0) &&
                 (hdr.drep[0] & 0xee == 0) &&
                 (hdr.drep[1] <= 3);
@@ -306,7 +314,7 @@ fn probe(input: &[u8]) -> (bool, bool) {
     }
 }
 
-pub unsafe extern "C" fn rs_dcerpc_probe_udp(_f: *const core::Flow, direction: u8, input: *const u8,
+pub unsafe extern "C" fn rs_dcerpc_probe_udp(_f: *const Flow, direction: u8, input: *const u8,
                                       len: u32, rdir: *mut u8) -> core::AppProto
 {
     SCLogDebug!("Probing the packet for DCERPC/UDP");

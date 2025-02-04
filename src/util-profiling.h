@@ -203,12 +203,12 @@ PktProfiling *SCProfilePacketStart(void);
         (dp)->proto_detect_ticks_spent = 0;                         \
     }
 
-#define PACKET_PROFILING_APP_STORE(dp, p)                           \
-    if (profiling_packets_enabled && (p)->profile != NULL) {        \
-        if ((dp)->alproto < ALPROTO_MAX) {                          \
-            (p)->profile->app[(dp)->alproto].ticks_spent += (dp)->ticks_spent;   \
-            (p)->profile->proto_detect += (dp)->proto_detect_ticks_spent;        \
-        }                                                           \
+#define PACKET_PROFILING_APP_STORE(dp, p)                                                          \
+    if (profiling_packets_enabled && (p)->profile != NULL) {                                       \
+        if ((dp)->alproto < g_alproto_max) {                                                       \
+            (p)->profile->app[(dp)->alproto].ticks_spent += (dp)->ticks_spent;                     \
+            (p)->profile->proto_detect += (dp)->proto_detect_ticks_spent;                          \
+        }                                                                                          \
     }
 
 #define PACKET_PROFILING_DETECT_START(p, id)                        \
@@ -286,14 +286,6 @@ extern thread_local int profiling_prefilter_entered;
 #define PREFILTER_PROFILING_ADD_BYTES(det_ctx, bytes)                                              \
     (det_ctx)->prefilter_bytes += (bytes);                                                         \
     (det_ctx)->prefilter_bytes_called++
-
-struct SCProfileDetectCtx_;
-void SCProfilingRulesGlobalInit(void);
-void SCProfilingRuleDestroyCtx(struct SCProfileDetectCtx_ *);
-void SCProfilingRuleInitCounters(DetectEngineCtx *);
-void SCProfilingRuleUpdateCounter(DetectEngineThreadCtx *, uint16_t, uint64_t, int);
-void SCProfilingRuleThreadSetup(struct SCProfileDetectCtx_ *, DetectEngineThreadCtx *);
-void SCProfilingRuleThreadCleanup(DetectEngineThreadCtx *);
 
 void SCProfilingKeywordsGlobalInit(void);
 void SCProfilingKeywordDestroyCtx(DetectEngineCtx *);//struct SCProfileKeywordDetectCtx_ *);

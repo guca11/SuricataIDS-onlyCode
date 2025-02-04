@@ -79,6 +79,7 @@ enum {
     TLS_HANDSHAKE_DONE = 2,
     TLS_STATE_FINISHED = 3
 };
+
 /* Flag to indicate that server will now on send encrypted msgs */
 #define SSL_AL_FLAG_SERVER_CHANGE_CIPHER_SPEC   BIT_U32(0)
 /* Flag to indicate that client will now on send encrypted msgs */
@@ -157,10 +158,10 @@ enum {
 
 /* SSL versions.  We'll use a unified format for all, with the top byte
  * holding the major version and the lower byte the minor version */
-enum {    
+enum {
+    TLS_VERSION_UNKNOWN = 0x0000,
     SSL_VERSION_2 = 0x0200,
     SSL_VERSION_3 = 0x0300,
-    TLS_VERSION_UNKNOWN = 0x0000,
     TLS_VERSION_10 = 0x0301,
     TLS_VERSION_11 = 0x0302,
     TLS_VERSION_12 = 0x0303,

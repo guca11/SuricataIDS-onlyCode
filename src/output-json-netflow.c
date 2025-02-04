@@ -130,9 +130,7 @@ static JsonBuilder *CreateEveHeaderFromNetFlow(const Flow *f, int dir)
             break;
         case IPPROTO_UDP:
         case IPPROTO_TCP:
-        #if ENABLE_SCTP
         case IPPROTO_SCTP:
-        #endif
             jb_set_uint(js, "src_port", sp);
             break;
     }
@@ -142,9 +140,7 @@ static JsonBuilder *CreateEveHeaderFromNetFlow(const Flow *f, int dir)
             break;
         case IPPROTO_UDP:
         case IPPROTO_TCP:
-        #if ENABLE_SCTP
         case IPPROTO_SCTP:
-        #endif
             jb_set_uint(js, "dest_port", dp);
             break;
     }
@@ -171,11 +167,9 @@ static JsonBuilder *CreateEveHeaderFromNetFlow(const Flow *f, int dir)
             jb_set_uint(js, "icmp_code", code);
             break;
         }
-        #if ENABLE_ESP
         case IPPROTO_ESP:
             jb_set_uint(js, "spi", f->esp.spi);
             break;
-        #endif
     }
     return js;
 }
@@ -199,7 +193,7 @@ static void NetFlowLogEveToServer(JsonBuilder *js, Flow *f)
     jb_set_string(js, "start", timebuf1);
     jb_set_string(js, "end", timebuf2);
 
-    int32_t age = SCTIME_SECS(f->lastts) - SCTIME_SECS(f->startts);
+    uint64_t age = (SCTIME_SECS(f->lastts) - SCTIME_SECS(f->startts));
     jb_set_uint(js, "age", age);
 
     jb_set_uint(js, "min_ttl", f->min_ttl_toserver);
@@ -243,7 +237,7 @@ static void NetFlowLogEveToClient(JsonBuilder *js, Flow *f)
     jb_set_string(js, "start", timebuf1);
     jb_set_string(js, "end", timebuf2);
 
-    int32_t age = SCTIME_SECS(f->lastts) - SCTIME_SECS(f->startts);
+    uint64_t age = (SCTIME_SECS(f->lastts) - SCTIME_SECS(f->startts));
     jb_set_uint(js, "age", age);
 
     /* To client is zero if we did not see any packet */
@@ -282,7 +276,7 @@ static int JsonNetFlowLogger(ThreadVars *tv, void *thread_data, Flow *f)
         return TM_ECODE_OK;
     NetFlowLogEveToServer(jb, f);
     EveAddCommonOptions(&jhl->ctx->cfg, NULL, f, jb, LOG_DIR_FLOW_TOSERVER);
-    OutputJsonBuilderBuffer(jb, jhl);
+    OutputJsonBuilderBuffer(tv, NULL, f, jb, jhl);
     jb_free(jb);
 
     /* only log a response record if we actually have seen response packets */
@@ -292,7 +286,7 @@ static int JsonNetFlowLogger(ThreadVars *tv, void *thread_data, Flow *f)
             return TM_ECODE_OK;
         NetFlowLogEveToClient(jb, f);
         EveAddCommonOptions(&jhl->ctx->cfg, NULL, f, jb, LOG_DIR_FLOW_TOCLIENT);
-        OutputJsonBuilderBuffer(jb, jhl);
+        OutputJsonBuilderBuffer(tv, NULL, f, jb, jhl);
         jb_free(jb);
     }
     SCReturnInt(TM_ECODE_OK);

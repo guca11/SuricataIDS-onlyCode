@@ -29,8 +29,8 @@
 #include "util-debug.h"
 
 #include "util-debug.h"
-#include "util-validate.h"
 #include "util-lua-sandbox.h"
+#include "util-lua-builtins.h"
 
 #define SANDBOX_CTX "SANDBOX_CTX"
 
@@ -259,6 +259,17 @@ static const luaL_Reg AllowedLibs[] = {
     // clang-format on
 };
 
+static int SCLuaSbRequire(lua_State *L)
+{
+    const char *module_name = luaL_checkstring(L, 1);
+
+    if (SCLuaLoadBuiltIns(L, module_name)) {
+        return 1;
+    }
+
+    return luaL_error(L, "Module not found: %s", module_name);
+}
+
 /**
  * Load allowed Lua libraries into the state.
  *
@@ -293,6 +304,10 @@ void SCLuaSbLoadLibs(lua_State *L)
         }
         lua_pop(L, 1);
     }
+
+    /* Setup our custom require. */
+    lua_pushcfunction(L, SCLuaSbRequire);
+    lua_setglobal(L, "require");
 }
 
 /**

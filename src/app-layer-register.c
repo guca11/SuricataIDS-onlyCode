@@ -101,7 +101,7 @@ int AppLayerRegisterParser(const struct AppLayerParser *p, AppProto alproto)
     if (p == NULL)
         FatalError("Call to %s with NULL pointer.", __FUNCTION__);
 
-    if (alproto == ALPROTO_UNKNOWN || alproto >= ALPROTO_FAILED)
+    if (!AppProtoIsValid(alproto))
         FatalError("Unknown or invalid AppProto '%s'.", p->name);
 
     BUG_ON(strcmp(p->name, AppProtoToString(alproto)) != 0);
@@ -154,7 +154,6 @@ int AppLayerRegisterParser(const struct AppLayerParser *p, AppProto alproto)
         AppLayerParserRegisterLocalStorageFunc(p->ip_proto, alproto,
                 p->LocalStorageAlloc, p->LocalStorageFree);
     }
-
     if (p->GetTxFiles) {
         AppLayerParserRegisterGetTxFilesFunc(p->ip_proto, alproto, p->GetTxFiles);
     }

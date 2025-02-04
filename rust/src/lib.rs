@@ -53,11 +53,19 @@
 // cf https://github.com/mozilla/cbindgen/issues/709
 #![allow(unused_doc_comments)]
 
+// Allow unknown lints, our MSRV doesn't know them all, for
+// example static_mut_refs.
+#![allow(unknown_lints)]
+
+// Allow for now, but need to be fixed.
+#![allow(static_mut_refs)]
+
 #[macro_use]
 extern crate bitflags;
 extern crate byteorder;
 extern crate crc;
 extern crate memchr;
+extern crate lru;
 #[macro_use]
 extern crate num_derive;
 extern crate widestring;
@@ -72,12 +80,11 @@ extern crate ldap_parser;
 extern crate suricata_derive;
 
 #[macro_use]
-pub mod log;
-
-#[macro_use]
 pub mod core;
 
 #[macro_use]
+pub mod debug;
+
 pub mod common;
 pub mod conf;
 pub mod jsonbuilder;
@@ -94,58 +101,35 @@ pub mod ja4;
 
 pub mod lua;
 
-#[cfg(any(feature = "dns", feature = "http2"))]
 pub mod dns;
-#[cfg(feature = "nfs")]
 pub mod nfs;
-#[cfg(feature = "ftp")]
 pub mod ftp;
-#[cfg(feature = "smb")]
 pub mod smb;
-#[cfg(feature = "krb")]
 pub mod krb;
-#[cfg(any(feature = "smb", feature = "dcerpc"))]
 pub mod dcerpc;
-#[cfg(feature = "modbus")]
 pub mod modbus;
-#[cfg(feature = "ike")]
+
 pub mod ike;
-#[cfg(feature = "snmp")]
 pub mod snmp;
-#[cfg(feature = "ntp")]
+
 pub mod ntp;
-#[cfg(feature = "tftp")]
 pub mod tftp;
-#[cfg(feature = "dhcp")]
 pub mod dhcp;
-#[cfg(feature = "sip")]
 pub mod sip;
-#[cfg(feature = "rfb")]
 pub mod rfb;
-#[cfg(feature = "mqtt")]
 pub mod mqtt;
-#[cfg(feature = "pgsql")]
 pub mod pgsql;
-#[cfg(feature = "telnet")]
 pub mod telnet;
-#[cfg(feature = "websocket")]
 pub mod websocket;
-#[cfg(feature = "enip")]
 pub mod enip;
 pub mod applayertemplate;
-#[cfg(feature = "rdp")]
 pub mod rdp;
 pub mod x509;
 pub mod asn1;
-#[cfg(any(feature = "smtp", feature = "http2"))]
 pub mod mime;
-#[cfg(feature = "ssh")]
 pub mod ssh;
-#[cfg(feature = "http2")]
 pub mod http2;
-#[cfg(feature = "quic")]
 pub mod quic;
-#[cfg(feature = "bittorrent_dht")]
 pub mod bittorrent_dht;
 pub mod plugin;
 pub mod lzma;
@@ -153,8 +137,9 @@ pub mod util;
 pub mod ffi;
 pub mod feature;
 pub mod sdp;
-#[cfg(feature = "ldap")]
 pub mod ldap;
+pub mod flow;
+pub mod direction;
 
 #[allow(unused_imports)]
 pub use suricata_lua_sys;

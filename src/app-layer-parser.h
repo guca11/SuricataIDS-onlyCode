@@ -158,6 +158,7 @@ typedef AppLayerGetTxIterTuple (*AppLayerGetTxIteratorFunc)
 typedef int (*AppLayerParserGetFrameIdByNameFn)(const char *frame_name);
 typedef const char *(*AppLayerParserGetFrameNameByIdFn)(const uint8_t id);
 
+int AppLayerParserPreRegister(void (*Register)(void));
 /**
  * \brief Register app layer parser for the protocol.
  *
@@ -195,11 +196,11 @@ void AppLayerParserRegisterGetTxIterator(uint8_t ipproto, AppProto alproto,
 void AppLayerParserRegisterStateProgressCompletionStatus(
         AppProto alproto, const int ts, const int tc);
 void AppLayerParserRegisterGetEventInfo(uint8_t ipproto, AppProto alproto,
-    int (*StateGetEventInfo)(const char *event_name, int *event_id,
-                             AppLayerEventType *event_type));
+        int (*StateGetEventInfo)(
+                const char *event_name, uint8_t *event_id, AppLayerEventType *event_type));
 void AppLayerParserRegisterGetEventInfoById(uint8_t ipproto, AppProto alproto,
-    int (*StateGetEventInfoById)(int event_id, const char **event_name,
-                                 AppLayerEventType *event_type));
+        int (*StateGetEventInfoById)(
+                uint8_t event_id, const char **event_name, AppLayerEventType *event_type));
 void AppLayerParserRegisterGetFrameFuncs(uint8_t ipproto, AppProto alproto,
         AppLayerParserGetFrameIdByNameFn GetFrameIdByName,
         AppLayerParserGetFrameNameByIdFn GetFrameNameById);
@@ -239,9 +240,9 @@ uint64_t AppLayerParserGetTxCnt(const Flow *, void *alstate);
 void *AppLayerParserGetTx(uint8_t ipproto, AppProto alproto, void *alstate, uint64_t tx_id);
 int AppLayerParserGetStateProgressCompletionStatus(AppProto alproto, uint8_t direction);
 int AppLayerParserGetEventInfo(uint8_t ipproto, AppProto alproto, const char *event_name,
-                    int *event_id, AppLayerEventType *event_type);
-int AppLayerParserGetEventInfoById(uint8_t ipproto, AppProto alproto, int event_id,
-                    const char **event_name, AppLayerEventType *event_type);
+        uint8_t *event_id, AppLayerEventType *event_type);
+int AppLayerParserGetEventInfoById(uint8_t ipproto, AppProto alproto, uint8_t event_id,
+        const char **event_name, AppLayerEventType *event_type);
 
 uint64_t AppLayerParserGetTransactionActive(const Flow *f, AppLayerParserState *pstate, uint8_t direction);
 
@@ -315,8 +316,6 @@ void AppLayerParserTransactionsCleanup(Flow *f, const uint8_t pkt_dir);
 void AppLayerParserRegisterProtocolUnittests(uint8_t ipproto, AppProto alproto,
                                   void (*RegisterUnittests)(void));
 void AppLayerParserRegisterUnittests(void);
-void AppLayerParserBackupParserTable(void);
-void AppLayerParserRestoreParserTable(void);
 void UTHAppLayerParserStateGetIds(void *ptr, uint64_t *i1, uint64_t *i2, uint64_t *log, uint64_t *min);
 #endif
 

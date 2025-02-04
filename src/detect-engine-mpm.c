@@ -108,13 +108,10 @@ static void RegisterInternal(const char *name, int direction, int priority,
     }
 
     // every HTTP2 can be accessed from DOH2
-    #if ENABLE_DNS && ENABLE_HTTP
     if (alproto == ALPROTO_HTTP2 || alproto == ALPROTO_DNS) {
         RegisterInternal(name, direction, priority, PrefilterRegister, GetData, GetMultiData,
                 ALPROTO_DOH2, tx_min_progress);
     }
-    #endif
-    
     DetectBufferMpmRegistry *am = SCCalloc(1, sizeof(*am));
     BUG_ON(am == NULL);
     am->name = name;
@@ -1128,6 +1125,9 @@ void RetrieveFPForSig(const DetectEngineCtx *de_ctx, Signature *s)
         }
 
         for (SigMatch *sm = s->init_data->buffers[x].head; sm != NULL; sm = sm->next) {
+            // a buffer with absent keyword cannot be used as fast_pattern
+            if (sm->type == DETECT_ABSENT)
+                break;
             if (sm->type != DETECT_CONTENT)
                 continue;
 
@@ -1975,7 +1975,7 @@ static void PrepareMpms(DetectEngineCtx *de_ctx, SigGroupHead *sh)
     const int max_buffer_id = de_ctx->buffer_type_id + 1;
     const uint32_t max_sid = DetectEngineGetMaxSigId(de_ctx) / 8 + 1;
 
-    AppProto engines[max_buffer_id][ALPROTO_MAX];
+    AppProto engines[max_buffer_id][g_alproto_max];
     memset(engines, 0, sizeof(engines));
     int engines_idx[max_buffer_id];
     memset(engines_idx, 0, sizeof(engines_idx));
@@ -2418,12 +2418,7 @@ int DetectSetFastPatternAndItsId(DetectEngineCtx *de_ctx)
 {
     uint32_t cnt = 0;
     for (Signature *s = de_ctx->sig_list; s != NULL; s = s->next) {
-        if (s->flags & SIG_FLAG_PREFILTER)
-            continue;
-
-        RetrieveFPForSig(de_ctx, s);
         if (s->init_data->mpm_sm != NULL) {
-            s->flags |= SIG_FLAG_PREFILTER;
             cnt++;
         }
     }

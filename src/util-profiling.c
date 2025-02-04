@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2023 Open Information Security Foundation
+/* Copyright (C) 2007-2024 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -42,9 +42,6 @@
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-#define DEFAULT_LOG_FILENAME "profile.log"
-#define DEFAULT_LOG_MODE_APPEND "yes"
-
 static pthread_mutex_t packet_profile_lock;
 static FILE *packet_profile_csv_fp = NULL;
 
@@ -75,8 +72,8 @@ SCProfilePacketData packet_profile_data6[257]; /**< all proto's + tunnel */
 SCProfilePacketData packet_profile_tmm_data4[TMM_SIZE][257];
 SCProfilePacketData packet_profile_tmm_data6[TMM_SIZE][257];
 
-SCProfilePacketData packet_profile_app_data4[TMM_SIZE][257];
-SCProfilePacketData packet_profile_app_data6[TMM_SIZE][257];
+SCProfilePacketData *packet_profile_app_data4;
+SCProfilePacketData *packet_profile_app_data6;
 
 SCProfilePacketData packet_profile_app_pd_data4[257];
 SCProfilePacketData packet_profile_app_pd_data6[257];
@@ -161,8 +158,14 @@ SCProfilingInit(void)
             memset(&packet_profile_data6, 0, sizeof(packet_profile_data6));
             memset(&packet_profile_tmm_data4, 0, sizeof(packet_profile_tmm_data4));
             memset(&packet_profile_tmm_data6, 0, sizeof(packet_profile_tmm_data6));
-            memset(&packet_profile_app_data4, 0, sizeof(packet_profile_app_data4));
-            memset(&packet_profile_app_data6, 0, sizeof(packet_profile_app_data6));
+            packet_profile_app_data4 = SCCalloc(g_alproto_max * 257, sizeof(SCProfilePacketData));
+            if (packet_profile_app_data4 == NULL) {
+                FatalError("Failed to allocate packet_profile_app_data4");
+            }
+            packet_profile_app_data6 = SCCalloc(g_alproto_max * 257, sizeof(SCProfilePacketData));
+            if (packet_profile_app_data6 == NULL) {
+                FatalError("Failed to allocate packet_profile_app_data6");
+            }
             memset(&packet_profile_app_pd_data4, 0, sizeof(packet_profile_app_pd_data4));
             memset(&packet_profile_app_pd_data6, 0, sizeof(packet_profile_app_pd_data6));
             memset(&packet_profile_detect_data4, 0, sizeof(packet_profile_detect_data4));
@@ -272,6 +275,15 @@ SCProfilingInit(void)
 void
 SCProfilingDestroy(void)
 {
+    if (packet_profile_app_data4) {
+        SCFree(packet_profile_app_data4);
+        packet_profile_app_data4 = NULL;
+    }
+    if (packet_profile_app_data6) {
+        SCFree(packet_profile_app_data6);
+        packet_profile_app_data6 = NULL;
+    }
+
     if (profiling_packets_enabled) {
         pthread_mutex_destroy(&packet_profile_lock);
     }
@@ -434,9 +446,6 @@ void SCProfilingDumpPacketStats(void)
 #endif
     total = 0;
     for (int m = 0; m < TMM_SIZE; m++) {
-        if (tmm_modules[m].flags & TM_FLAG_LOGAPI_TM)
-            continue;
-
         for (int p = 0; p < 257; p++) {
             SCProfilePacketData *pd = &packet_profile_tmm_data4[m][p];
             total += pd->tot;
@@ -447,9 +456,6 @@ void SCProfilingDumpPacketStats(void)
     }
 
     for (int m = 0; m < TMM_SIZE; m++) {
-        if (tmm_modules[m].flags & TM_FLAG_LOGAPI_TM)
-            continue;
-
         for (int p = 0; p < 257; p++) {
             SCProfilePacketData *pd = &packet_profile_tmm_data4[m][p];
             if (pd->cnt == 0) {
@@ -472,9 +478,6 @@ void SCProfilingDumpPacketStats(void)
     }
 
     for (int m = 0; m < TMM_SIZE; m++) {
-        if (tmm_modules[m].flags & TM_FLAG_LOGAPI_TM)
-            continue;
-
         for (int p = 0; p < 257; p++) {
             SCProfilePacketData *pd = &packet_profile_tmm_data6[m][p];
             if (pd->cnt == 0) {
@@ -500,18 +503,18 @@ void SCProfilingDumpPacketStats(void)
             "--------------------", "------", "-----", "----------", "------------", "------------", "-----------");
 
     total = 0;
-    for (AppProto a = 0; a < ALPROTO_MAX; a++) {
+    for (AppProto a = 0; a < g_alproto_max; a++) {
         for (int p = 0; p < 257; p++) {
-            SCProfilePacketData *pd = &packet_profile_app_data4[a][p];
+            SCProfilePacketData *pd = &packet_profile_app_data4[a * 257 + p];
             total += pd->tot;
 
-            pd = &packet_profile_app_data6[a][p];
+            pd = &packet_profile_app_data6[a * 257 + p];
             total += pd->tot;
         }
     }
-    for (AppProto a = 0; a < ALPROTO_MAX; a++) {
+    for (AppProto a = 0; a < g_alproto_max; a++) {
         for (int p = 0; p < 257; p++) {
-            SCProfilePacketData *pd = &packet_profile_app_data4[a][p];
+            SCProfilePacketData *pd = &packet_profile_app_data4[a * 257 + p];
             if (pd->cnt == 0) {
                 continue;
             }
@@ -528,9 +531,9 @@ void SCProfilingDumpPacketStats(void)
         }
     }
 
-    for (AppProto a = 0; a < ALPROTO_MAX; a++) {
+    for (AppProto a = 0; a < g_alproto_max; a++) {
         for (int p = 0; p < 257; p++) {
-            SCProfilePacketData *pd = &packet_profile_app_data6[a][p];
+            SCProfilePacketData *pd = &packet_profile_app_data6[a * 257 + p];
             if (pd->cnt == 0) {
                 continue;
             }
@@ -601,9 +604,6 @@ void SCProfilingDumpPacketStats(void)
 #endif
     total = 0;
     for (int m = 0; m < TMM_SIZE; m++) {
-        if (!(tmm_modules[m].flags & TM_FLAG_LOGAPI_TM))
-            continue;
-
         for (int p = 0; p < 257; p++) {
             SCProfilePacketData *pd = &packet_profile_tmm_data4[m][p];
             total += pd->tot;
@@ -614,9 +614,6 @@ void SCProfilingDumpPacketStats(void)
     }
 
     for (int m = 0; m < TMM_SIZE; m++) {
-        if (!(tmm_modules[m].flags & TM_FLAG_LOGAPI_TM))
-            continue;
-
         for (int p = 0; p < 257; p++) {
             SCProfilePacketData *pd = &packet_profile_tmm_data4[m][p];
             if (pd->cnt == 0) {
@@ -639,9 +636,6 @@ void SCProfilingDumpPacketStats(void)
     }
 
     for (int m = 0; m < TMM_SIZE; m++) {
-        if (!(tmm_modules[m].flags & TM_FLAG_LOGAPI_TM))
-            continue;
-
         for (int p = 0; p < 257; p++) {
             SCProfilePacketData *pd = &packet_profile_tmm_data6[m][p];
             if (pd->cnt == 0) {
@@ -826,7 +820,7 @@ void SCProfilingPrintPacketProfile(Packet *p)
 
     /* count ticks for app layer */
     uint64_t app_total = 0;
-    for (AppProto i = 1; i < ALPROTO_FAILED; i++) {
+    for (AppProto i = 0; i < g_alproto_max; i++) {
         const PktProfilingAppData *pdt = &p->profile->app[i];
 
         if (p->proto == IPPROTO_TCP) {
@@ -939,9 +933,9 @@ static void SCProfilingUpdatePacketAppRecord(int alproto, uint8_t ipproto, PktPr
 
     SCProfilePacketData *pd;
     if (ipver == 4)
-        pd = &packet_profile_app_data4[alproto][ipproto];
+        pd = &packet_profile_app_data4[alproto * 257 + ipproto];
     else
-        pd = &packet_profile_app_data6[alproto][ipproto];
+        pd = &packet_profile_app_data6[alproto * 257 + ipproto];
 
     if (pd->min == 0 || pdt->ticks_spent < pd->min) {
         pd->min = pdt->ticks_spent;
@@ -957,7 +951,7 @@ static void SCProfilingUpdatePacketAppRecord(int alproto, uint8_t ipproto, PktPr
 static void SCProfilingUpdatePacketAppRecords(Packet *p)
 {
     int i;
-    for (i = 0; i < ALPROTO_MAX; i++) {
+    for (i = 0; i < g_alproto_max; i++) {
         PktProfilingAppData *pdt = &p->profile->app[i];
 
         if (pdt->ticks_spent > 0) {
@@ -1205,7 +1199,7 @@ PktProfiling *SCProfilePacketStart(void)
 {
     uint64_t sample = SC_ATOMIC_ADD(samples, 1);
     if (sample % rate == 0)
-        return SCCalloc(1, sizeof(PktProfiling) + ALPROTO_MAX * sizeof(PktProfilingAppData));
+        return SCCalloc(1, sizeof(PktProfiling) + g_alproto_max * sizeof(PktProfilingAppData));
     return NULL;
 }
 
@@ -1274,11 +1268,9 @@ const char *PacketProfileLoggerIdToString(LoggerId id)
     switch (id) {
         CASE_CODE(LOGGER_UNDEFINED);
         CASE_CODE(LOGGER_HTTP);
-        #if ENABLE_TLS
         CASE_CODE(LOGGER_TLS_STORE);
         CASE_CODE(LOGGER_TLS_STORE_CLIENT);
         CASE_CODE(LOGGER_TLS);
-        #endif
         CASE_CODE(LOGGER_JSON_TX);
         CASE_CODE(LOGGER_FILE);
         CASE_CODE(LOGGER_FILEDATA);
@@ -1299,9 +1291,7 @@ const char *PacketProfileLoggerIdToString(LoggerId id)
         CASE_CODE(LOGGER_JSON_METADATA);
         CASE_CODE(LOGGER_JSON_FRAME);
         CASE_CODE(LOGGER_JSON_STREAM);
-	#if ENABLE_ARP
         CASE_CODE(LOGGER_JSON_ARP);
-	#endif
         CASE_CODE(LOGGER_USER);
 
         case LOGGER_SIZE:

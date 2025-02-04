@@ -564,23 +564,12 @@ static void DetectRunInspectIPOnly(ThreadVars *tv, const DetectEngineCtx *de_ctx
         Flow * const pflow, Packet * const p)
 {
     if (pflow) {
-        /* set the iponly stuff */
-        if (pflow->flags & FLOW_TOCLIENT_IPONLY_SET)
-            p->flowflags |= FLOW_PKT_TOCLIENT_IPONLY_SET;
-        if (pflow->flags & FLOW_TOSERVER_IPONLY_SET)
-            p->flowflags |= FLOW_PKT_TOSERVER_IPONLY_SET;
-
-        if (((p->flowflags & FLOW_PKT_TOSERVER) && !(p->flowflags & FLOW_PKT_TOSERVER_IPONLY_SET)) ||
-            ((p->flowflags & FLOW_PKT_TOCLIENT) && !(p->flowflags & FLOW_PKT_TOCLIENT_IPONLY_SET)))
-        {
+        if (p->flowflags & (FLOW_PKT_TOSERVER_FIRST | FLOW_PKT_TOCLIENT_FIRST)) {
             SCLogDebug("testing against \"ip-only\" signatures");
 
             PACKET_PROFILING_DETECT_START(p, PROF_DETECT_IPONLY);
             IPOnlyMatchPacket(tv, de_ctx, det_ctx, &de_ctx->io_ctx, p);
             PACKET_PROFILING_DETECT_END(p, PROF_DETECT_IPONLY);
-
-            /* save in the flow that we scanned this direction... */
-            FlowSetIPOnlyFlag(pflow, p->flowflags & FLOW_PKT_TOSERVER ? 1 : 0);
         }
     } else { /* p->flags & PKT_HAS_FLOW */
         /* no flow */
@@ -621,17 +610,14 @@ static inline bool DetectRunInspectRuleHeader(const Packet *p, const Flow *f, co
         SCLogDebug("ip version didn't match");
         return false;
     }
+
     if (DetectProtoContainsProto(&s->proto, PacketGetIPProto(p)) == 0) {
         SCLogDebug("proto didn't match");
         return false;
     }
 
     /* check the source & dst port in the sig */
-    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP 
-    #if ENABLE_SCTP
-    || p->proto == IPPROTO_SCTP
-    #endif
-    ) {
+    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP || p->proto == IPPROTO_SCTP) {
         if (!(sflags & SIG_FLAG_DP_ANY)) {
             if (p->flags & PKT_IS_FRAGMENT)
                 return false;
@@ -660,8 +646,7 @@ static inline bool DetectRunInspectRuleHeader(const Packet *p, const Flow *f, co
         if (PacketIsIPv4(p)) {
             if (DetectAddressMatchIPv4(s->addr_dst_match4, s->addr_dst_match4_cnt, &p->dst) == 0)
                 return false;
-        } 
-        else if (PacketIsIPv6(p)) {
+        } else if (PacketIsIPv6(p)) {
             if (DetectAddressMatchIPv6(s->addr_dst_match6, s->addr_dst_match6_cnt, &p->dst) == 0)
                 return false;
         }
@@ -671,8 +656,7 @@ static inline bool DetectRunInspectRuleHeader(const Packet *p, const Flow *f, co
         if (PacketIsIPv4(p)) {
             if (DetectAddressMatchIPv4(s->addr_src_match4, s->addr_src_match4_cnt, &p->src) == 0)
                 return false;
-        } 
-        else if (PacketIsIPv6(p)) {
+        } else if (PacketIsIPv6(p)) {
             if (DetectAddressMatchIPv6(s->addr_src_match6, s->addr_src_match6_cnt, &p->src) == 0)
                 return false;
         }
@@ -728,6 +712,38 @@ static inline void DetectRunPrefilterPkt(
                              (uint64_t)det_ctx->non_pf_id_cnt);
     }
 #endif
+}
+
+/** \internal
+ *  \brief check if the tx whose id is given is the only one
+ *  live transaction for the flow in the given direction
+ *
+ *  \param f flow
+ *  \param txid transaction id
+ *  \param dir direction
+ *
+ *  \retval bool true if we are sure this tx is the only one live in said direction
+ */
+static bool IsOnlyTxInDirection(Flow *f, uint64_t txid, uint8_t dir)
+{
+    uint64_t tx_cnt = AppLayerParserGetTxCnt(f, f->alstate);
+    if (tx_cnt == txid + 1) {
+        // only live tx
+        return true;
+    }
+    if (tx_cnt == txid + 2) {
+        // 2 live txs, one after us
+        void *tx = AppLayerParserGetTx(f->proto, f->alproto, f->alstate, txid + 1);
+        if (tx) {
+            AppLayerTxData *txd = AppLayerParserGetTxData(f->proto, f->alproto, tx);
+            // test if the other tx is unidirectional in the other way
+            if (txd &&
+                    (AppLayerParserGetTxDetectFlags(txd, dir) & APP_LAYER_TX_SKIP_INSPECT_FLAG)) {
+                return true;
+            }
+        }
+    }
+    return false;
 }
 
 static inline void DetectRulePacketRules(
@@ -786,6 +802,10 @@ static inline void DetectRulePacketRules(
             goto next; // handle sig in DetectRunFrame
         }
 
+        /* skip pkt sigs for flow end packets */
+        if ((p->flags & PKT_PSEUDO_STREAM_END) != 0 && s->type == SIG_TYPE_PKT)
+            goto next;
+
         /* don't run mask check for stateful rules.
          * There we depend on prefilter */
         if ((s->mask & scratch->pkt_mask) != s->mask) {
@@ -818,23 +838,25 @@ static inline void DetectRulePacketRules(
         DetectRunPostMatch(tv, det_ctx, p, s);
 
         uint64_t txid = PACKET_ALERT_NOTX;
-        if ((alert_flags & PACKET_ALERT_FLAG_STREAM_MATCH) ||
-                (s->alproto != ALPROTO_UNKNOWN && pflow->proto == IPPROTO_UDP)) {
-            // if there is a stream match (TCP), or
-            // a UDP specific app-layer signature,
-            // try to use the good tx for the packet direction
-            if (pflow->alstate) {
-                uint8_t dir =
-                        (p->flowflags & FLOW_PKT_TOCLIENT) ? STREAM_TOCLIENT : STREAM_TOSERVER;
-                txid = AppLayerParserGetTransactionInspectId(pflow->alparser, dir);
+        if (pflow && pflow->alstate) {
+            uint8_t dir = (p->flowflags & FLOW_PKT_TOCLIENT) ? STREAM_TOCLIENT : STREAM_TOSERVER;
+            txid = AppLayerParserGetTransactionInspectId(pflow->alparser, dir);
+            if ((s->alproto != ALPROTO_UNKNOWN && pflow->proto == IPPROTO_UDP) ||
+                    (de_ctx->guess_applayer && IsOnlyTxInDirection(pflow, txid, dir))) {
+                // if there is a UDP specific app-layer signature,
+                // or only one live transaction
+                // try to use the good tx for the packet direction
                 void *tx_ptr =
                         AppLayerParserGetTx(pflow->proto, pflow->alproto, pflow->alstate, txid);
                 AppLayerTxData *txd =
                         tx_ptr ? AppLayerParserGetTxData(pflow->proto, pflow->alproto, tx_ptr)
                                : NULL;
-                if (txd && txd->stream_logged < de_ctx->stream_tx_log_limit) {
+                if (txd && txd->guessed_applayer_logged < de_ctx->guess_applayer_log_limit) {
                     alert_flags |= PACKET_ALERT_FLAG_TX;
-                    txd->stream_logged++;
+                    if (pflow->proto != IPPROTO_UDP) {
+                        alert_flags |= PACKET_ALERT_FLAG_TX_GUESSED;
+                    }
+                    txd->guessed_applayer_logged++;
                 }
             }
         }
@@ -922,11 +944,9 @@ static DetectRunScratchpad DetectRunSetup(
         /* Retrieve the app layer state and protocol and the tcp reassembled
          * stream chunks. */
         if ((p->proto == IPPROTO_TCP && (p->flags & PKT_STREAM_EST)) ||
-                (p->proto == IPPROTO_UDP) 
-                #if ENABLE_SCTP
-                || (p->proto == IPPROTO_SCTP && (p->flowflags & FLOW_PKT_ESTABLISHED))
-                #endif
-        ){
+                (p->proto == IPPROTO_UDP) ||
+                (p->proto == IPPROTO_SCTP && (p->flowflags & FLOW_PKT_ESTABLISHED)))
+        {
             /* update flow flags with knowledge on disruptions */
             flow_flags = FlowGetDisruptionFlags(pflow, flow_flags);
             alproto = FlowGetAppProtocol(pflow);
@@ -1073,7 +1093,6 @@ DetectRunTxSortHelper(const void *a, const void *b)
 // Get inner transaction for engine
 void *DetectGetInnerTx(void *tx_ptr, AppProto alproto, AppProto engine_alproto, uint8_t flow_flags)
 {
-#if ENABLE_DNS && ENABLE_HTTP
     if (unlikely(alproto == ALPROTO_DOH2)) {
         if (engine_alproto == ALPROTO_DNS) {
             // need to get the dns tx pointer
@@ -1082,9 +1101,7 @@ void *DetectGetInnerTx(void *tx_ptr, AppProto alproto, AppProto engine_alproto, 
             // incompatible engine->alproto with flow alproto
             tx_ptr = NULL;
         }
-    } else 
-#endif    
-    if (engine_alproto != alproto) {
+    } else if (engine_alproto != alproto) {
         // incompatible engine->alproto with flow alproto
         tx_ptr = NULL;
     }
@@ -1304,6 +1321,12 @@ static DetectTransaction GetDetectTx(const uint8_t ipproto, const AppProto alpro
         DetectTransaction no_tx = NO_TX;
         return no_tx;
     }
+    const int tx_progress = AppLayerParserGetStateProgress(ipproto, alproto, tx_ptr, flow_flags);
+    bool updated = (flow_flags & STREAM_TOSERVER) ? txd->updated_ts : txd->updated_tc;
+    if (!updated && tx_progress < tx_end_state && ((flow_flags & STREAM_EOF) == 0)) {
+        DetectTransaction no_tx = NO_TX;
+        return no_tx;
+    }
     uint64_t detect_flags =
             (flow_flags & STREAM_TOSERVER) ? txd->detect_flags_ts : txd->detect_flags_tc;
     if (detect_flags & APP_LAYER_TX_INSPECTED_FLAG) {
@@ -1320,7 +1343,6 @@ static DetectTransaction GetDetectTx(const uint8_t ipproto, const AppProto alpro
         return no_tx;
     }
 
-    const int tx_progress = AppLayerParserGetStateProgress(ipproto, alproto, tx_ptr, flow_flags);
     const int dir_int = (flow_flags & STREAM_TOSERVER) ? 0 : 1;
     DetectEngineState *tx_de_state = txd->de_state;
     DetectEngineStateDirection *tx_dir_state = tx_de_state ? &tx_de_state->dir_state[dir_int] : NULL;

@@ -44,6 +44,7 @@
 #include "flow-storage.h"
 #include "flow-bypass.h"
 #include "flow-spare-pool.h"
+#include "flow-callbacks.h"
 
 #include "stream-tcp-private.h"
 
@@ -143,16 +144,6 @@ void FlowCleanupAppLayer(Flow *f)
     f->alparser = NULL;
 }
 
-/** \brief Set the IPOnly scanned flag for 'direction'.
-  *
-  * \param f Flow to set the flag in
-  * \param direction direction to set the flag in
-  */
-void FlowSetIPOnlyFlag(Flow *f, int direction)
-{
-    direction ? (f->flags |= FLOW_TOSERVER_IPONLY_SET) : (f->flags |= FLOW_TOCLIENT_IPONLY_SET);
-}
-
 /** \brief Set flag to indicate that flow has alerts
  *
  * \param f flow
@@ -212,7 +203,6 @@ int FlowChangeProto(Flow *f)
 static inline void FlowSwapFlags(Flow *f)
 {
     SWAP_FLAGS(f->flags, FLOW_TO_SRC_SEEN, FLOW_TO_DST_SEEN);
-    SWAP_FLAGS(f->flags, FLOW_TOSERVER_IPONLY_SET, FLOW_TOCLIENT_IPONLY_SET);
     SWAP_FLAGS(f->flags, FLOW_SGH_TOSERVER, FLOW_SGH_TOCLIENT);
 
     SWAP_FLAGS(f->flags, FLOW_TOSERVER_DROP_LOGGED, FLOW_TOCLIENT_DROP_LOGGED);
@@ -288,11 +278,7 @@ int FlowGetPacketDirection(const Flow *f, const Packet *p)
 {
     const int reverse = (f->flags & FLOW_DIR_REVERSED) != 0;
 
-    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP 
-    #if ENABLE_SCTP
-    || p->proto == IPPROTO_SCTP
-    #endif
-    ) {
+    if (p->proto == IPPROTO_TCP || p->proto == IPPROTO_UDP || p->proto == IPPROTO_SCTP) {
         if (!(CMP_PORT(p->sp,p->dp))) {
             /* update flags and counters */
             if (CMP_PORT(f->sp,p->sp)) {
@@ -400,10 +386,6 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
         /* update the last seen timestamp of this flow */
         if (SCTIME_CMP_GT(p->ts, f->lastts)) {
             f->lastts = p->ts;
-            const uint32_t timeout_at = (uint32_t)SCTIME_SECS(f->lastts) + f->timeout_policy;
-            if (timeout_at != f->timeout_at) {
-                f->timeout_at = timeout_at;
-            }
         }
 #ifdef CAPTURE_OFFLOAD
     } else {
@@ -507,6 +489,8 @@ void FlowHandlePacketUpdate(Flow *f, Packet *p, ThreadVars *tv, DecodeThreadVars
         SCLogDebug("setting FLOW_NOPAYLOAD_INSPECTION flag on flow %p", f);
         DecodeSetNoPayloadInspectionFlag(p);
     }
+
+    SCFlowRunUpdateCallbacks(tv, f, p);
 }
 
 /** \brief Entry point for packet flow handling
@@ -1170,9 +1154,6 @@ void FlowUpdateState(Flow *f, const enum FlowState s)
         const uint32_t timeout_policy = FlowGetTimeoutPolicy(f);
         if (timeout_policy != f->timeout_policy) {
             f->timeout_policy = timeout_policy;
-            const uint32_t timeout_at = (uint32_t)SCTIME_SECS(f->lastts) + timeout_policy;
-            if (timeout_at != f->timeout_at)
-                f->timeout_at = timeout_at;
         }
     }
 #ifdef UNITTESTS

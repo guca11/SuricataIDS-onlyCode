@@ -67,7 +67,7 @@ int SCOutputRegisterTxLogger(LoggerId id, const char *name, AppProto alproto, Tx
         ThreadInitFunc ThreadInit, ThreadDeinitFunc ThreadDeinit)
 {
     if (list == NULL) {
-        list = SCCalloc(ALPROTO_MAX, sizeof(OutputTxLogger *));
+        list = SCCalloc(g_alproto_max, sizeof(OutputTxLogger *));
         if (unlikely(list == NULL)) {
             SCLogError("Failed to allocate OutputTx list");
             return -1;
@@ -392,7 +392,7 @@ static TmEcode OutputTxLog(ThreadVars *tv, Packet *p, void *thread_data)
     uint64_t tx_id = AppLayerParserGetTransactionLogId(f->alparser);
     uint64_t max_id = tx_id;
     int logged = 0;
-    int gap = 0;
+    bool gap = false;
     const bool support_files = AppLayerParserSupportsFiles(ipproto, alproto);
     const uint8_t pkt_dir = STREAM_FLAGS_FOR_PACKET(p);
 
@@ -415,15 +415,6 @@ static TmEcode OutputTxLog(ThreadVars *tv, Packet *p, void *thread_data)
         tx_id = ires.tx_id;
         SCLogDebug("STARTING tx_id %" PRIu64 ", tx %p", tx_id, tx);
 
-        const int tx_progress_ts =
-                AppLayerParserGetStateProgress(ipproto, alproto, tx, ts_disrupt_flags);
-        const int tx_progress_tc =
-                AppLayerParserGetStateProgress(ipproto, alproto, tx, tc_disrupt_flags);
-        const bool tx_complete = (tx_progress_ts == complete_ts && tx_progress_tc == complete_tc);
-
-        SCLogDebug("file_thread_data %p filedata_thread_data %p", op_thread_data->file,
-                op_thread_data->filedata);
-
         AppLayerTxData *txd = AppLayerParserGetTxData(ipproto, alproto, tx);
         if (unlikely(txd == NULL)) {
             SCLogDebug("NO TXD");
@@ -432,6 +423,15 @@ static TmEcode OutputTxLog(ThreadVars *tv, Packet *p, void *thread_data)
             max_id = tx_id;
             goto next_tx;
         }
+
+        const int tx_progress_ts =
+                AppLayerParserGetStateProgress(ipproto, alproto, tx, ts_disrupt_flags);
+        const int tx_progress_tc =
+                AppLayerParserGetStateProgress(ipproto, alproto, tx, tc_disrupt_flags);
+        const bool tx_complete = (tx_progress_ts == complete_ts && tx_progress_tc == complete_tc);
+
+        SCLogDebug("file_thread_data %p filedata_thread_data %p", op_thread_data->file,
+                op_thread_data->filedata);
 
         if (file_logging_active) {
             if (AppLayerParserIsFileTx(txd)) { // need to process each tx that might be a file tx,
@@ -467,6 +467,11 @@ static TmEcode OutputTxLog(ThreadVars *tv, Packet *p, void *thread_data)
             }
         }
         SCLogDebug("logger: expect %08x, have %08x", logger_expectation, txd->logged.flags);
+        if (!txd->updated_tc && !txd->updated_ts && !(tx_progress_ts == complete_ts) &&
+                !(tx_progress_tc == complete_tc) && !ts_eof && !tc_eof) {
+            gap = true;
+            goto next_tx;
+        }
 
         if (list[ALPROTO_UNKNOWN] != 0) {
             OutputTxLogList0(tv, op_thread_data, p, f, tx, tx_id);
@@ -517,7 +522,7 @@ static TmEcode OutputTxLog(ThreadVars *tv, Packet *p, void *thread_data)
             max_id = tx_id;
             SCLogDebug("max_id %" PRIu64, max_id);
         } else {
-            gap = 1;
+            gap = true;
         }
 next_tx:
         if (!ires.has_next)
@@ -542,14 +547,14 @@ end:
 static TmEcode OutputTxLogThreadInit(ThreadVars *tv, const void *_initdata, void **data)
 {
     OutputTxLoggerThreadData *td =
-            SCCalloc(1, sizeof(*td) + ALPROTO_MAX * sizeof(OutputLoggerThreadStore *));
+            SCCalloc(1, sizeof(*td) + g_alproto_max * sizeof(OutputLoggerThreadStore *));
     if (td == NULL)
         return TM_ECODE_FAILED;
 
     *data = (void *)td;
     SCLogDebug("OutputTxLogThreadInit happy (*data %p)", *data);
 
-    for (AppProto alproto = 0; alproto < ALPROTO_MAX; alproto++) {
+    for (AppProto alproto = 0; alproto < g_alproto_max; alproto++) {
         OutputTxLogger *logger = list[alproto];
         while (logger) {
             if (logger->ThreadInit) {
@@ -598,7 +603,7 @@ static TmEcode OutputTxLogThreadDeinit(ThreadVars *tv, void *thread_data)
 {
     OutputTxLoggerThreadData *op_thread_data = (OutputTxLoggerThreadData *)thread_data;
 
-    for (AppProto alproto = 0; alproto < ALPROTO_MAX; alproto++) {
+    for (AppProto alproto = 0; alproto < g_alproto_max; alproto++) {
         OutputLoggerThreadStore *store = op_thread_data->store[alproto];
         OutputTxLogger *logger = list[alproto];
 
@@ -628,7 +633,7 @@ static TmEcode OutputTxLogThreadDeinit(ThreadVars *tv, void *thread_data)
 static uint32_t OutputTxLoggerGetActiveCount(void)
 {
     uint32_t cnt = 0;
-    for (AppProto alproto = 0; alproto < ALPROTO_MAX; alproto++) {
+    for (AppProto alproto = 0; alproto < g_alproto_max; alproto++) {
         for (OutputTxLogger *p = list[alproto]; p != NULL; p = p->next) {
             cnt++;
         }
@@ -650,7 +655,7 @@ static uint32_t OutputTxLoggerGetActiveCount(void)
 void OutputTxLoggerRegister (void)
 {
     BUG_ON(list);
-    list = SCCalloc(ALPROTO_MAX, sizeof(OutputTxLogger *));
+    list = SCCalloc(g_alproto_max, sizeof(OutputTxLogger *));
     if (unlikely(list == NULL)) {
         FatalError("Failed to allocate OutputTx list");
     }
@@ -664,7 +669,7 @@ void OutputTxShutdown(void)
     if (list == NULL) {
         return;
     }
-    for (AppProto alproto = 0; alproto < ALPROTO_MAX; alproto++) {
+    for (AppProto alproto = 0; alproto < g_alproto_max; alproto++) {
         OutputTxLogger *logger = list[alproto];
         while (logger) {
             OutputTxLogger *next_logger = logger->next;

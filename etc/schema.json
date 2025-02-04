@@ -115,6 +115,10 @@
         "tx_id": {
             "type": "integer"
         },
+        "tx_guessed": {
+            "description": "the signature that triggered this alert didn't tie to a transaction, so the transaction (and metadata) logged is a forced estimation and may not be the one you expect",
+            "type": "boolean"
+        },
         "files": {
             "type": "array",
             "minItems": 1,
@@ -1125,7 +1129,8 @@
                     "$ref": "#/$defs/dns.additionals"
                 },
                 "query": {
-                    "$comment": "EVE DNS v2 style query logging; as of Suricata 8 only used in DNS records when v2 logging is enabled, not used for DNS records logged as part of an event.",
+                    "$comment":
+                            "EVE DNS v2 style query logging; as of Suricata 8 only used in DNS records when v2 logging is enabled, not used for DNS records logged as part of an event.",
                     "type": "array",
                     "minItems": 1,
                     "items": {
@@ -1185,6 +1190,10 @@
                             "opcode": {
                                 "description": "DNS opcode as an integer",
                                 "type": "integer"
+                            },
+                            "rrname_truncated": {
+                                "description": "Set to true if the rrname was too long and truncated by Suricata",
+                                "type": "boolean"
                             }
                         },
                         "additionalProperties": false
@@ -1735,6 +1744,10 @@
                 "src_mac": {
                     "type": "string"
                 },
+                "ether_type": {
+                    "type": "integer",
+                    "description": "Ethernet type value "
+                },
                 "dest_macs": {
                     "type": "array",
                     "minItems": 1,
@@ -2104,6 +2117,9 @@
                                 "priority": {
                                     "type": "integer"
                                 },
+                                "has_multiple": {
+                                    "type": "string"
+                                },
                                 "settings": {
                                     "type": "array",
                                     "minItems": 1,
@@ -2127,6 +2143,9 @@
                             "type": "object",
                             "properties": {
                                 "error_code": {
+                                    "type": "string"
+                                },
+                                "has_multiple": {
                                     "type": "string"
                                 },
                                 "settings": {
@@ -5177,6 +5196,11 @@
                                             "Number of packets dropped due to stream reassembly exception policy",
                                     "type": "integer"
                                 },
+                                "stream_urgent": {
+                                    "description":
+                                            "Number of packets dropped due to TCP urgent flag",
+                                    "type": "integer"
+                                },
                                 "nfq_error": {
                                     "description":
                                             "Number of packets dropped due to no NFQ verdict",
@@ -5389,6 +5413,9 @@
                                     "type": "object",
                                     "properties": {
                                         "pkt_too_small": {
+                                            "type": "integer"
+                                        },
+                                        "unknown_ethertype": {
                                             "type": "integer"
                                         }
                                     },
@@ -6064,7 +6091,8 @@
                             "type": "integer"
                         },
                         "get_used": {
-                            "description": "Number of reused flows from the hash table in case memcap was reached and spare pool was empty",
+                            "description":
+                                    "Number of reused flows from the hash table in case memcap was reached and spare pool was empty",
                             "type": "integer"
                         },
                         "get_used_eval": {
@@ -6117,7 +6145,8 @@
                             "type": "integer"
                         },
                         "tcp_reuse": {
-                            "description": "Number of TCP flows that were reused as they seemed to share the same flow tuple",
+                            "description":
+                                    "Number of TCP flows that were reused as they seemed to share the same flow tuple",
                             "type": "integer"
                         },
                         "total": {
@@ -6487,9 +6516,6 @@
                         "pseudo": {
                             "type": "integer"
                         },
-                        "pseudo_failed": {
-                            "type": "integer"
-                        },
                         "reassembly_exception_policy": {
                             "description":
                                     "How many times reassembly memcap exception policy was applied, and which one",
@@ -6538,6 +6564,14 @@
                         },
                         "synack": {
                             "type": "integer"
+                        },
+                        "urg": {
+                            "description": "Number of TCP packets with the urgent flag set",
+                            "type": "integer"
+                        },
+                        "urgent_oob_data": {
+                            "description": "Number of OOB bytes tracked in TCP urgent handling",
+                            "type": "integer"
                         }
                     },
                     "additionalProperties": false
@@ -6578,6 +6612,10 @@
                 "tc_max_regions": {
                     "type": "integer"
                 },
+                "tc_urgent_oob_data": {
+                    "description": "Number of Out-of-Band bytes sent by server using TCP urgent packets",
+                    "type": "integer"
+                },
                 "tcp_flags": {
                     "type": "string"
                 },
@@ -6591,6 +6629,10 @@
                     "type": "boolean"
                 },
                 "ts_max_regions": {
+                    "type": "integer"
+                },
+                "ts_urgent_oob_data": {
+                    "description": "Number of Out-of-Band bytes sent by client using TCP urgent packets",
                     "type": "integer"
                 },
                 "urg": {
@@ -6857,6 +6899,10 @@
                 },
                 "serial": {
                     "type": "integer"
+                },
+                "mname_truncated": {
+                    "description": "Set to true if the mname was too long and truncated by Suricata",
+                    "type": "boolean"
                 }
             },
             "additionalProperties": false
@@ -6881,6 +6927,14 @@
                     },
                     "soa": {
                         "$ref": "#/$defs/dns.soa"
+                    },
+                    "rdata_truncated": {
+                        "description": "Set to true if the rdata was too long and truncated by Suricata",
+                        "type": "boolean"
+                    },
+                    "rrname_truncated": {
+                        "description": "Set to true if the rrname was too long and truncated by Suricata",
+                        "type": "boolean"
                     }
                 },
                 "additionalProperties": false

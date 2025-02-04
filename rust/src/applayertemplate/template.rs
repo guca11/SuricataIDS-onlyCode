@@ -18,7 +18,8 @@
 use super::parser;
 use crate::applayer::{self, *};
 use crate::conf::conf_get;
-use crate::core::{AppProto, Flow, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use crate::core::{AppProto, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use crate::flow::Flow;
 use nom7 as nom;
 use std;
 use std::collections::VecDeque;
@@ -27,7 +28,7 @@ use std::os::raw::{c_char, c_int, c_void};
 
 static mut TEMPLATE_MAX_TX: usize = 256;
 
-static mut ALPROTO_TEMPLATE: AppProto = ALPROTO_UNKNOWN;
+pub(super) static mut ALPROTO_TEMPLATE: AppProto = ALPROTO_UNKNOWN;
 
 #[derive(AppLayerEvent)]
 enum TemplateEvent {
@@ -200,6 +201,7 @@ impl TemplateState {
                     start = rem;
 
                     if let Some(tx) =  self.find_request() {
+                        tx.tx_data.updated_tc = true;
                         tx.response = Some(response);
                         SCLogNotice!("Found response for request:");
                         SCLogNotice!("- Request: {:?}", tx.request);
@@ -347,43 +349,8 @@ unsafe extern "C" fn rs_template_tx_get_alstate_progress(tx: *mut c_void, _direc
     return 0;
 }
 
-/// Get the request buffer for a transaction from C.
-///
-/// No required for parsing, but an example function for retrieving a
-/// pointer to the request buffer from C for detection.
-#[no_mangle]
-pub unsafe extern "C" fn rs_template_get_request_buffer(
-    tx: *mut c_void, buf: *mut *const u8, len: *mut u32,
-) -> u8 {
-    let tx = cast_pointer!(tx, TemplateTransaction);
-    if let Some(ref request) = tx.request {
-        if !request.is_empty() {
-            *len = request.len() as u32;
-            *buf = request.as_ptr();
-            return 1;
-        }
-    }
-    return 0;
-}
-
-/// Get the response buffer for a transaction from C.
-#[no_mangle]
-pub unsafe extern "C" fn rs_template_get_response_buffer(
-    tx: *mut c_void, buf: *mut *const u8, len: *mut u32,
-) -> u8 {
-    let tx = cast_pointer!(tx, TemplateTransaction);
-    if let Some(ref response) = tx.response {
-        if !response.is_empty() {
-            *len = response.len() as u32;
-            *buf = response.as_ptr();
-            return 1;
-        }
-    }
-    return 0;
-}
-
-export_tx_data_get!(rs_template_get_tx_data, TemplateTransaction);
-export_state_data_get!(rs_template_get_state_data, TemplateState);
+export_tx_data_get!(template_get_tx_data, TemplateTransaction);
+export_state_data_get!(template_get_state_data, TemplateState);
 
 // Parser name as a C style string.
 const PARSER_NAME: &[u8] = b"template\0";
@@ -423,8 +390,8 @@ pub unsafe extern "C" fn rs_template_register_parser() {
         get_tx_iterator: Some(
             applayer::state_get_tx_iterator::<TemplateState, TemplateTransaction>,
         ),
-        get_tx_data: rs_template_get_tx_data,
-        get_state_data: rs_template_get_state_data,
+        get_tx_data: template_get_tx_data,
+        get_state_data: template_get_state_data,
         apply_tx_config: None,
         flags: APP_LAYER_PARSER_OPT_ACCEPT_GAPS,
         get_frame_id_by_name: None,

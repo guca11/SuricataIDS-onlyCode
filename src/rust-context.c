@@ -28,17 +28,15 @@ const SuricataContext suricata_context = {
     AppLayerDecoderEventsSetEventRaw,
     AppLayerDecoderEventsFreeEvents,
     AppLayerParserTriggerRawStreamReassembly,
-    #if ENABLE_HTTP
+
     HttpRangeFreeBlock,
     HTPFileCloseHandleRange,
-    #endif
+
     FileOpenFileWithId,
     FileCloseFileById,
     FileAppendDataById,
     FileAppendGAPById,
     FileContainerRecycle,
-
-    AppLayerRegisterParser,
 };
 
 const SuricataContext *SCGetContext(void)

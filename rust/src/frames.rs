@@ -18,10 +18,10 @@
 //! Module for bindings to the Suricata C frame API.
 
 use crate::applayer::StreamSlice;
-use crate::core::Flow;
+use crate::flow::Flow;
 #[cfg(not(test))]
 use crate::core::STREAM_TOSERVER;
-use crate::core::Direction;
+use crate::direction::Direction;
 
 #[cfg(not(test))]
 #[repr(C)]

@@ -15,7 +15,8 @@
 * 02110-1301, USA.
 */
 use crate::applayer::{self, *};
-use crate::core::{self, AppProto, ALPROTO_FAILED, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use crate::core::{AppProto, ALPROTO_FAILED, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use crate::flow::Flow;
 
 use std::ffi::CString;
 
@@ -124,6 +125,8 @@ impl ModbusState {
         for tx in &mut self.transactions {
             if let Some(req) = &tx.request {
                 if tx.response.is_none() && resp.matches(req) {
+                    tx.tx_data.updated_tc = true;
+                    tx.tx_data.updated_ts = true;
                     return Some(tx);
                 }
             }
@@ -139,6 +142,8 @@ impl ModbusState {
         for tx in &mut self.transactions {
             if let Some(resp) = &tx.response {
                 if tx.request.is_none() && req.matches(resp) {
+                    tx.tx_data.updated_tc = true;
+                    tx.tx_data.updated_ts = true;
                     return Some(tx);
                 }
             }
@@ -184,6 +189,8 @@ impl ModbusState {
                             match self.find_response_and_validate(&mut msg) {
                                 Some(tx) => {
                                     tx.set_events_from_flags(&msg.error_flags);
+                                    tx.tx_data.updated_tc = true;
+                                    tx.tx_data.updated_ts = true;
                                     tx.request = Some(msg);
                                 }
                                 None => {
@@ -210,6 +217,8 @@ impl ModbusState {
                                 } else {
                                     tx.set_events_from_flags(&msg.error_flags);
                                 }
+                                tx.tx_data.updated_tc = true;
+                                tx.tx_data.updated_ts = true;
                                 tx.response = Some(msg);
                             }
                             None => {
@@ -272,7 +281,7 @@ impl ModbusState {
 /// Probe input to see if it looks like Modbus.
 #[no_mangle]
 pub extern "C" fn rs_modbus_probe(
-    _flow: *const core::Flow, _direction: u8, input: *const u8, len: u32, _rdir: *mut u8,
+    _flow: *const Flow, _direction: u8, input: *const u8, len: u32, _rdir: *mut u8,
 ) -> AppProto {
     if input.is_null() {
         return ALPROTO_UNKNOWN;
@@ -281,7 +290,7 @@ pub extern "C" fn rs_modbus_probe(
     match MODBUS_PARSER.probe(slice, Direction::Unknown) {
         Status::Recognized => unsafe { ALPROTO_MODBUS },
         Status::Incomplete => ALPROTO_UNKNOWN,
-        Status::Unrecognized => unsafe { ALPROTO_FAILED },
+        Status::Unrecognized => ALPROTO_FAILED,
     }
 }
 
@@ -305,7 +314,7 @@ pub unsafe extern "C" fn rs_modbus_state_tx_free(state: *mut std::os::raw::c_voi
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_modbus_parse_request(
-    _flow: *const core::Flow, state: *mut std::os::raw::c_void, pstate: *mut std::os::raw::c_void,
+    _flow: *const Flow, state: *mut std::os::raw::c_void, pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice,
     _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {
@@ -324,7 +333,7 @@ pub unsafe extern "C" fn rs_modbus_parse_request(
 
 #[no_mangle]
 pub unsafe extern "C" fn rs_modbus_parse_response(
-    _flow: *const core::Flow, state: *mut std::os::raw::c_void, pstate: *mut std::os::raw::c_void,
+    _flow: *const Flow, state: *mut std::os::raw::c_void, pstate: *mut std::os::raw::c_void,
     stream_slice: StreamSlice,
     _data: *const std::os::raw::c_void,
 ) -> AppLayerResult {

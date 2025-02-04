@@ -37,6 +37,10 @@
 #include "app-layer-frames.h"
 
 #include <htp/htp.h>
+// Temporary include directly app-layer-htp-libhtp.h
+// This helps libhtp.rs transition by making small steps
+// app-layer-htp-libhtp.h will be removed with libhtp.rs final merge
+#include "app-layer-htp-libhtp.h"
 
 /* default request body limit */
 #define HTP_CONFIG_DEFAULT_REQUEST_BODY_LIMIT           4096U
@@ -126,6 +130,8 @@ enum {
     HTTP_DECODER_EVENT_RANGE_INVALID,
     HTTP_DECODER_EVENT_REQUEST_CHUNK_EXTENSION,
     HTTP_DECODER_EVENT_REQUEST_LINE_MISSING_PROTOCOL,
+    HTTP_DECODER_EVENT_REQUEST_TOO_MANY_HEADERS,
+    HTTP_DECODER_EVENT_RESPONSE_TOO_MANY_HEADERS,
 
     /* suricata errors/warnings */
     HTTP_DECODER_EVENT_MULTIPART_GENERIC_ERROR,

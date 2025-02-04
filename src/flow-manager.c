@@ -39,8 +39,10 @@
 #include "flow-manager.h"
 #include "flow-storage.h"
 #include "flow-spare-pool.h"
+#include "flow-callbacks.h"
 
 #include "stream-tcp.h"
+#include "stream-tcp-cache.h"
 
 #include "util-device.h"
 
@@ -173,25 +175,46 @@ again:
 /** \internal
  *  \brief check if a flow is timed out
  *
+ *  Takes lastts, adds the timeout policy to it, compared to current time `ts`.
+ *  In case of emergency mode, timeout_policy is ignored and the emerg table
+ *  is used.
+ *
  *  \param f flow
- *  \param ts timestamp
+ *  \param ts timestamp - realtime or a minimum of active threads in offline mode
+ *  \param next_ts tracking the next timeout ts, so FM can skip the row until that time
+ *  \param emerg bool to indicate if emergency timeout settings should be used
  *
  *  \retval false not timed out
  *  \retval true timed out
  */
 static bool FlowManagerFlowTimeout(Flow *f, SCTime_t ts, uint32_t *next_ts, const bool emerg)
 {
-    uint32_t flow_times_out_at = f->timeout_at;
-    if (emerg) {
-        extern FlowProtoTimeout flow_timeouts_delta[FLOW_PROTO_MAX];
-        flow_times_out_at -= FlowGetFlowTimeoutDirect(flow_timeouts_delta, f->flow_state, f->protomap);
-    }
-    if (*next_ts == 0 || flow_times_out_at < *next_ts)
-        *next_ts = flow_times_out_at;
+    SCTime_t timesout_at;
 
-    /* do the timeout check */
-    if ((uint64_t)flow_times_out_at >= SCTIME_SECS(ts)) {
-        return false;
+    if (emerg) {
+        extern FlowProtoTimeout flow_timeouts_emerg[FLOW_PROTO_MAX];
+        timesout_at = SCTIME_ADD_SECS(f->lastts,
+                FlowGetFlowTimeoutDirect(flow_timeouts_emerg, f->flow_state, f->protomap));
+    } else {
+        timesout_at = SCTIME_ADD_SECS(f->lastts, f->timeout_policy);
+    }
+    /* update next_ts if needed */
+    if (*next_ts == 0 || (uint32_t)SCTIME_SECS(timesout_at) < *next_ts)
+        *next_ts = (uint32_t)SCTIME_SECS(timesout_at);
+
+    /* if time is live, we just use the `ts` */
+    if (TimeModeIsLive() || f->thread_id[0] == 0) {
+        /* do the timeout check */
+        if (SCTIME_CMP_LT(ts, timesout_at)) {
+            return false;
+        }
+    } else {
+        /* offline: take last ts from "owning" thread */
+        SCTime_t checkts = TmThreadsGetThreadTime(f->thread_id[0]);
+        /* do the timeout check */
+        if (SCTIME_CMP_LT(checkts, timesout_at)) {
+            return false;
+        }
     }
 
     return true;
@@ -325,6 +348,8 @@ static void FlowManagerHashRowTimeout(FlowManagerTimeoutThread *td, Flow *f, SCT
     do {
         checked++;
 
+        FLOWLOCK_WRLOCK(f);
+
         /* check flow timeout based on lastts and state. Both can be
          * accessed w/o Flow lock as we do have the hash row lock (so flow
          * can't disappear) and flow_state is atomic. lastts can only
@@ -332,14 +357,13 @@ static void FlowManagerHashRowTimeout(FlowManagerTimeoutThread *td, Flow *f, SCT
 
         /* timeout logic goes here */
         if (FlowManagerFlowTimeout(f, ts, next_ts, emergency) == false) {
+            FLOWLOCK_UNLOCK(f);
             counters->flows_notimeout++;
 
             prev_f = f;
             f = f->next;
             continue;
         }
-
-        FLOWLOCK_WRLOCK(f);
 
         Flow *next_flow = f->next;
 
@@ -493,18 +517,19 @@ static uint32_t FlowTimeoutHash(FlowManagerTimeoutThread *td, SCTime_t ts, const
  *  \brief handle timeout for a slice of hash rows
  *         If we wrap around we call FlowTimeoutHash twice
  *  \param td FM timeout thread
- *  \param ts timeout in seconds
+ *  \param ts timeout timestamp
  *  \param hash_min lower bound of the row slice
  *  \param hash_max upper bound of the row slice
  *  \param counters Flow timeout counters to be passed
  *  \param rows number of rows for this worker unit
- *  \param pos position of the beginning of row slice in the hash table
+ *  \param pos absolute position of the beginning of row slice in the hash table
+ *  \param instance instance id of this FM
  *
  *  \retval number of successfully timed out flows
  */
 static uint32_t FlowTimeoutHashInChunks(FlowManagerTimeoutThread *td, SCTime_t ts,
         const uint32_t hash_min, const uint32_t hash_max, FlowTimeoutCounters *counters,
-        const uint32_t rows, uint32_t *pos)
+        const uint32_t rows, uint32_t *pos, const uint32_t instance)
 {
     uint32_t start = 0;
     uint32_t end = 0;
@@ -512,7 +537,7 @@ static uint32_t FlowTimeoutHashInChunks(FlowManagerTimeoutThread *td, SCTime_t t
     uint32_t rows_left = rows;
 
 again:
-    start = hash_min + (*pos);
+    start = (*pos);
     if (start >= hash_max) {
         start = hash_min;
     }
@@ -522,6 +547,9 @@ again:
     }
     *pos = (end == hash_max) ? hash_min : end;
     rows_left = rows_left - (end - start);
+
+    SCLogDebug("instance %u: %u:%u (hash_min %u, hash_max %u *pos %u)", instance, start, end,
+            hash_min, hash_max, *pos);
 
     cnt += FlowTimeoutHash(td, ts, start, end, counters);
     if (rows_left) {
@@ -793,13 +821,12 @@ static TmEcode FlowManager(ThreadVars *th_v, void *thread_data)
 
     uint32_t emerg_over_cnt = 0;
     uint64_t next_run_ms = 0;
-    uint32_t pos = 0;
+    uint32_t pos = ftd->min;
     uint32_t rows_sec = 0;
     uint32_t rows_per_wu = 0;
     uint64_t sleep_per_wu = 0;
     bool prev_emerg = false;
     uint32_t other_last_sec = 0; /**< last sec stamp when defrag etc ran */
-    SCTime_t ts;
 
     /* don't start our activities until time is setup */
     while (!TimeModeIsReady()) {
@@ -817,19 +844,15 @@ static TmEcode FlowManager(ThreadVars *th_v, void *thread_data)
     StatsSetUI64(th_v, ftd->cnt.flow_mgr_rows_sec, rows_sec);
 
     TmThreadsSetFlag(th_v, THV_RUNNING);
+    bool run = TmThreadsWaitForUnpause(th_v);
 
-    while (1)
-    {
-        if (TmThreadsCheckFlag(th_v, THV_PAUSE)) {
-            TmThreadsSetFlag(th_v, THV_PAUSED);
-            TmThreadTestThreadUnPaused(th_v);
-            TmThreadsUnsetFlag(th_v, THV_PAUSED);
-        }
-
+    while (run) {
         bool emerg = ((SC_ATOMIC_GET(flow_flags) & FLOW_EMERGENCY) != 0);
 
-        /* Get the time */
-        ts = TimeGet();
+        /* Get the time: real time in live mode, or a min() of the
+         * "active" threads in offline mode. See TmThreadsGetMinimalTimestamp */
+        SCTime_t ts = TimeGet();
+
         SCLogDebug("ts %" PRIdMAX "", (intmax_t)SCTIME_SECS(ts));
         uint64_t ts_ms = SCTIME_MSECS(ts);
         const bool emerge_p = (emerg && !prev_emerg);
@@ -863,8 +886,8 @@ static TmEcode FlowManager(ThreadVars *th_v, void *thread_data)
                         rows_per_wu);
 
                 const uint32_t ppos = pos;
-                FlowTimeoutHashInChunks(
-                        &ftd->timeout, ts, ftd->min, ftd->max, &counters, rows_per_wu, &pos);
+                FlowTimeoutHashInChunks(&ftd->timeout, ts, ftd->min, ftd->max, &counters,
+                        rows_per_wu, &pos, ftd->instance);
                 if (ppos > pos) {
                     StatsIncr(th_v, ftd->cnt.flow_mgr_full_pass);
                 }
@@ -931,9 +954,7 @@ static TmEcode FlowManager(ThreadVars *th_v, void *thread_data)
                 }
                 HostTimeoutHash(ts);
                 IPPairTimeoutHash(ts);
-                #if ENABLE_HTTP
                 HttpRangeContainersTimeoutHash(ts);
-                #endif
                 ThresholdsExpire(ts);
                 other_last_sec = (uint32_t)SCTIME_SECS(ts);
             }
@@ -1066,7 +1087,7 @@ static void Recycler(ThreadVars *tv, FlowRecyclerThreadData *ftd, Flow *f)
         StatsDecr(tv, ftd->counter_tcp_active_sessions);
     }
     StatsDecr(tv, ftd->counter_flow_active);
-
+    SCFlowRunFinishCallbacks(tv, f);
     FlowClearMemory(f, f->protomap);
     FLOWLOCK_UNLOCK(f);
 }
@@ -1084,14 +1105,9 @@ static TmEcode FlowRecycler(ThreadVars *th_v, void *thread_data)
     FlowQueuePrivate ret_queue = { NULL, NULL, 0 };
 
     TmThreadsSetFlag(th_v, THV_RUNNING);
+    bool run = TmThreadsWaitForUnpause(th_v);
 
-    while (1)
-    {
-        if (TmThreadsCheckFlag(th_v, THV_PAUSE)) {
-            TmThreadsSetFlag(th_v, THV_PAUSED);
-            TmThreadTestThreadUnPaused(th_v);
-            TmThreadsUnsetFlag(th_v, THV_PAUSED);
-        }
+    while (run) {
         SC_ATOMIC_ADD(flowrec_busy,1);
         FlowQueuePrivate list = FlowQueueExtractPrivate(&flow_recycle_q);
 

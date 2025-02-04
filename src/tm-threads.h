@@ -1,4 +1,4 @@
-/* Copyright (C) 2007-2011 Open Information Security Foundation
+/* Copyright (C) 2007-2024 Open Information Security Foundation
  *
  * You can copy, redistribute or modify this Program under the terms of
  * the GNU General Public License version 2 as published by the Free
@@ -108,7 +108,6 @@ void TmThreadSetPrio(ThreadVars *);
 int TmThreadGetNbThreads(uint8_t type);
 
 void TmThreadInitMC(ThreadVars *);
-void TmThreadTestThreadUnPaused(ThreadVars *);
 void TmThreadContinue(ThreadVars *);
 void TmThreadContinueThreads(void);
 void TmThreadCheckThreadState(void);
@@ -277,6 +276,8 @@ static inline void TmThreadsCaptureBreakLoop(ThreadVars *tv)
     }
 }
 
+void TmThreadsSealThreads(void);
+void TmThreadsUnsealThreads(void);
 void TmThreadsListThreads(void);
 int TmThreadsRegisterThread(ThreadVars *tv, const int type);
 void TmThreadsUnregisterThread(const int id);
@@ -285,7 +286,17 @@ void TmThreadsInjectFlowById(Flow *f, const int id);
 void TmThreadsInitThreadsTimestamp(const SCTime_t ts);
 void TmThreadsSetThreadTimestamp(const int id, const SCTime_t ts);
 void TmThreadsGetMinimalTimestamp(struct timeval *ts);
+SCTime_t TmThreadsGetThreadTime(const int idx);
 uint16_t TmThreadsGetWorkerThreadMax(void);
 bool TmThreadsTimeSubsysIsReady(void);
+
+/** \brief Wait for a thread to become unpaused.
+ *
+ * Check if a thread should wait to be unpaused and wait if so, or
+ * until the thread kill flag is set.
+ *
+ * \returns true if the thread was unpaused, false if killed.
+ */
+bool TmThreadsWaitForUnpause(ThreadVars *tv);
 
 #endif /* SURICATA_TM_THREADS_H */

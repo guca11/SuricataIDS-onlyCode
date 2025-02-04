@@ -23,8 +23,10 @@ use super::range;
 use crate::applayer::{self, *};
 use crate::conf::conf_get;
 use crate::core::*;
+use crate::direction::Direction;
 use crate::filecontainer::*;
 use crate::filetracker::*;
+use crate::flow::Flow;
 use crate::frames::Frame;
 
 use crate::dns::dns::{dns_parse_request, dns_parse_response, DNSTransaction};
@@ -368,9 +370,19 @@ impl HTTP2Transaction {
         if unsafe { ALPROTO_DOH2 } != ALPROTO_UNKNOWN {
             // we store DNS response, and process it when complete
             if let Some(doh) = &mut self.doh {
-                if doh.is_doh_data[dir.index()] && doh.data_buf[dir.index()].len() < 0xFFFF {
-                    // a DNS message is U16_MAX
-                    doh.data_buf[dir.index()].extend_from_slice(decompressed);
+                if doh.is_doh_data[dir.index()] {
+                    if doh.data_buf[dir.index()].len() + decompressed.len() <= 0xFFFF {
+                        // a DNS message is U16_MAX
+                        doh.data_buf[dir.index()].extend_from_slice(decompressed);
+                    } else {
+                        // stop processing further data
+                        doh.is_doh_data[dir.index()] = false;
+                        if dir == Direction::ToClient {
+                            self.set_event(HTTP2Event::DnsResponseTooLong);
+                        } else {
+                            self.set_event(HTTP2Event::DnsRequestTooLong);
+                        }
+                    }
                 }
             }
         }
@@ -498,7 +510,7 @@ pub enum HTTP2Event {
     ExtraHeaderData,
     LongFrameData,
     StreamIdReuse,
-    InvalidHTTP1Settings,
+    InvalidHttp1Settings,
     FailedDecompression,
     InvalidRange,
     HeaderIntegerOverflow,
@@ -506,6 +518,8 @@ pub enum HTTP2Event {
     AuthorityHostMismatch,
     UserinfoInUri,
     ReassemblyLimitReached,
+    DnsRequestTooLong,
+    DnsResponseTooLong,
 }
 
 pub struct HTTP2DynTable {
@@ -752,6 +766,8 @@ impl HTTP2State {
             let tx = &mut self.transactions[index - 1];
             tx.tx_data.update_file_flags(self.state_data.file_flags);
             tx.update_file_flags(tx.tx_data.file_flags);
+            tx.tx_data.updated_tc = true;
+            tx.tx_data.updated_ts = true;
             return Some(tx);
         } else {
             // do not use SETTINGS_MAX_CONCURRENT_STREAMS as it can grow too much
@@ -764,6 +780,8 @@ impl HTTP2State {
                     tx_old.set_event(HTTP2Event::TooManyStreams);
                     // use a distinct state, even if we do not log it
                     tx_old.state = HTTP2TransactionState::HTTP2StateTodrop;
+                    tx_old.tx_data.updated_tc = true;
+                    tx_old.tx_data.updated_ts = true;
                 }
                 return None;
             }
@@ -1371,8 +1389,8 @@ pub unsafe extern "C" fn SCDoH2GetDnsTx(
     std::ptr::null_mut()
 }
 
-export_tx_data_get!(rs_http2_get_tx_data, HTTP2Transaction);
-export_state_data_get!(rs_http2_get_state_data, HTTP2State);
+export_tx_data_get!(http2_get_tx_data, HTTP2Transaction);
+export_state_data_get!(http2_get_state_data, HTTP2State);
 
 /// C entry point for a probing parser.
 #[no_mangle]
@@ -1546,8 +1564,8 @@ pub unsafe extern "C" fn rs_http2_register_parser() {
         localstorage_free: None,
         get_tx_files: Some(rs_http2_getfiles),
         get_tx_iterator: Some(applayer::state_get_tx_iterator::<HTTP2State, HTTP2Transaction>),
-        get_tx_data: rs_http2_get_tx_data,
-        get_state_data: rs_http2_get_state_data,
+        get_tx_data: http2_get_tx_data,
+        get_state_data: http2_get_state_data,
         apply_tx_config: None,
         flags: 0,
         get_frame_id_by_name: Some(Http2FrameType::ffi_id_from_name),

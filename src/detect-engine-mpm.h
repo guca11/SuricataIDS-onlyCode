@@ -48,9 +48,6 @@ void PatternMatchThreadDestroy(MpmThreadCtx *mpm_thread_ctx, uint16_t);
 
 int PatternMatchPrepareGroup(DetectEngineCtx *, SigGroupHead *);
 
-TmEcode DetectEngineThreadCtxInit(ThreadVars *, void *, void **);
-TmEcode DetectEngineThreadCtxDeinit(ThreadVars *, void *);
-
 int SignatureHasPacketContent(const Signature *);
 int SignatureHasStreamContent(const Signature *);
 
@@ -116,8 +113,6 @@ void DetectEngineFrameMpmRegister(DetectEngineCtx *de_ctx, const char *name, int
                 const DetectBufferMpmRegistry *mpm_reg, int list_id),
         AppProto alproto, uint8_t type);
 
-int PrefilterGenericMpmPktRegister(DetectEngineCtx *de_ctx, SigGroupHead *sgh, MpmCtx *mpm_ctx,
-        const DetectBufferMpmRegistry *mpm_reg, int list_id);
 
 int PrefilterGenericMpmFrameRegister(DetectEngineCtx *de_ctx, SigGroupHead *sgh, MpmCtx *mpm_ctx,
         const DetectBufferMpmRegistry *mpm_reg, int list_id);

@@ -20,10 +20,12 @@ use super::parser;
 use crate::applayer::{self, *};
 use crate::conf::conf_get;
 use crate::core::{
-    AppProto, Direction, Flow, ALPROTO_FAILED, ALPROTO_UNKNOWN, IPPROTO_TCP, IPPROTO_UDP,
+    AppProto, ALPROTO_FAILED, ALPROTO_UNKNOWN, IPPROTO_TCP, IPPROTO_UDP,
     STREAM_TOCLIENT, STREAM_TOSERVER,
 };
 use crate::detect::EnumString;
+use crate::direction::Direction;
+use crate::flow::Flow;
 use crate::frames::Frame;
 use nom7 as nom;
 use std;
@@ -203,6 +205,8 @@ impl EnipState {
     fn purge_tx_flood(&mut self) {
         let mut event_set = false;
         for tx in self.transactions.iter_mut() {
+            tx.tx_data.updated_tc = true;
+            tx.tx_data.updated_ts = true;
             tx.done = true;
             if !event_set {
                 tx.tx_data.set_event(EnipEvent::TooManyTransactions as u8);
@@ -216,6 +220,8 @@ impl EnipState {
             if let Some(req) = &tx.request {
                 if tx.response.is_none() {
                     tx.done = true;
+                    tx.tx_data.updated_tc = true;
+                    tx.tx_data.updated_ts = true;
                     if response_matches_request(req, pdu) {
                         return Some(tx);
                     }
@@ -574,8 +580,8 @@ pub enum EnipFrameType {
     EnipItem,
 }
 
-export_tx_data_get!(rs_enip_get_tx_data, EnipTransaction);
-export_state_data_get!(SCEnipTxGetState_data, EnipState);
+export_tx_data_get!(enip_get_tx_data, EnipTransaction);
+export_state_data_get!(enip_tx_get_state_data, EnipState);
 
 // Parser name as a C style string.
 const PARSER_NAME: &[u8] = b"enip\0";
@@ -607,8 +613,8 @@ pub unsafe extern "C" fn SCEnipRegisterParsers() {
         localstorage_free: None,
         get_tx_files: None,
         get_tx_iterator: Some(applayer::state_get_tx_iterator::<EnipState, EnipTransaction>),
-        get_tx_data: rs_enip_get_tx_data,
-        get_state_data: SCEnipTxGetState_data,
+        get_tx_data: enip_get_tx_data,
+        get_state_data: enip_tx_get_state_data,
         apply_tx_config: None,
         flags: 0,
         get_frame_id_by_name: Some(EnipFrameType::ffi_id_from_name),

@@ -609,8 +609,7 @@ void TmModuleDecodeAFPRegister (void)
     tmm_modules[TMM_DECODEAFP].flags = TM_FLAG_DECODE_TM;
 }
 
-
-static int AFPCreateSocket(AFPThreadVars *ptv, char *devname, int verbose);
+static int AFPCreateSocket(AFPThreadVars *ptv, char *devname, int verbose, const bool peer_update);
 
 static inline void AFPDumpCounters(AFPThreadVars *ptv)
 {
@@ -1290,7 +1289,7 @@ static int AFPTryReopen(AFPThreadVars *ptv)
     /* ref cnt 0, we can close the old socket */
     AFPCloseSocket(ptv);
 
-    int afp_activate_r = AFPCreateSocket(ptv, ptv->iface, 0);
+    int afp_activate_r = AFPCreateSocket(ptv, ptv->iface, 0, false);
     if (afp_activate_r != 0) {
         if (ptv->down_count % AFP_DOWN_COUNTER_INTERVAL == 0) {
             SCLogWarning("%s: can't reopen interface", ptv->iface);
@@ -1334,7 +1333,7 @@ TmEcode ReceiveAFPLoop(ThreadVars *tv, void *data, void *slot)
                 break;
             }
         }
-        r = AFPCreateSocket(ptv, ptv->iface, 1);
+        r = AFPCreateSocket(ptv, ptv->iface, 1, true);
         if (r < 0) {
             switch (-r) {
                 case AFP_FATAL_ERROR:
@@ -1345,7 +1344,6 @@ TmEcode ReceiveAFPLoop(ThreadVars *tv, void *data, void *slot)
                             "%s: failed to init socket for interface, retrying soon", ptv->iface);
             }
         }
-        AFPPeersListReachedInc();
     }
     if (ptv->afp_state == AFP_STATE_UP) {
         SCLogDebug("Thread %s using socket %d", tv->name, ptv->socket);
@@ -1521,13 +1519,9 @@ static int AFPGetDevLinktype(int fd, const char *ifname)
     switch (ifr.ifr_hwaddr.sa_family) {
         case ARPHRD_LOOPBACK:
             return LINKTYPE_ETHERNET;
-        #if ENABLE_PPP
         case ARPHRD_PPP:
-        #endif
-#if ENABLE_RAW
         case ARPHRD_NONE:
             return LINKTYPE_RAW;
-#endif
         default:
             return ifr.ifr_hwaddr.sa_family;
     }
@@ -1540,11 +1534,7 @@ int AFPGetLinkType(const char *ifname)
     int fd = socket(AF_PACKET, SOCK_RAW, htons(ETH_P_ALL));
     if (fd == -1) {
         SCLogError("%s: failed to create AF_PACKET socket: %s", ifname, strerror(errno));
-#if ENABLE_RAW
         return LINKTYPE_RAW;
-#else
-	return -1;
-#endif
     }
 
     ltype =  AFPGetDevLinktype(fd, ifname);
@@ -1877,7 +1867,8 @@ static int SetEbpfFilter(AFPThreadVars *ptv)
 }
 #endif
 
-static int AFPCreateSocket(AFPThreadVars *ptv, char *devname, int verbose)
+/** \param peer_update increment peers reached */
+static int AFPCreateSocket(AFPThreadVars *ptv, char *devname, int verbose, const bool peer_update)
 {
     int r;
     int ret = AFP_FATAL_ERROR;
@@ -2002,7 +1993,10 @@ static int AFPCreateSocket(AFPThreadVars *ptv, char *devname, int verbose)
         }
     }
 #endif
-
+    /* bind() done, allow next thread to continue */
+    if (peer_update) {
+        AFPPeersListReachedInc();
+    }
     ret = AFPSetupRing(ptv, devname);
     if (ret != 0)
         goto socket_err;
@@ -2722,9 +2716,7 @@ TmEcode DecodeAFP(ThreadVars *tv, Packet *p, void *data)
     DecodeLinkLayer(tv, dtv, p->datalink, p, GET_PKT_DATA(p), GET_PKT_LEN(p));
     /* post-decoding put vlan hdr back into the raw data) */
     if (afp_vlan_hdr) {
-        #if ENABLE_VLAN
         StatsIncr(tv, dtv->counter_vlan);
-        #endif
         UpdateRawDataForVLANHdr(p);
     }
 

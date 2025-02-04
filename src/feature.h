@@ -26,10 +26,9 @@
 
 /* Provided feature names */
 #define FEATURE_OUTPUT_FILESTORE    "output::file-store"
-#if ENABLE_TLS
 #define FEATURE_JA3                 "ja3"
 #define FEATURE_JA4                 "ja4"
-#endif
+
 void ProvidesFeature(const char *);
 bool RequiresFeature(const char *);
 

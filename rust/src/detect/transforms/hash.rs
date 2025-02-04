@@ -35,11 +35,10 @@ static mut G_TRANSFORM_SHA256_ID: c_int = 0;
 
 const SC_MD5_LEN: usize = 16;
 
-#[no_mangle]
 unsafe extern "C" fn md5_setup(
     _de: *mut c_void, s: *mut c_void, _raw: *const std::os::raw::c_char,
 ) -> c_int {
-    if unsafe { G_DISABLE_HASHING } {
+    if G_DISABLE_HASHING {
         SCLogError!("MD5 hashing has been disabled, needed for to_md5 keyword");
         return -1;
     }
@@ -50,7 +49,6 @@ fn md5_transform_do(input: &[u8], output: &mut [u8]) {
     Md5::new().chain(input).finalize_into(output.into());
 }
 
-#[no_mangle]
 unsafe extern "C" fn md5_transform(buffer: *mut c_void, _ctx: *mut c_void) {
     let input = InspectionBufferPtr(buffer);
     let input_len = InspectionBufferLength(buffer);
@@ -83,19 +81,16 @@ pub unsafe extern "C" fn DetectTransformMd5Register() {
         Free: None,
         TransformValidate: None,
     };
-    unsafe {
-        G_TRANSFORM_MD5_ID = DetectHelperTransformRegister(&kw);
-        if G_TRANSFORM_MD5_ID < 0 {
-            SCLogWarning!("Failed registering transform md5");
-        }
+    G_TRANSFORM_MD5_ID = DetectHelperTransformRegister(&kw);
+    if G_TRANSFORM_MD5_ID < 0 {
+        SCLogWarning!("Failed registering transform md5");
     }
 }
 
-#[no_mangle]
 unsafe extern "C" fn sha1_setup(
     _de: *mut c_void, s: *mut c_void, _raw: *const std::os::raw::c_char,
 ) -> c_int {
-    if unsafe { G_DISABLE_HASHING } {
+    if G_DISABLE_HASHING {
         SCLogError!("SHA1 hashing has been disabled, needed for to_sha1 keyword");
         return -1;
     }
@@ -106,7 +101,6 @@ fn sha1_transform_do(input: &[u8], output: &mut [u8]) {
     Sha1::new().chain(input).finalize_into(output.into());
 }
 
-#[no_mangle]
 unsafe extern "C" fn sha1_transform(buffer: *mut c_void, _ctx: *mut c_void) {
     let input = InspectionBufferPtr(buffer);
     let input_len = InspectionBufferLength(buffer);
@@ -139,19 +133,16 @@ pub unsafe extern "C" fn DetectTransformSha1Register() {
         Free: None,
         TransformValidate: None,
     };
-    unsafe {
-        G_TRANSFORM_SHA1_ID = DetectHelperTransformRegister(&kw);
-        if G_TRANSFORM_SHA1_ID < 0 {
-            SCLogWarning!("Failed registering transform sha1");
-        }
+    G_TRANSFORM_SHA1_ID = DetectHelperTransformRegister(&kw);
+    if G_TRANSFORM_SHA1_ID < 0 {
+        SCLogWarning!("Failed registering transform sha1");
     }
 }
 
-#[no_mangle]
 unsafe extern "C" fn sha256_setup(
     _de: *mut c_void, s: *mut c_void, _raw: *const std::os::raw::c_char,
 ) -> c_int {
-    if unsafe { G_DISABLE_HASHING } {
+    if G_DISABLE_HASHING {
         SCLogError!("SHA256 hashing has been disabled, needed for to_sha256 keyword");
         return -1;
     }
@@ -162,7 +153,6 @@ fn sha256_transform_do(input: &[u8], output: &mut [u8]) {
     Sha256::new().chain(input).finalize_into(output.into());
 }
 
-#[no_mangle]
 unsafe extern "C" fn sha256_transform(buffer: *mut c_void, _ctx: *mut c_void) {
     let input = InspectionBufferPtr(buffer);
     let input_len = InspectionBufferLength(buffer);
@@ -195,11 +185,9 @@ pub unsafe extern "C" fn DetectTransformSha256Register() {
         Free: None,
         TransformValidate: None,
     };
-    unsafe {
-        G_TRANSFORM_SHA256_ID = DetectHelperTransformRegister(&kw);
-        if G_TRANSFORM_SHA256_ID < 0 {
-            SCLogWarning!("Failed registering transform sha256");
-        }
+    G_TRANSFORM_SHA256_ID = DetectHelperTransformRegister(&kw);
+    if G_TRANSFORM_SHA256_ID < 0 {
+        SCLogWarning!("Failed registering transform sha256");
     }
 }
 

@@ -21,7 +21,9 @@
 use super::parser;
 use crate::applayer;
 use crate::applayer::*;
-use crate::core::{AppProto, Flow, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use crate::core::{AppProto, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use crate::direction::Direction;
+use crate::flow::Flow;
 use crate::frames::*;
 use nom7::Err;
 use std;
@@ -166,7 +168,13 @@ impl RFBState {
 
     fn get_current_tx(&mut self) -> Option<&mut RFBTransaction> {
         let tx_id = self.tx_id;
-        self.transactions.iter_mut().find(|tx| tx.tx_id == tx_id)
+        let r = self.transactions.iter_mut().find(|tx| tx.tx_id == tx_id);
+        if let Some(tx) = r {
+            tx.tx_data.updated_tc = true;
+            tx.tx_data.updated_ts = true;
+            return Some(tx);
+        }
+        return None;
     }
 
     fn parse_request(&mut self, flow: *const Flow, stream_slice: StreamSlice) -> AppLayerResult {
@@ -828,8 +836,8 @@ pub unsafe extern "C" fn rs_rfb_tx_get_alstate_progress(
 // Parser name as a C style string.
 const PARSER_NAME: &[u8] = b"rfb\0";
 
-export_tx_data_get!(rs_rfb_get_tx_data, RFBTransaction);
-export_state_data_get!(rs_rfb_get_state_data, RFBState);
+export_tx_data_get!(rfb_get_tx_data, RFBTransaction);
+export_state_data_get!(rfb_get_state_data, RFBState);
 
 #[no_mangle]
 pub unsafe extern "C" fn SCRfbRegisterParser() {
@@ -857,8 +865,8 @@ pub unsafe extern "C" fn SCRfbRegisterParser() {
         localstorage_free: None,
         get_tx_files: None,
         get_tx_iterator: Some(applayer::state_get_tx_iterator::<RFBState, RFBTransaction>),
-        get_tx_data: rs_rfb_get_tx_data,
-        get_state_data: rs_rfb_get_state_data,
+        get_tx_data: rfb_get_tx_data,
+        get_state_data: rfb_get_state_data,
         apply_tx_config: None,
         flags: 0,
         get_frame_id_by_name: Some(RFBFrameType::ffi_id_from_name),
@@ -881,7 +889,7 @@ pub unsafe extern "C" fn SCRfbRegisterParser() {
             b"RFB \0".as_ptr() as *const c_char,
             b"RFB ".len() as u16,
             0,
-            crate::core::Direction::ToServer.into(),
+            Direction::ToServer.into(),
         ) < 0
         {
             SCLogDebug!("Failed to register protocol detection pattern for direction TOSERVER");
@@ -892,7 +900,7 @@ pub unsafe extern "C" fn SCRfbRegisterParser() {
             b"RFB \0".as_ptr() as *const c_char,
             b"RFB ".len() as u16,
             0,
-            crate::core::Direction::ToClient.into(),
+            Direction::ToClient.into(),
         ) < 0
         {
             SCLogDebug!("Failed to register protocol detection pattern for direction TOCLIENT");

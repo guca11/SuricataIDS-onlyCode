@@ -24,123 +24,22 @@
 
 #include "suricata-common.h"
 #include "app-layer-protos.h"
+#include "rust.h"
+
+AppProto g_alproto_max = ALPROTO_MAX_STATIC;
+#define ARRAY_CAP_STEP 16
+AppProto g_alproto_strings_cap = ALPROTO_MAX_STATIC;
 
 typedef struct AppProtoStringTuple {
     AppProto alproto;
     const char *str;
 } AppProtoStringTuple;
 
-const AppProtoStringTuple AppProtoStrings[ALPROTO_MAX] = {
-    { ALPROTO_UNKNOWN, "unknown" },
-#if ENABLE_HTTP
-    { ALPROTO_HTTP, "http" },
-    { ALPROTO_HTTP1, "http1" },
-    { ALPROTO_HTTP2, "http2" },    
-#endif
-#if ENABLE_FTP    
-    { ALPROTO_FTP, "ftp" },
-    { ALPROTO_FTPDATA, "ftp-data" },
-#endif
-#if ENABLE_SMTP
-    { ALPROTO_SMTP, "smtp" },
-#endif
-#if ENABLE_TLS
-    { ALPROTO_TLS, "tls" },
-#endif
-#if ENABLE_SSH    
-    { ALPROTO_SSH, "ssh" },
-#endif
-#if ENABLE_IMAP
-    { ALPROTO_IMAP, "imap" },
-#endif
-    { ALPROTO_JABBER, "jabber" },
-#if ENABLE_SMB    
-    { ALPROTO_SMB, "smb" },
-#endif
-#if ENABLE_DCERPC
-    { ALPROTO_DCERPC, "dcerpc" },
-#endif
-    { ALPROTO_IRC, "irc" },
-#if ENABLE_DNS    
-    { ALPROTO_DNS, "dns" },
-#endif
-#if ENABLE_MODBUS
-    { ALPROTO_MODBUS, "modbus" },
-#endif
-#if ENABLE_ENIP
-    { ALPROTO_ENIP, "enip" },
-#endif
-#if ENABLE_DNP3
-    { ALPROTO_DNP3, "dnp3" },
-#endif
-#if ENABLE_NFS
-    { ALPROTO_NFS, "nfs" },
-#endif
-#if ENABLE_NTP
-    { ALPROTO_NTP, "ntp" },
-#endif
-#if ENABLE_TFTP
-    { ALPROTO_TFTP, "tftp" },
-#endif
-#if ENABLE_IKE
-    { ALPROTO_IKE, "ike" },
-#endif
-#if ENABLE_KRB5
-    { ALPROTO_KRB5, "krb5" },
-#endif
-#if ENABLE_QUIC
-    { ALPROTO_QUIC, "quic" },
-#endif
-#if ENABLE_DHCP
-    { ALPROTO_DHCP, "dhcp" },
-#endif
-#if ENABLE_SNMP    
-    { ALPROTO_SNMP, "snmp" },
-#endif
-#if ENABLE_SIP
-    { ALPROTO_SIP, "sip" },
-#endif
-#if ENABLE_RFB
-    { ALPROTO_RFB, "rfb" },
-#endif
-#if ENABLE_MQTT
-    { ALPROTO_MQTT, "mqtt" },
-#endif
-#if ENABLE_PGSQL
-    { ALPROTO_PGSQL, "pgsql" },
-#endif
-#if ENABLE_TELNET
-    { ALPROTO_TELNET, "telnet" },
-#endif
-#if ENABLE_WEBSOCKET
-    { ALPROTO_WEBSOCKET, "websocket" },
-#endif
-#if ENABLE_LDAP    
-    { ALPROTO_LDAP, "ldap" },
-#endif
-#if ENABLE_DNS && ENABLE_HTTP
-    { ALPROTO_DOH2, "doh2" },
-#endif
-    { ALPROTO_TEMPLATE, "template" },
-#if ENABLE_RDP
-    { ALPROTO_RDP, "rdp" },
-#endif
-#if ENABLE_BITTORRENT    
-    { ALPROTO_BITTORRENT_DHT, "bittorrent-dht" },
-#endif
-#if ENABLE_POP3
-    { ALPROTO_POP3, "pop3" },
-#endif
-    { ALPROTO_FAILED, "failed" },
-#ifdef UNITTESTS
-    { ALPROTO_TEST, "test" },
-#endif
-};
+AppProtoStringTuple *g_alproto_strings = NULL;
 
 const char *AppProtoToString(AppProto alproto)
 {
     const char *proto_name = NULL;
-    #if ENABLE_HTTP
     switch (alproto) {
         // special cases
         case ALPROTO_HTTP1:
@@ -150,17 +49,11 @@ const char *AppProtoToString(AppProto alproto)
             proto_name = "http_any";
             break;
         default:
-            if (alproto < ARRAY_SIZE(AppProtoStrings)) {
-                BUG_ON(AppProtoStrings[alproto].alproto != alproto);
-                proto_name = AppProtoStrings[alproto].str;
+            if (alproto < g_alproto_max) {
+                BUG_ON(g_alproto_strings[alproto].alproto != alproto);
+                proto_name = g_alproto_strings[alproto].str;
             }
     }
-    #else
-    if (alproto < ARRAY_SIZE(AppProtoStrings)) {
-    	BUG_ON(AppProtoStrings[alproto].alproto != alproto);
-        proto_name = AppProtoStrings[alproto].str;
-    }
-    #endif
     return proto_name;
 }
 
@@ -170,10 +63,35 @@ AppProto StringToAppProto(const char *proto_name)
         return ALPROTO_UNKNOWN;
 
     // We could use a Multi Pattern Matcher
-    for (size_t i = 0; i < ARRAY_SIZE(AppProtoStrings); i++) {
-        if (strcmp(proto_name, AppProtoStrings[i].str) == 0)
-            return AppProtoStrings[i].alproto;
+    for (size_t i = 0; i < g_alproto_max; i++) {
+        if (strcmp(proto_name, g_alproto_strings[i].str) == 0)
+            return g_alproto_strings[i].alproto;
     }
 
     return ALPROTO_UNKNOWN;
+}
+
+void AppProtoRegisterProtoString(AppProto alproto, const char *proto_name)
+{
+    if (alproto < ALPROTO_MAX_STATIC) {
+        if (g_alproto_strings == NULL) {
+            g_alproto_strings = SCCalloc(g_alproto_strings_cap, sizeof(AppProtoStringTuple));
+            if (g_alproto_strings == NULL) {
+                FatalError("Unable to allocate g_alproto_strings");
+            }
+        }
+    } else if (alproto == g_alproto_max) {
+        if (g_alproto_max == g_alproto_strings_cap) {
+            void *tmp = SCRealloc(g_alproto_strings,
+                    sizeof(AppProtoStringTuple) * (g_alproto_strings_cap + ARRAY_CAP_STEP));
+            if (tmp == NULL) {
+                FatalError("Unable to reallocate g_alproto_strings");
+            }
+            g_alproto_strings_cap += ARRAY_CAP_STEP;
+            g_alproto_strings = tmp;
+        }
+        g_alproto_max++;
+    }
+    g_alproto_strings[alproto].str = proto_name;
+    g_alproto_strings[alproto].alproto = alproto;
 }

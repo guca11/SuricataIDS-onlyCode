@@ -17,6 +17,8 @@
 
 // written by Pierre Chifflier  <chifflier@wzdftpd.net>
 
+use crate::direction::Direction;
+use crate::flow::Flow;
 use crate::snmp::snmp_parser::*;
 use crate::core::{self, *};
 use crate::applayer::{self, *};
@@ -82,7 +84,7 @@ pub struct SNMPTransaction<'a> {
     tx_data: applayer::AppLayerTxData,
 }
 
-impl<'a> Transaction for SNMPTransaction<'a> {
+impl Transaction for SNMPTransaction<'_> {
     fn id(&self) -> u64 {
         self.id
     }
@@ -265,7 +267,7 @@ pub extern "C" fn rs_snmp_state_free(state: *mut std::os::raw::c_void) {
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rs_snmp_parse_request(_flow: *const core::Flow,
+pub unsafe extern "C" fn rs_snmp_parse_request(_flow: *const Flow,
                                        state: *mut std::os::raw::c_void,
                                        _pstate: *mut std::os::raw::c_void,
                                        stream_slice: StreamSlice,
@@ -276,7 +278,7 @@ pub unsafe extern "C" fn rs_snmp_parse_request(_flow: *const core::Flow,
 }
 
 #[no_mangle]
-pub unsafe extern "C" fn rs_snmp_parse_response(_flow: *const core::Flow,
+pub unsafe extern "C" fn rs_snmp_parse_response(_flow: *const Flow,
                                        state: *mut std::os::raw::c_void,
                                        _pstate: *mut std::os::raw::c_void,
                                        stream_slice: StreamSlice,
@@ -370,8 +372,8 @@ pub unsafe extern "C" fn rs_snmp_probing_parser(_flow: *const Flow,
     }
 }
 
-export_tx_data_get!(rs_snmp_get_tx_data, SNMPTransaction);
-export_state_data_get!(rs_snmp_get_state_data, SNMPState);
+export_tx_data_get!(snmp_get_tx_data, SNMPTransaction);
+export_state_data_get!(snmp_get_state_data, SNMPState);
 
 const PARSER_NAME : &[u8] = b"snmp\0";
 
@@ -402,8 +404,8 @@ pub unsafe extern "C" fn rs_register_snmp_parser() {
         localstorage_free  : None,
         get_tx_files       : None,
         get_tx_iterator    : Some(applayer::state_get_tx_iterator::<SNMPState, SNMPTransaction>),
-        get_tx_data        : rs_snmp_get_tx_data,
-        get_state_data     : rs_snmp_get_state_data,
+        get_tx_data        : snmp_get_tx_data,
+        get_state_data     : snmp_get_state_data,
         apply_tx_config    : None,
         flags              : 0,
         get_frame_id_by_name: None,

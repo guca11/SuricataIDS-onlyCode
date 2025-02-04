@@ -70,9 +70,8 @@ static int DetectLuaSetup (DetectEngineCtx *, Signature *, const char *);
 static void DetectLuaRegisterTests(void);
 #endif
 static void DetectLuaFree(DetectEngineCtx *, void *);
-#if ENABLE_SMTP
 static int g_smtp_generic_list_id = 0;
-#endif
+
 /**
  * \brief Registration function for keyword: lua
  */
@@ -88,13 +87,13 @@ void DetectLuaRegister(void)
 #ifdef UNITTESTS
     sigmatch_table[DETECT_LUA].RegisterTests = DetectLuaRegisterTests;
 #endif
-#if ENABLE_SMTP
     g_smtp_generic_list_id = DetectBufferTypeRegister("smtp_generic");
+
     DetectAppLayerInspectEngineRegister("smtp_generic", ALPROTO_SMTP, SIG_FLAG_TOSERVER, 0,
             DetectEngineInspectGenericList, NULL);
     DetectAppLayerInspectEngineRegister("smtp_generic", ALPROTO_SMTP, SIG_FLAG_TOCLIENT, 0,
             DetectEngineInspectGenericList, NULL);
-#endif
+
     SCLogDebug("registering lua rule option");
 }
 
@@ -114,23 +113,13 @@ void DetectLuaRegister(void)
 #define FLAG_DATATYPE_HTTP_RESPONSE_BODY        BIT_U32(12)
 #define FLAG_DATATYPE_HTTP_RESPONSE_HEADERS     BIT_U32(13)
 #define FLAG_DATATYPE_HTTP_RESPONSE_HEADERS_RAW BIT_U32(14)
-#if ENABLE_DNS
 #define FLAG_DATATYPE_DNS_RRNAME                BIT_U32(15)
 #define FLAG_DATATYPE_DNS_REQUEST               BIT_U32(16)
 #define FLAG_DATATYPE_DNS_RESPONSE              BIT_U32(17)
-#endif
-#if ENABLE_TLS
 #define FLAG_DATATYPE_TLS                       BIT_U32(18)
-#endif
-#if ENABLE_SSH
 #define FLAG_DATATYPE_SSH                       BIT_U32(19)
-#endif
-#if ENABLE_SMTP
 #define FLAG_DATATYPE_SMTP                      BIT_U32(20)
-#endif
-#if ENABLE_DNP3
 #define FLAG_DATATYPE_DNP3                      BIT_U32(21)
-#endif
 #define FLAG_DATATYPE_BUFFER                    BIT_U32(22)
 #define FLAG_ERROR_LOGGED                       BIT_U32(23)
 #define FLAG_BLOCKED_FUNCTION_LOGGED            BIT_U32(24)
@@ -140,20 +129,19 @@ void DetectLuaRegister(void)
 #define DEFAULT_LUA_ALLOC_LIMIT       500000
 #define DEFAULT_LUA_INSTRUCTION_LIMIT 500000
 
-#if 0
 /** \brief dump stack from lua state to screen */
-void LuaDumpStack(lua_State *state)
+void LuaDumpStack(lua_State *state, const char *prefix)
 {
     int size = lua_gettop(state);
-    int i;
+    printf("%s: size %d\n", prefix, size);
 
-    for (i = 1; i <= size; i++) {
+    for (int i = 1; i <= size; i++) {
         int type = lua_type(state, i);
-        printf("Stack size=%d, level=%d, type=%d, ", size, i, type);
+        printf("- %s: Stack size=%d, level=%d, type=%d, ", prefix, size, i, type);
 
         switch (type) {
             case LUA_TFUNCTION:
-                printf("function %s", lua_tostring(state, i) ? "true" : "false");
+                printf("function %s", lua_tostring(state, i));
                 break;
             case LUA_TBOOLEAN:
                 printf("bool %s", lua_toboolean(state, i) ? "true" : "false");
@@ -175,7 +163,6 @@ void LuaDumpStack(lua_State *state)
         printf("\n");
     }
 }
-#endif
 
 /**
  * \brief Common function to run the Lua match function and process
@@ -377,7 +364,6 @@ static int DetectLuaMatch (DetectEngineThreadCtx *det_ctx,
         LuaPushStringBuffer (tlua->luastate, (const uint8_t *)GET_PKT_DATA(p), (size_t)GET_PKT_LEN(p)); /* stack at -3 */
         lua_settable(tlua->luastate, -3);
     }
-    #if ENABLE_HTTP
     if (tlua->alproto == ALPROTO_HTTP1) {
         HtpState *htp_state = p->flow->alstate;
         if (htp_state != NULL && htp_state->connp != NULL) {
@@ -390,18 +376,18 @@ static int DetectLuaMatch (DetectEngineThreadCtx *det_ctx,
                 if (tx == NULL)
                     continue;
 
-                if ((tlua->flags & FLAG_DATATYPE_HTTP_REQUEST_LINE) && tx->request_line != NULL &&
-                        bstr_len(tx->request_line) > 0) {
+                if ((tlua->flags & FLAG_DATATYPE_HTTP_REQUEST_LINE) &&
+                        htp_tx_request_line(tx) != NULL && bstr_len(htp_tx_request_line(tx)) > 0) {
                     lua_pushliteral(tlua->luastate, "http.request_line"); /* stack at -2 */
                     LuaPushStringBuffer(tlua->luastate,
-                                     (const uint8_t *)bstr_ptr(tx->request_line),
-                                     bstr_len(tx->request_line));
+                            (const uint8_t *)bstr_ptr(htp_tx_request_line(tx)),
+                            bstr_len(htp_tx_request_line(tx)));
                     lua_settable(tlua->luastate, -3);
                 }
             }
         }
     }
-    #endif
+
     SCReturnInt(DetectLuaRunMatch(det_ctx, lua, tlua));
 }
 
@@ -430,25 +416,24 @@ static int DetectLuaAppMatchCommon (DetectEngineThreadCtx *det_ctx,
     lua_getglobal(tlua->luastate, "match");
     lua_newtable(tlua->luastate); /* stack at -1 */
 
-    #if ENABLE_HTTP
     if (tlua->alproto == ALPROTO_HTTP1) {
         HtpState *htp_state = state;
         if (htp_state != NULL && htp_state->connp != NULL) {
             htp_tx_t *tx = NULL;
             tx = AppLayerParserGetTx(IPPROTO_TCP, ALPROTO_HTTP1, htp_state, det_ctx->tx_id);
             if (tx != NULL) {
-                if ((tlua->flags & FLAG_DATATYPE_HTTP_REQUEST_LINE) && tx->request_line != NULL &&
-                        bstr_len(tx->request_line) > 0) {
+                if ((tlua->flags & FLAG_DATATYPE_HTTP_REQUEST_LINE) &&
+                        htp_tx_request_line(tx) != NULL && bstr_len(htp_tx_request_line(tx)) > 0) {
                     lua_pushliteral(tlua->luastate, "http.request_line"); /* stack at -2 */
                     LuaPushStringBuffer(tlua->luastate,
-                                     (const uint8_t *)bstr_ptr(tx->request_line),
-                                     bstr_len(tx->request_line));
+                            (const uint8_t *)bstr_ptr(htp_tx_request_line(tx)),
+                            bstr_len(htp_tx_request_line(tx)));
                     lua_settable(tlua->luastate, -3);
                 }
             }
         }
     }
-    #endif
+
     SCReturnInt(DetectLuaRunMatch(det_ctx, lua, tlua));
 }
 
@@ -536,6 +521,18 @@ static void *DetectLuaThreadInit(void *data)
     if (lua_pcall(t->luastate, 0, 0, 0) != 0) {
         SCLogError("couldn't prime file: %s", lua_tostring(t->luastate, -1));
         goto error;
+    }
+
+    /* thread_init call */
+    lua_getglobal(t->luastate, "thread_init");
+    if (lua_isfunction(t->luastate, -1)) {
+        if (lua_pcall(t->luastate, 0, 0, 0) != 0) {
+            SCLogError("couldn't run script 'thread_init' function: %s",
+                    lua_tostring(t->luastate, -1));
+            goto error;
+        }
+    } else {
+        lua_pop(t->luastate, 1);
     }
 
     return (void *)t;
@@ -772,9 +769,7 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
                 goto error;
             }
 
-        }
-        #if ENABLE_HTTP
-        else if (strncmp(k, "http", 4) == 0 && strcmp(v, "true") == 0) {
+        } else if (strncmp(k, "http", 4) == 0 && strcmp(v, "true") == 0) {
             if (ld->alproto != ALPROTO_UNKNOWN && ld->alproto != ALPROTO_HTTP1) {
                 SCLogError(
                         "can just inspect script against one app layer proto like HTTP at a time");
@@ -834,10 +829,7 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
                 SCLogError("alloc error");
                 goto error;
             }
-        }
-        #endif
-        #if ENABLE_DNS
-        else if (strncmp(k, "dns", 3) == 0 && strcmp(v, "true") == 0) {
+        } else if (strncmp(k, "dns", 3) == 0 && strcmp(v, "true") == 0) {
 
             ld->alproto = ALPROTO_DNS;
 
@@ -857,45 +849,31 @@ static int DetectLuaSetupPrime(DetectEngineCtx *de_ctx, DetectLuaData *ld, const
                 SCLogError("alloc error");
                 goto error;
             }
-        } 
-        #endif
-        #if ENABLE_TLS
-        else if (strncmp(k, "tls", 3) == 0 && strcmp(v, "true") == 0) {
+        } else if (strncmp(k, "tls", 3) == 0 && strcmp(v, "true") == 0) {
 
             ld->alproto = ALPROTO_TLS;
 
             ld->flags |= FLAG_DATATYPE_TLS;
 
-        }
-        #endif
-        #if ENABLE_SSH
-        else if (strncmp(k, "ssh", 3) == 0 && strcmp(v, "true") == 0) {
+        } else if (strncmp(k, "ssh", 3) == 0 && strcmp(v, "true") == 0) {
 
             ld->alproto = ALPROTO_SSH;
 
             ld->flags |= FLAG_DATATYPE_SSH;
 
-        }
-        #endif
-        #if ENABLE_SMTP
-        else if (strncmp(k, "smtp", 4) == 0 && strcmp(v, "true") == 0) {
+        } else if (strncmp(k, "smtp", 4) == 0 && strcmp(v, "true") == 0) {
 
             ld->alproto = ALPROTO_SMTP;
 
             ld->flags |= FLAG_DATATYPE_SMTP;
 
-        }
-        #endif
-        #if ENABLE_DNP3
-        else if (strncmp(k, "dnp3", 4) == 0 && strcmp(v, "true") == 0) {
+        } else if (strncmp(k, "dnp3", 4) == 0 && strcmp(v, "true") == 0) {
 
             ld->alproto = ALPROTO_DNP3;
 
             ld->flags |= FLAG_DATATYPE_DNP3;
 
-        }
-        #endif
-        else {
+        } else {
             SCLogError("unsupported data type %s", k);
             goto error;
         }
@@ -986,9 +964,7 @@ static int DetectLuaSetup (DetectEngineCtx *de_ctx, Signature *s, const char *st
                 list = DETECT_SM_LIST_MATCH;
         }
 
-    }
-    #if ENABLE_HTTP
-    else if (lua->alproto == ALPROTO_HTTP1) {
+    } else if (lua->alproto == ALPROTO_HTTP1) {
         if (lua->flags & FLAG_DATATYPE_HTTP_RESPONSE_BODY) {
             list = DetectBufferTypeGetByName("file_data");
         } else if (lua->flags & FLAG_DATATYPE_HTTP_REQUEST_BODY) {
@@ -1011,10 +987,7 @@ static int DetectLuaSetup (DetectEngineCtx *de_ctx, Signature *s, const char *st
         } else {
             list = DetectBufferTypeGetByName("http_request_line");
         }
-    }
-    #endif 
-    #if ENABLE_DNS
-    else if (lua->alproto == ALPROTO_DNS) {
+    } else if (lua->alproto == ALPROTO_DNS) {
         if (lua->flags & FLAG_DATATYPE_DNS_RRNAME) {
             list = DetectBufferTypeGetByName("dns_query");
         } else if (lua->flags & FLAG_DATATYPE_DNS_REQUEST) {
@@ -1022,30 +995,15 @@ static int DetectLuaSetup (DetectEngineCtx *de_ctx, Signature *s, const char *st
         } else if (lua->flags & FLAG_DATATYPE_DNS_RESPONSE) {
             list = DetectBufferTypeGetByName("dns_response");
         }
-    }
-    #endif
-    #if ENABLE_TLS
-    else if (lua->alproto == ALPROTO_TLS) {
+    } else if (lua->alproto == ALPROTO_TLS) {
         list = DetectBufferTypeGetByName("tls_generic");
-    }
-    #endif
-    #if ENABLE_SSH
-    else if (lua->alproto == ALPROTO_SSH) {
+    } else if (lua->alproto == ALPROTO_SSH) {
         list = DetectBufferTypeGetByName("ssh_banner");
-    }
-    #endif
-    #if ENABLE_SMTP
-    else if (lua->alproto == ALPROTO_SMTP) {
+    } else if (lua->alproto == ALPROTO_SMTP) {
         list = g_smtp_generic_list_id;
-    } 
-    #endif
-    else 
-    #if ENABLE_DNP3
-    if (lua->alproto == ALPROTO_DNP3) {
+    } else if (lua->alproto == ALPROTO_DNP3) {
         list = DetectBufferTypeGetByName("dnp3");
-    } else
-    #endif
-    {
+    } else {
         SCLogError("lua can't be used with protocol %s", AppLayerGetProtoName(lua->alproto));
         goto error;
     }

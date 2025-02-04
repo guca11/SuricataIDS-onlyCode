@@ -257,6 +257,11 @@ pub struct CompareRequest {
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
+pub struct AbandonRequest {
+    pub message_id: u32,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ExtendedRequest {
     pub request_name: LdapOID,
     pub request_value: Option<Vec<u8>>,
@@ -297,7 +302,62 @@ pub enum ProtocolOp {
     ExtendedRequest(ExtendedRequest),
     ExtendedResponse(ExtendedResponse),
     IntermediateResponse(IntermediateResponse),
-    Unknown,
+    AbandonRequest(AbandonRequest),
+}
+
+#[derive(Clone, Debug, Default, EnumStringU8)]
+#[repr(u8)]
+pub enum ProtocolOpCode {
+    #[default]
+    BindRequest = 0,
+    BindResponse = 1,
+    UnbindRequest = 2,
+    SearchRequest = 3,
+    SearchResultEntry = 4,
+    SearchResultDone = 5,
+    SearchResultReference = 19,
+    ModifyRequest = 6,
+    ModifyResponse = 7,
+    AddRequest = 8,
+    AddResponse = 9,
+    DelRequest = 10,
+    DelResponse = 11,
+    ModDnRequest = 12,
+    ModDnResponse = 13,
+    CompareRequest = 14,
+    CompareResponse = 15,
+    AbandonRequest = 16,
+    ExtendedRequest = 23,
+    ExtendedResponse = 24,
+    IntermediateResponse = 25,
+}
+
+impl ProtocolOp {
+    pub fn to_u8(&self) -> u8 {
+        match self {
+            ProtocolOp::BindRequest(_) => 0,
+            ProtocolOp::BindResponse(_) => 1,
+            ProtocolOp::UnbindRequest => 2,
+            ProtocolOp::SearchRequest(_) => 3,
+            ProtocolOp::SearchResultEntry(_) => 4,
+            ProtocolOp::SearchResultDone(_) => 5,
+            ProtocolOp::SearchResultReference(_) => 19,
+            ProtocolOp::ModifyRequest(_) => 6,
+            ProtocolOp::ModifyResponse(_) => 7,
+            ProtocolOp::AddRequest(_) => 8,
+            ProtocolOp::AddResponse(_) => 9,
+            ProtocolOp::DelRequest(_) => 10,
+            ProtocolOp::DelResponse(_) => 11,
+            ProtocolOp::ModDnRequest(_) => 12,
+            ProtocolOp::ModDnResponse(_) => 13,
+            ProtocolOp::CompareRequest(_) => 14,
+            ProtocolOp::CompareResponse(_) => 15,
+            ProtocolOp::AbandonRequest(_) => 16,
+            ProtocolOp::ExtendedRequest(_) => 23,
+            ProtocolOp::ExtendedResponse(_) => 24,
+            ProtocolOp::IntermediateResponse(_) => 25,
+        }
+    }
 }
 
 impl Display for ProtocolOp {
@@ -320,10 +380,10 @@ impl Display for ProtocolOp {
             ProtocolOp::ModDnResponse(_) => write!(f, "mod_dn_response"),
             ProtocolOp::CompareRequest(_) => write!(f, "compare_request"),
             ProtocolOp::CompareResponse(_) => write!(f, "compare_response"),
+            ProtocolOp::AbandonRequest(_) => write!(f, "abandon_request"),
             ProtocolOp::ExtendedRequest(_) => write!(f, "extended_request"),
             ProtocolOp::ExtendedResponse(_) => write!(f, "extended_response"),
             ProtocolOp::IntermediateResponse(_) => write!(f, "intermediate_response"),
-            ProtocolOp::Unknown => write!(f, "unknown"),
         }
     }
 }
@@ -342,7 +402,7 @@ pub struct Control {
     pub control_value: Option<Vec<u8>>,
 }
 
-impl<'a> From<ldap_parser::ldap::LdapMessage<'a>> for LdapMessage {
+impl From<ldap_parser::ldap::LdapMessage<'_>> for LdapMessage {
     fn from(ldap_msg: ldap_parser::ldap::LdapMessage) -> Self {
         let message_id = MessageID(ldap_msg.message_id.0);
         let protocol_op = match ldap_msg.protocol_op {
@@ -376,7 +436,7 @@ impl<'a> From<ldap_parser::ldap::LdapMessage<'a>> for LdapMessage {
             ldap_parser::ldap::ProtocolOp::IntermediateResponse(msg) => {
                 Self::from_intermediate_response(msg)
             }
-            _ => ProtocolOp::Unknown,
+            ldap_parser::ldap::ProtocolOp::AbandonRequest(msg) => Self::from_abandon_request(msg),
         };
         let controls = ldap_msg.controls.map(|ctls| {
             ctls.iter()
@@ -397,13 +457,6 @@ impl<'a> From<ldap_parser::ldap::LdapMessage<'a>> for LdapMessage {
 }
 
 impl LdapMessage {
-    pub fn is_unknown(&self) -> bool {
-        match self.protocol_op {
-            ProtocolOp::Unknown => return true,
-            _ => return false,
-        }
-    }
-
     pub fn is_request(&self) -> bool {
         match self.protocol_op {
             ProtocolOp::BindRequest(_)
@@ -414,6 +467,7 @@ impl LdapMessage {
             | ProtocolOp::DelRequest(_)
             | ProtocolOp::ModDnRequest(_)
             | ProtocolOp::CompareRequest(_)
+            | ProtocolOp::AbandonRequest(_)
             | ProtocolOp::ExtendedRequest(_) => {
                 return true;
             }
@@ -424,23 +478,8 @@ impl LdapMessage {
     }
 
     pub fn is_response(&self) -> bool {
-        match self.protocol_op {
-            ProtocolOp::BindResponse(_)
-            | ProtocolOp::SearchResultEntry(_)
-            | ProtocolOp::SearchResultReference(_)
-            | ProtocolOp::SearchResultDone(_)
-            | ProtocolOp::ModifyResponse(_)
-            | ProtocolOp::AddResponse(_)
-            | ProtocolOp::DelResponse(_)
-            | ProtocolOp::ModDnResponse(_)
-            | ProtocolOp::CompareResponse(_)
-            | ProtocolOp::ExtendedResponse(_) => {
-                return true;
-            }
-            _ => {
-                return false;
-            }
-        }
+        // it is either a response or a request
+        return !self.is_request();
     }
 
     fn from_bind_request(msg: ldap_parser::ldap::BindRequest) -> ProtocolOp {
@@ -601,6 +640,10 @@ impl LdapMessage {
             matched_dn: LdapDN(msg.matched_dn.0.to_string()),
             diagnostic_message: LdapString(msg.diagnostic_message.0.to_string()),
         })
+    }
+
+    fn from_abandon_request(msg: ldap_parser::ldap::MessageID) -> ProtocolOp {
+        ProtocolOp::AbandonRequest(AbandonRequest { message_id: msg.0 })
     }
 
     fn from_extended_request(msg: ldap_parser::ldap::ExtendedRequest) -> ProtocolOp {

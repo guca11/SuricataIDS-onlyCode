@@ -18,7 +18,9 @@
 use super::parser;
 use crate::applayer::{self, *};
 use crate::conf::conf_get;
-use crate::core::{AppProto, Direction, Flow, ALPROTO_FAILED, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use crate::core::{AppProto, ALPROTO_FAILED, ALPROTO_UNKNOWN, IPPROTO_TCP};
+use crate::direction::Direction;
+use crate::flow::Flow;
 use crate::frames::Frame;
 
 use nom7 as nom;
@@ -327,8 +329,8 @@ unsafe extern "C" fn rs_websocket_tx_get_alstate_progress(
     return 1;
 }
 
-export_tx_data_get!(rs_websocket_get_tx_data, WebSocketTransaction);
-export_state_data_get!(rs_websocket_get_state_data, WebSocketState);
+export_tx_data_get!(websocket_get_tx_data, WebSocketTransaction);
+export_state_data_get!(websocket_get_state_data, WebSocketState);
 
 // Parser name as a C style string.
 const PARSER_NAME: &[u8] = b"websocket\0";
@@ -361,8 +363,8 @@ pub unsafe extern "C" fn rs_websocket_register_parser() {
         get_tx_iterator: Some(
             applayer::state_get_tx_iterator::<WebSocketState, WebSocketTransaction>,
         ),
-        get_tx_data: rs_websocket_get_tx_data,
-        get_state_data: rs_websocket_get_state_data,
+        get_tx_data: websocket_get_tx_data,
+        get_state_data: websocket_get_state_data,
         apply_tx_config: None,
         flags: 0, // do not accept gaps as there is no good way to resync
         get_frame_id_by_name: Some(WebSocketFrameType::ffi_id_from_name),

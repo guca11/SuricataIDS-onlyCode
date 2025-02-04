@@ -39,6 +39,16 @@
 #define STREAMTCP_INIT_FLAG_DROP_INVALID           BIT_U8(1)
 #define STREAMTCP_INIT_FLAG_BYPASS                 BIT_U8(2)
 #define STREAMTCP_INIT_FLAG_INLINE                 BIT_U8(3)
+/** flag to drop packets with URG flag set */
+#define STREAMTCP_INIT_FLAG_DROP_URG BIT_U8(4)
+
+enum TcpStreamUrgentHandling {
+    TCP_STREAM_URGENT_INLINE, /**< treat as inline data */
+#define TCP_STREAM_URGENT_DEFAULT TCP_STREAM_URGENT_INLINE
+    TCP_STREAM_URGENT_DROP, /**< drop TCP packet with URG flag */
+    TCP_STREAM_URGENT_OOB,  /**< treat 1 byte of URG data as OOB */
+    TCP_STREAM_URGENT_GAP,  /**< treat 1 byte of URG data as GAP */
+};
 
 /*global flow data*/
 typedef struct TcpStreamCnf_ {
@@ -70,6 +80,8 @@ typedef struct TcpStreamCnf_ {
     enum ExceptionPolicy ssn_memcap_policy;
     enum ExceptionPolicy reassembly_memcap_policy;
     enum ExceptionPolicy midstream_policy;
+    enum TcpStreamUrgentHandling urgent_policy;
+    enum TcpStreamUrgentHandling urgent_oob_limit_policy;
 
     /* default to "LINUX" timestamp behavior if true*/
     bool liberal_timestamps;
@@ -90,8 +102,6 @@ typedef struct StreamTcpThread_ {
     ExceptionPolicyCounters counter_tcp_ssn_memcap_eps;
     /** pseudo packets processed */
     uint16_t counter_tcp_pseudo;
-    /** pseudo packets failed to setup */
-    uint16_t counter_tcp_pseudo_failed;
     /** packets rejected because their csum is invalid */
     uint16_t counter_tcp_invalid_checksum;
     /** midstream pickups */
@@ -121,7 +131,6 @@ int StreamTcpSetMemcap(uint64_t);
 uint64_t StreamTcpGetMemcap(void);
 int StreamTcpCheckMemcap(uint64_t);
 uint64_t StreamTcpMemuseCounter(void);
-uint64_t StreamTcpReassembleMemuseGlobalCounter(void);
 
 int StreamTcpSegmentForEach(const Packet *p, uint8_t flag,
                         StreamSegmentCallback CallbackFunc,
@@ -204,8 +213,5 @@ void StreamTcpUpdateAppLayerProgress(TcpSession *ssn, char direction,
 
 uint64_t StreamTcpGetUsable(const TcpStream *stream, const bool eof);
 uint64_t StreamDataRightEdge(const TcpStream *stream, const bool eof);
-
-void StreamTcpThreadCacheEnable(void);
-void StreamTcpThreadCacheCleanup(void);
 
 #endif /* SURICATA_STREAM_TCP_H */

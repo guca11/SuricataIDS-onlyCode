@@ -346,14 +346,17 @@ static void ThreadLogFileHashFreeFunc(void *data)
     BUG_ON(data == NULL);
     ThreadLogFileHashEntry *thread_ent = (ThreadLogFileHashEntry *)data;
 
-    if (thread_ent) {
+    if (!thread_ent)
+        return;
+
+    if (thread_ent->isopen) {
         LogFileCtx *lf_ctx = thread_ent->ctx;
         /* Free the leaf log file entries */
         if (!lf_ctx->threaded) {
             LogFileFreeCtx(lf_ctx);
         }
-        SCFree(thread_ent);
     }
+    SCFree(thread_ent);
 }
 
 bool SCLogOpenThreadedFile(const char *log_path, const char *append, LogFileCtx *parent_ctx)
@@ -712,6 +715,7 @@ LogFileCtx *LogFileEnsureExists(ThreadId thread_id, LogFileCtx *parent_ctx)
     if (!parent_ctx->threaded)
         return parent_ctx;
 
+    LogFileCtx *ret_ctx = NULL;
     SCMutexLock(&parent_ctx->threads->mutex);
     /* Find this thread's entry */
     ThreadLogFileHashEntry *entry = LogFileThread2Slot(parent_ctx->threads, thread_id);
@@ -721,17 +725,20 @@ LogFileCtx *LogFileEnsureExists(ThreadId thread_id, LogFileCtx *parent_ctx)
 
     bool new = entry->isopen;
     /* has it been opened yet? */
-    if (!entry->isopen) {
+    if (!new) {
         SCLogDebug("%s: Opening new file for thread/id %d to file %s [ctx %p]", t_thread_name,
                 thread_id, parent_ctx->filename, parent_ctx);
         if (LogFileNewThreadedCtx(
                     parent_ctx, parent_ctx->filename, parent_ctx->threads->append, entry)) {
             entry->isopen = true;
+            ret_ctx = entry->ctx;
         } else {
-            SCLogError(
+            SCLogDebug(
                     "Unable to open slot %d for file %s", entry->slot_number, parent_ctx->filename);
             (void)HashTableRemove(parent_ctx->threads->ht, entry, 0);
         }
+    } else {
+        ret_ctx = entry->ctx;
     }
     SCMutexUnlock(&parent_ctx->threads->mutex);
 
@@ -742,7 +749,7 @@ LogFileCtx *LogFileEnsureExists(ThreadId thread_id, LogFileCtx *parent_ctx)
         }
     }
 
-    return entry->ctx;
+    return ret_ctx;
 }
 
 /** \brief LogFileThreadedName() Create file name for threaded EVE storage
@@ -871,7 +878,7 @@ int LogFileFreeCtx(LogFileCtx *lf_ctx)
         SCReturnInt(0);
     }
 
-    if (lf_ctx->type == LOGFILE_TYPE_FILETYPE) {
+    if (lf_ctx->type == LOGFILE_TYPE_FILETYPE && lf_ctx->filetype.filetype->ThreadDeinit) {
         lf_ctx->filetype.filetype->ThreadDeinit(
                 lf_ctx->filetype.init_data, lf_ctx->filetype.thread_data);
     }
@@ -915,6 +922,14 @@ int LogFileFreeCtx(LogFileCtx *lf_ctx)
     if (lf_ctx->type == LOGFILE_TYPE_FILETYPE && lf_ctx->parent == NULL) {
         lf_ctx->filetype.filetype->Deinit(lf_ctx->filetype.init_data);
     }
+
+#ifdef HAVE_LIBHIREDIS
+    if (lf_ctx->type == LOGFILE_TYPE_REDIS) {
+        if (lf_ctx->redis_setup.stream_format != NULL) {
+            SCFree(lf_ctx->redis_setup.stream_format);
+        }
+    }
+#endif
 
     memset(lf_ctx, 0, sizeof(*lf_ctx));
     SCFree(lf_ctx);

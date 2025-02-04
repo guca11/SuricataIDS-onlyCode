@@ -51,7 +51,6 @@ int main(int argc, char **argv)
 
     /* Initialization tasks: apply configuration, drop privileges,
      * etc. */
-
     SuricataInit();
 
     /* Post-initialization tasks: wait on thread start/running and get ready for the main loop. */

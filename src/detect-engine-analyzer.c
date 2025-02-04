@@ -39,6 +39,7 @@
 #include "detect-pcre.h"
 #include "detect-bytejump.h"
 #include "detect-bytetest.h"
+#include "detect-isdataat.h"
 #include "detect-flow.h"
 #include "detect-tcp-flags.h"
 #include "detect-tcp-ack.h"
@@ -51,6 +52,8 @@
 #include "util-conf.h"
 #include "detect-flowbits.h"
 #include "util-var-name.h"
+#include "detect-icmp-id.h"
+#include "detect-tcp-window.h"
 
 static int rule_warnings_only = 0;
 
@@ -853,6 +856,14 @@ static void DumpMatches(RuleAnalyzer *ctx, JsonBuilder *js, const SigMatchData *
                 jb_close(js);
                 break;
             }
+            case DETECT_ABSENT: {
+                const DetectAbsentData *dad = (const DetectAbsentData *)smd->ctx;
+                jb_open_object(js, "absent");
+                jb_set_bool(js, "or_else", dad->or_else);
+                jb_close(js);
+                break;
+            }
+
             case DETECT_IPOPTS: {
                 const DetectIpOptsData *cd = (const DetectIpOptsData *)smd->ctx;
 
@@ -921,6 +932,28 @@ static void DumpMatches(RuleAnalyzer *ctx, JsonBuilder *js, const SigMatchData *
                 const DetectU16Data *cd = (const DetectU16Data *)smd->ctx;
                 jb_open_object(js, "tcp_mss");
                 SCDetectU16ToJson(js, cd);
+                jb_close(js);
+                break;
+            }
+            case DETECT_ICMP_ID: {
+                const DetectIcmpIdData *cd = (const DetectIcmpIdData *)smd->ctx;
+                jb_open_object(js, "id");
+                jb_set_uint(js, "number", SCNtohs(cd->id));
+                jb_close(js);
+                break;
+            }
+            case DETECT_WINDOW: {
+                const DetectWindowData *wd = (const DetectWindowData *)smd->ctx;
+                jb_open_object(js, "window");
+                jb_set_uint(js, "size", wd->size);
+                jb_set_bool(js, "negated", wd->negated);
+                jb_close(js);
+                break;
+            }
+            case DETECT_FLOW_AGE: {
+                const DetectU32Data *cd = (const DetectU32Data *)smd->ctx;
+                jb_open_object(js, "flow_age");
+                SCDetectU32ToJson(js, cd);
                 jb_close(js);
                 break;
             }
@@ -1060,11 +1093,9 @@ void EngineAnalysisRules2(const DetectEngineCtx *de_ctx, const Signature *s)
     if (s->flags & SIG_FLAG_TOCLIENT) {
         jb_append_string(ctx.js, "toclient");
     }
-    #if ENABLE_TLS
     if (s->flags & SIG_FLAG_TLSSTORE) {
         jb_append_string(ctx.js, "tlsstore");
     }
-    #endif
     if (s->flags & SIG_FLAG_BYPASS) {
         jb_append_string(ctx.js, "bypass");
     }
@@ -1579,23 +1610,19 @@ void EngineAnalysisRules(const DetectEngineCtx *de_ctx,
     if (rule_content_http > 0 && rule_pcre > 0 && rule_pcre_http == 0) {
         rule_warning += 1;
         warn_pcre_http_content = 1;
-    }
-    #if ENABLE_HTTP
-    else if (s->alproto == ALPROTO_HTTP1 && rule_pcre > 0 && rule_pcre_http == 0) {
+    } else if (s->alproto == ALPROTO_HTTP1 && rule_pcre > 0 && rule_pcre_http == 0) {
         rule_warning += 1;
         warn_pcre_http = 1;
     }
-    #endif
+
     if (rule_content > 0 && rule_content_http > 0) {
         rule_warning += 1;
         warn_content_http_content = 1;
     }
-    #if ENABLE_HTTP
     if (s->alproto == ALPROTO_HTTP1 && rule_content > 0 && rule_content_http == 0) {
         rule_warning += 1;
         warn_content_http = 1;
     }
-    #endif
     if (rule_content == 1) {
          //todo: warning if content is weak, separate warning for pcre + weak content
     }
@@ -1641,13 +1668,12 @@ void EngineAnalysisRules(const DetectEngineCtx *de_ctx,
         rule_warning += 1;
         warn_offset_depth_alproto = 1;
     }
-    #if ENABLE_HTTP
     if (s->init_data->mpm_sm != NULL && s->alproto == ALPROTO_HTTP1 &&
             s->init_data->mpm_sm_list == DETECT_SM_LIST_PMATCH) {
         rule_warning += 1;
         warn_non_alproto_fp_for_alproto_sig = 1;
     }
-    #endif
+
     if ((s->flags & (SIG_FLAG_TOSERVER|SIG_FLAG_TOCLIENT)) == 0) {
         warn_no_direction += 1;
         rule_warning += 1;

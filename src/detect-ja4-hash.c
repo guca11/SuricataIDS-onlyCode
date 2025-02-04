@@ -52,11 +52,10 @@ static InspectionBuffer *GetData(DetectEngineThreadCtx *det_ctx,
         const DetectEngineTransforms *transforms, Flow *f, const uint8_t flow_flags, void *txv,
         const int list_id);
 int Ja4IsDisabled(const char *type);
-#if ENABLE_QUIC
 static InspectionBuffer *Ja4DetectGetHash(DetectEngineThreadCtx *det_ctx,
         const DetectEngineTransforms *transforms, Flow *_f, const uint8_t _flow_flags, void *txv,
         const int list_id);
-#endif
+
 static int g_ja4_hash_buffer_id = 0;
 #endif
 
@@ -65,17 +64,17 @@ static int g_ja4_hash_buffer_id = 0;
  */
 void DetectJa4HashRegister(void)
 {
-    sigmatch_table[DETECT_AL_JA4_HASH].name = "ja4.hash";
-    sigmatch_table[DETECT_AL_JA4_HASH].alias = "ja4_hash";
-    sigmatch_table[DETECT_AL_JA4_HASH].desc = "sticky buffer to match the JA4 hash buffer";
-    sigmatch_table[DETECT_AL_JA4_HASH].url = "/rules/ja4-keywords.html#ja4-hash";
+    sigmatch_table[DETECT_JA4_HASH].name = "ja4.hash";
+    sigmatch_table[DETECT_JA4_HASH].alias = "ja4_hash";
+    sigmatch_table[DETECT_JA4_HASH].desc = "sticky buffer to match the JA4 hash buffer";
+    sigmatch_table[DETECT_JA4_HASH].url = "/rules/ja4-keywords.html#ja4-hash";
 #ifdef HAVE_JA4
-    sigmatch_table[DETECT_AL_JA4_HASH].Setup = DetectJa4HashSetup;
+    sigmatch_table[DETECT_JA4_HASH].Setup = DetectJa4HashSetup;
 #else  /* HAVE_JA4 */
-    sigmatch_table[DETECT_AL_JA4_HASH].Setup = DetectJA4SetupNoSupport;
+    sigmatch_table[DETECT_JA4_HASH].Setup = DetectJA4SetupNoSupport;
 #endif /* HAVE_JA4 */
-    sigmatch_table[DETECT_AL_JA4_HASH].flags |= SIGMATCH_NOOPT;
-    sigmatch_table[DETECT_AL_JA4_HASH].flags |= SIGMATCH_INFO_STICKY_BUFFER;
+    sigmatch_table[DETECT_JA4_HASH].flags |= SIGMATCH_NOOPT;
+    sigmatch_table[DETECT_JA4_HASH].flags |= SIGMATCH_INFO_STICKY_BUFFER;
 
 #ifdef HAVE_JA4
     DetectAppLayerInspectEngineRegister("ja4.hash", ALPROTO_TLS, SIG_FLAG_TOSERVER, 0,
@@ -84,13 +83,11 @@ void DetectJa4HashRegister(void)
     DetectAppLayerMpmRegister(
             "ja4.hash", SIG_FLAG_TOSERVER, 2, PrefilterGenericMpmRegister, GetData, ALPROTO_TLS, 0);
 
-    #if ENABLE_QUIC
     DetectAppLayerMpmRegister("ja4.hash", SIG_FLAG_TOSERVER, 2, PrefilterGenericMpmRegister,
             Ja4DetectGetHash, ALPROTO_QUIC, 1);
 
     DetectAppLayerInspectEngineRegister("ja4.hash", ALPROTO_QUIC, SIG_FLAG_TOSERVER, 1,
             DetectEngineInspectBufferGeneric, Ja4DetectGetHash);
-    #endif
 
     DetectBufferTypeSetDescriptionByName("ja4.hash", "TLS JA4 hash");
 
@@ -114,11 +111,7 @@ static int DetectJa4HashSetup(DetectEngineCtx *de_ctx, Signature *s, const char 
     if (DetectBufferSetActiveList(de_ctx, s, g_ja4_hash_buffer_id) < 0)
         return -1;
 
-    if (s->alproto != ALPROTO_UNKNOWN && s->alproto != ALPROTO_TLS 
-    #if ENABLE_QUIC
-    && s->alproto != ALPROTO_QUIC
-    #endif
-    ) {
+    if (s->alproto != ALPROTO_UNKNOWN && s->alproto != ALPROTO_TLS && s->alproto != ALPROTO_QUIC) {
         SCLogError("rule contains conflicting protocols.");
         return -1;
     }
@@ -128,7 +121,7 @@ static int DetectJa4HashSetup(DetectEngineCtx *de_ctx, Signature *s, const char 
 
     /* check if JA4 enabling had an effect */
     if (!RunmodeIsUnittests() && !SSLJA4IsEnabled()) {
-        if (!SigMatchSilentErrorEnabled(de_ctx, DETECT_AL_JA4_HASH)) {
+        if (!SigMatchSilentErrorEnabled(de_ctx, DETECT_JA4_HASH)) {
             SCLogError("JA4 support is not enabled");
         }
         return -2;
@@ -160,7 +153,7 @@ static InspectionBuffer *GetData(DetectEngineThreadCtx *det_ctx,
 
     return buffer;
 }
-#if ENABLE_QUIC
+
 static InspectionBuffer *Ja4DetectGetHash(DetectEngineThreadCtx *det_ctx,
         const DetectEngineTransforms *transforms, Flow *_f, const uint8_t _flow_flags, void *txv,
         const int list_id)
@@ -181,5 +174,4 @@ static InspectionBuffer *Ja4DetectGetHash(DetectEngineThreadCtx *det_ctx,
     }
     return buffer;
 }
-#endif
 #endif

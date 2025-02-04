@@ -35,6 +35,7 @@
 
 #include "detect-content.h"
 #include "detect-bsize.h"
+#include "detect-isdataat.h"
 #include "detect-pcre.h"
 #include "detect-uricontent.h"
 #include "detect-reference.h"
@@ -68,65 +69,80 @@
 #include "string.h"
 #include "detect-parse.h"
 #include "detect-engine-iponly.h"
+#include "detect-engine-file.h"
 #include "app-layer-detect-proto.h"
 
 #include "action-globals.h"
 #include "util-validate.h"
 
+// file protocols with common file handling
+typedef struct {
+    AppProto alproto;
+    int direction;
+    int to_client_progress;
+    int to_server_progress;
+} DetectFileHandlerProtocol_t;
+
 /* Table with all filehandler registrations */
 DetectFileHandlerTableElmt filehandler_table[DETECT_TBLSIZE_STATIC];
 
+#define ALPROTO_WITHFILES_MAX 16
+
+// file protocols with common file handling
+DetectFileHandlerProtocol_t al_protocols[ALPROTO_WITHFILES_MAX] = {
+    { .alproto = ALPROTO_NFS, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
+    { .alproto = ALPROTO_SMB, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
+    { .alproto = ALPROTO_FTP, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
+    { .alproto = ALPROTO_FTPDATA, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
+    { .alproto = ALPROTO_HTTP1,
+            .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT,
+            .to_client_progress = HTP_RESPONSE_PROGRESS_BODY,
+            .to_server_progress = HTP_REQUEST_PROGRESS_BODY },
+    { .alproto = ALPROTO_HTTP2,
+            .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT,
+            .to_client_progress = HTTP2StateDataServer,
+            .to_server_progress = HTTP2StateDataClient },
+    { .alproto = ALPROTO_SMTP, .direction = SIG_FLAG_TOSERVER }, { .alproto = ALPROTO_UNKNOWN }
+};
+
+void DetectFileRegisterProto(
+        AppProto alproto, int direction, int to_client_progress, int to_server_progress)
+{
+    size_t i = 0;
+    while (i < ALPROTO_WITHFILES_MAX && al_protocols[i].alproto != ALPROTO_UNKNOWN) {
+        i++;
+    }
+    if (i == ALPROTO_WITHFILES_MAX) {
+        return;
+    }
+    al_protocols[i].alproto = alproto;
+    al_protocols[i].direction = direction;
+    al_protocols[i].to_client_progress = to_client_progress;
+    al_protocols[i].to_server_progress = to_server_progress;
+    al_protocols[i + 1].alproto = ALPROTO_UNKNOWN;
+}
+
 void DetectFileRegisterFileProtocols(DetectFileHandlerTableElmt *reg)
 {
-    // file protocols with common file handling
-    typedef struct {
-        AppProto al_proto;
-        int direction;
-        int to_client_progress;
-        int to_server_progress;
-    } DetectFileHandlerProtocol_t;
-    static DetectFileHandlerProtocol_t al_protocols[] = {
-#if ENABLE_NFS    
-        { .al_proto = ALPROTO_NFS, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
-#endif
-#if ENABLE_SMTP
-        { .al_proto = ALPROTO_SMTP, .direction = SIG_FLAG_TOSERVER },
-#endif
-#if ENABLE_SMB
-        { .al_proto = ALPROTO_SMB, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
-#endif
-#if ENABLE_FTP
-        { .al_proto = ALPROTO_FTP, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
-        { .al_proto = ALPROTO_FTPDATA, .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT },
-#endif
-#if ENABLE_HTTP
-        { .al_proto = ALPROTO_HTTP1,
-                .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT,
-                .to_client_progress = HTP_RESPONSE_BODY,
-                .to_server_progress = HTP_REQUEST_BODY },
-        { .al_proto = ALPROTO_HTTP2,
-                .direction = SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT,
-                .to_client_progress = HTTP2StateDataServer,
-                .to_server_progress = HTTP2StateDataClient }
-#endif
-    };
-
-    for (size_t i = 0; i < ARRAY_SIZE(al_protocols); i++) {
+    for (size_t i = 0; i < g_alproto_max; i++) {
+        if (al_protocols[i].alproto == ALPROTO_UNKNOWN) {
+            break;
+        }
         int direction = al_protocols[i].direction == 0
                                 ? (int)(SIG_FLAG_TOSERVER | SIG_FLAG_TOCLIENT)
                                 : al_protocols[i].direction;
 
         if (direction & SIG_FLAG_TOCLIENT) {
             DetectAppLayerMpmRegister(reg->name, SIG_FLAG_TOCLIENT, reg->priority, reg->PrefilterFn,
-                    reg->GetData, al_protocols[i].al_proto, al_protocols[i].to_client_progress);
-            DetectAppLayerInspectEngineRegister(reg->name, al_protocols[i].al_proto,
+                    reg->GetData, al_protocols[i].alproto, al_protocols[i].to_client_progress);
+            DetectAppLayerInspectEngineRegister(reg->name, al_protocols[i].alproto,
                     SIG_FLAG_TOCLIENT, al_protocols[i].to_client_progress, reg->Callback,
                     reg->GetData);
         }
         if (direction & SIG_FLAG_TOSERVER) {
             DetectAppLayerMpmRegister(reg->name, SIG_FLAG_TOSERVER, reg->priority, reg->PrefilterFn,
-                    reg->GetData, al_protocols[i].al_proto, al_protocols[i].to_server_progress);
-            DetectAppLayerInspectEngineRegister(reg->name, al_protocols[i].al_proto,
+                    reg->GetData, al_protocols[i].alproto, al_protocols[i].to_server_progress);
+            DetectAppLayerInspectEngineRegister(reg->name, al_protocols[i].alproto,
                     SIG_FLAG_TOSERVER, al_protocols[i].to_server_progress, reg->Callback,
                     reg->GetData);
         }
@@ -901,19 +917,7 @@ static int SigParseOptions(DetectEngineCtx *de_ctx, Signature *s, char *optstr, 
     if ((requires && !requires_only) || (!requires && requires_only)) {
         goto finish;
     }
-    #if !ENABLE_TLS
-    if(strcmp(optname, "tls.cert_issuer") == 0)
-    	return -3;
-    #endif	
-    #if !ENABLE_IPV6
-    if(strcmp(optname,"ipv6.hdr") == 0 || strcmp(optname,"icmpv6.hdr") == 0)
-        return -3;
-    #endif
-    #if !ENABLE_FTP
-    if(strcmp(optname,"ftpbounce") == 0)
-        return -3;
-    #endif
-    
+
     /* Call option parsing */
     st = SigTableGet(optname);
     if (st == NULL || st->Setup == NULL) {
@@ -934,6 +938,9 @@ static int SigParseOptions(DetectEngineCtx *de_ctx, Signature *s, char *optstr, 
         }
     }
     s->init_data->negated = false;
+
+    const enum DetectKeywordId idx = SigTableGetIndex(st);
+    s->init_data->has_possible_prefilter |= de_ctx->sm_types_prefilter[idx];
 
     if (st->flags & SIGMATCH_INFO_DEPRECATED) {
 #define URL "https://suricata.io/our-story/deprecation-policy/"
@@ -1042,7 +1049,6 @@ static int SigParseOptions(DetectEngineCtx *de_ctx, Signature *s, char *optstr, 
 
         /* handle 'silent' error case */
         if (setup_ret == -2) {
-            enum DetectKeywordId idx = SigTableGetIndex(st);
             if (de_ctx->sm_types_silent_error[idx] == false) {
                 de_ctx->sm_types_silent_error[idx] = true;
                 return -1;
@@ -1758,8 +1764,7 @@ int DetectSignatureAddTransform(Signature *s, int transform, void *options)
 
 int DetectSignatureSetAppProto(Signature *s, AppProto alproto)
 {
-    if (alproto == ALPROTO_UNKNOWN ||
-        alproto >= ALPROTO_FAILED) {
+    if (!AppProtoIsValid(alproto)) {
         SCLogError("invalid alproto %u", alproto);
         return -1;
     }
@@ -1898,6 +1903,76 @@ SigMatchData* SigMatchList2DataArray(SigMatch *head)
     return out;
 }
 
+extern int g_skip_prefilter;
+
+static void SigSetupPrefilter(DetectEngineCtx *de_ctx, Signature *s)
+{
+    SCEnter();
+    SCLogDebug("s %u: set up prefilter/mpm", s->id);
+    DEBUG_VALIDATE_BUG_ON(s->init_data->mpm_sm != NULL);
+
+    if (s->init_data->prefilter_sm != NULL) {
+        if (s->init_data->prefilter_sm->type == DETECT_CONTENT) {
+            RetrieveFPForSig(de_ctx, s);
+            if (s->init_data->mpm_sm != NULL) {
+                s->flags |= SIG_FLAG_PREFILTER;
+                SCLogDebug("%u: RetrieveFPForSig set", s->id);
+                SCReturn;
+            }
+            /* fall through, this can happen if the mpm doesn't support the pattern */
+        } else {
+            s->flags |= SIG_FLAG_PREFILTER;
+            SCReturn;
+        }
+    } else {
+        SCLogDebug("%u: RetrieveFPForSig", s->id);
+        RetrieveFPForSig(de_ctx, s);
+        if (s->init_data->mpm_sm != NULL) {
+            s->flags |= SIG_FLAG_PREFILTER;
+            SCLogDebug("%u: RetrieveFPForSig set", s->id);
+            SCReturn;
+        }
+    }
+
+    SCLogDebug("s %u: no mpm; prefilter? de_ctx->prefilter_setting %u "
+               "s->init_data->has_possible_prefilter %s",
+            s->id, de_ctx->prefilter_setting, BOOL2STR(s->init_data->has_possible_prefilter));
+
+    if (!s->init_data->has_possible_prefilter || g_skip_prefilter)
+        SCReturn;
+
+    DEBUG_VALIDATE_BUG_ON(s->flags & SIG_FLAG_PREFILTER);
+    if (de_ctx->prefilter_setting == DETECT_PREFILTER_AUTO) {
+        int prefilter_list = DETECT_TBLSIZE;
+        /* get the keyword supporting prefilter with the lowest type */
+        for (int i = 0; i < DETECT_SM_LIST_MAX; i++) {
+            for (SigMatch *sm = s->init_data->smlists[i]; sm != NULL; sm = sm->next) {
+                if (sigmatch_table[sm->type].SupportsPrefilter != NULL) {
+                    if (sigmatch_table[sm->type].SupportsPrefilter(s)) {
+                        prefilter_list = MIN(prefilter_list, sm->type);
+                    }
+                }
+            }
+        }
+
+        /* apply that keyword as prefilter */
+        if (prefilter_list != DETECT_TBLSIZE) {
+            for (int i = 0; i < DETECT_SM_LIST_MAX; i++) {
+                for (SigMatch *sm = s->init_data->smlists[i]; sm != NULL; sm = sm->next) {
+                    if (sm->type == prefilter_list) {
+                        s->init_data->prefilter_sm = sm;
+                        s->flags |= SIG_FLAG_PREFILTER;
+                        SCLogConfig("sid %u: prefilter is on \"%s\"", s->id,
+                                sigmatch_table[sm->type].name);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    SCReturn;
+}
+
 /**
  *  \internal
  *  \brief validate a just parsed signature for internal inconsistencies
@@ -1993,6 +2068,9 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
         if (!DetectBsizeValidateContentCallback(s, b)) {
             SCReturnInt(0);
         }
+        if (!DetectAbsentValidateContentCallback(s, b)) {
+            SCReturnInt(0);
+        }
     }
 
     int ts_excl = 0;
@@ -2083,17 +2161,12 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
         }
     }
     DetectLuaPostSetup(s);
-#if ENABLE_TLS
+
     if ((s->init_data->init_flags & SIG_FLAG_INIT_JA) && s->alproto != ALPROTO_UNKNOWN &&
-            s->alproto != ALPROTO_TLS 
-            #if ENABLE_QUIC
-            && s->alproto != ALPROTO_QUIC
-            #endif
-            ) {
+            s->alproto != ALPROTO_TLS && s->alproto != ALPROTO_QUIC) {
         SCLogError("Cannot have ja3/ja4 with protocol %s.", AppProtoToString(s->alproto));
         SCReturnInt(0);
     }
-#endif
     if ((s->flags & SIG_FLAG_FILESTORE) || s->file_flags != 0 ||
         (s->init_data->init_flags & SIG_FLAG_INIT_FILEDATA)) {
         if (s->alproto != ALPROTO_UNKNOWN &&
@@ -2104,7 +2177,6 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
                     AppProtoToString(s->alproto));
             SCReturnInt(0);
         }
-        #if ENABLE_HTTP
         if (s->alproto == ALPROTO_HTTP2 && (s->file_flags & FILE_SIG_NEED_FILENAME)) {
             SCLogError("protocol HTTP2 doesn't support file name matching");
             SCReturnInt(0);
@@ -2113,7 +2185,6 @@ static int SigValidate(DetectEngineCtx *de_ctx, Signature *s)
         if (s->alproto == ALPROTO_HTTP1 || s->alproto == ALPROTO_HTTP) {
             AppLayerHtpNeedFileInspection();
         }
-        #endif
     }
 
     SCReturnInt(1);
@@ -2243,6 +2314,8 @@ static Signature *SigInitHelper(DetectEngineCtx *de_ctx, const char *sigstr,
     for (uint32_t x = 0; x < sig->init_data->buffer_index; x++) {
         DetectEngineBufferRunSetupCallback(de_ctx, sig->init_data->buffers[x].id, sig);
     }
+
+    SigSetupPrefilter(de_ctx, sig);
 
     /* validate signature, SigValidate will report the error reason */
     if (SigValidate(de_ctx, sig) == 0) {

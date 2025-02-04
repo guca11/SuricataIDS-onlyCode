@@ -43,9 +43,7 @@
 #include "detect-engine-mpm.h"
 #include "detect-reference.h"
 #include "app-layer-parser.h"
-#if ENABLE_DNP3
 #include "app-layer-dnp3.h"
-#endif
 #include "app-layer-htp.h"
 #include "app-layer-htp-xff.h"
 #include "util-classification-config.h"
@@ -76,7 +74,7 @@ static int MetadataJson(ThreadVars *tv, OutputJsonThreadCtx *aft, const Packet *
     if (!aft->ctx->cfg.include_metadata) {
         EveAddMetadata(p, p->flow, js);
     }
-    OutputJsonBuilderBuffer(js, aft);
+    OutputJsonBuilderBuffer(tv, p, p->flow, js, aft);
 
     jb_free(js);
     return TM_ECODE_OK;
