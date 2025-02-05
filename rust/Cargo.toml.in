@@ -97,10 +97,7 @@ serde = { version = "=1.0.197" }
 serde_derive = { version = "1.0.197" }
 
 suricata-derive = { path = "./derive", version = "@PACKAGE_VERSION@" }
-#if you plan to build an image for aarch64 
-#suricata-lua-sys = { git = "https://github.com/guca11/suricata-lua-sys-aarch64", rev = "b5dc88e4a32cc9f8e279d0da6e3fcd9acdb90177" }
-#if you need to build an image for x86
-suricata-lua-sys = { version = "0.1.0-alpha.1" }
+suricata-lua-sys = { git = "https://github.com/guca11/suricata-lua-sys-aarch64", rev = "6c44de3ec1a2c438e35d0c8ecefb7b19d6fee003" }
 
 [dev-dependencies]
 test-case = "~3.3.1"
