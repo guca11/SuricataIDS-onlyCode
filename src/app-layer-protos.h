@@ -184,7 +184,7 @@ static inline bool AppProtoEquals(AppProto sigproto, AppProto alproto)
         case ALPROTO_HTTP:
             return (alproto == ALPROTO_HTTP1) || (alproto == ALPROTO_HTTP2);
         #endif
-        #if ENABLE_DCERPC
+        #if ENABLE_DCERPC && ENABLE_SMB
         case ALPROTO_DCERPC:
             return (alproto == ALPROTO_SMB);
         #endif
